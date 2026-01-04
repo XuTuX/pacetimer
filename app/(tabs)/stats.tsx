@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -159,29 +160,60 @@ export default function StatsScreen() {
                             </View>
                         </View>
 
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.weeklyScroll} contentContainerStyle={styles.weeklyScrollContent}>
-                            {weeklyStats.map((day, index) => (
-                                <View key={index} style={[styles.dayCard, day.hasData && styles.dayCardActive]}>
-                                    <Text style={[styles.dayLabel, day.hasData && styles.dayLabelActive]}>{day.dayLabel}</Text>
-                                    <Text style={[styles.dayDate, day.hasData && styles.dayCardTextActive]}>{day.dateLabel}</Text>
-                                    <View style={styles.dayDivider} />
-                                    {day.hasData ? (
-                                        <>
-                                            <View style={styles.dayStat}>
-                                                <Text style={styles.dayStatValue}>{Math.round(day.totalTime / 60)}</Text>
-                                                <Text style={styles.dayStatUnit}>분</Text>
+                        <View style={styles.weeklyWidget}>
+                            <View style={styles.weeklyDaysRow}>
+                                {weeklyStats.map((day, index) => {
+                                    const maxTime = Math.max(...weeklyStats.map(d => d.totalTime), 60 * 60); // min 1hr for scale
+                                    const barHeight = day.hasData ? Math.max((day.totalTime / maxTime) * 100, 12) : 0;
+                                    const isToday = index === weeklyStats.length - 1 && weekOffset === 0;
+
+                                    return (
+                                        <View key={index} style={styles.dayColumn}>
+                                            <View style={styles.barContainer}>
+                                                {day.hasData ? (
+                                                    <LinearGradient
+                                                        colors={isToday ? ['#818CF8', '#6366F1'] : ['#C7D2FE', '#818CF8']}
+                                                        style={[styles.activeBar, { height: `${barHeight}%` }]}
+                                                    />
+                                                ) : (
+                                                    <View style={styles.emptyDot} />
+                                                )}
+                                                {isToday && <View style={styles.todayPointer} />}
                                             </View>
-                                            <View style={styles.dayStat}>
-                                                <Text style={styles.dayStatValue}>{day.totalQuestions}</Text>
-                                                <Text style={styles.dayStatUnit}>문항</Text>
-                                            </View>
-                                        </>
-                                    ) : (
-                                        <View style={styles.dayEmpty}><View style={styles.dayDash} /></View>
-                                    )}
+                                            <Text style={[styles.dayLabel, day.hasData && styles.dayLabelActive, isToday && { color: COLORS.primary, fontWeight: '900' }]}>{day.dayLabel}</Text>
+                                            <Text style={styles.dayDateTiny}>{day.dateLabel.split('.')[1]}</Text>
+                                        </View>
+                                    );
+                                })}
+                            </View>
+
+                            <LinearGradient
+                                colors={['#F8FAFC', '#F1F5F9']}
+                                style={styles.weeklySummaryFooter}
+                            >
+                                <View style={styles.summaryItem}>
+                                    <View style={styles.summaryHeaderRow}>
+                                        <Ionicons name="flash" size={12} color={COLORS.primary} />
+                                        <Text style={styles.summaryLabel}>WEEKLY INSIGHT</Text>
+                                    </View>
+                                    <View style={styles.summaryRow}>
+                                        <View style={styles.summaryGroup}>
+                                            <Text style={styles.summaryValue}>
+                                                {Math.floor(weeklyStats.reduce((sum, d) => sum + d.totalTime, 0) / 60)}
+                                            </Text>
+                                            <Text style={styles.summaryUnit}>분</Text>
+                                        </View>
+                                        <View style={styles.summarySpace} />
+                                        <View style={styles.summaryGroup}>
+                                            <Text style={styles.summaryValue}>
+                                                {weeklyStats.reduce((sum, d) => sum + d.totalQuestions, 0)}
+                                            </Text>
+                                            <Text style={styles.summaryUnit}>문항</Text>
+                                        </View>
+                                    </View>
                                 </View>
-                            ))}
-                        </ScrollView>
+                            </LinearGradient>
+                        </View>
                     </View>
 
                     {/* 리스트 헤더 타이틀 추가로 더 심플하게 구분 */}
@@ -291,20 +323,28 @@ const styles = StyleSheet.create({
     weekNav: { flexDirection: 'row', gap: 6 },
     navBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: COLORS.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border },
     navBtnDisabled: { opacity: 0.2 },
-    weeklyScroll: { flexGrow: 0 },
-    weeklyScrollContent: { paddingRight: 24 },
-    dayCard: { width: 68, height: 100, backgroundColor: COLORS.surface, borderRadius: 16, marginRight: 8, padding: 8, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border, opacity: 0.5 },
-    dayCardActive: { opacity: 1, borderColor: COLORS.primary },
-    dayLabel: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
-    dayLabelActive: { color: COLORS.primary },
-    dayDate: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600', marginBottom: 4 },
-    dayCardTextActive: { color: COLORS.text },
-    dayDivider: { width: 16, height: 1.5, backgroundColor: COLORS.border, marginVertical: 6 },
-    dayStat: { flexDirection: 'row', alignItems: 'baseline' },
-    dayStatValue: { fontSize: 13, fontWeight: '800', color: COLORS.text },
-    dayStatUnit: { fontSize: 9, color: COLORS.textMuted, marginLeft: 1 },
-    dayEmpty: { flex: 1, justifyContent: 'center' },
-    dayDash: { width: 4, height: 4, borderRadius: 2, backgroundColor: COLORS.border },
+
+    // Weekly Widget
+    weeklyWidget: { backgroundColor: COLORS.surface, borderRadius: 28, padding: 4, borderWidth: 1, borderColor: 'rgba(226, 232, 240, 0.6)', shadowColor: '#6366F1', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.05, shadowRadius: 20, elevation: 4 },
+    weeklyDaysRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 110, paddingHorizontal: 16, marginBottom: 8, marginTop: 12 },
+    dayColumn: { alignItems: 'center', flex: 1 },
+    barContainer: { height: 70, width: '100%', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 12 },
+    activeBar: { width: 14, borderRadius: 7, minHeight: 6 },
+    emptyDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#EDF2F7' },
+    todayPointer: { position: 'absolute', bottom: -10, width: 4, height: 4, borderRadius: 2, backgroundColor: COLORS.primary },
+    dayLabel: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted, marginBottom: 1 },
+    dayLabelActive: { color: '#475569' },
+    dayDateTiny: { fontSize: 10, color: COLORS.textMuted, opacity: 0.5, fontWeight: '600' },
+
+    weeklySummaryFooter: { padding: 20, borderRadius: 24, marginTop: 4 },
+    summaryItem: {},
+    summaryHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8 },
+    summaryLabel: { fontSize: 10, fontWeight: '900', color: COLORS.primary, letterSpacing: 1 },
+    summaryRow: { flexDirection: 'row', alignItems: 'center' },
+    summaryGroup: { flexDirection: 'row', alignItems: 'baseline' },
+    summaryValue: { fontSize: 24, fontWeight: '900', color: COLORS.text, letterSpacing: -0.5 },
+    summaryUnit: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted, marginLeft: 2 },
+    summarySpace: { width: 24 },
 
     // Modal / Screen
     modalFull: { flex: 1, backgroundColor: COLORS.bg },
