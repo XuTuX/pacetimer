@@ -18,6 +18,20 @@ export type ExamSession = {
 };
 
 const STORAGE_KEY = '@pacetime_sessions';
+const CATEGORY_KEY = '@pacetime_categories';
+
+export type Category = {
+    id: string;
+    name: string;
+    isDefault?: boolean;
+};
+
+export const DEFAULT_CATEGORIES: Category[] = [
+    { id: "lang", name: "언어논리", isDefault: true },
+    { id: "data", name: "자료해석", isDefault: true },
+    { id: "situ", name: "상황판단", isDefault: true },
+    { id: "const", name: "헌법", isDefault: true },
+];
 
 export const saveSession = async (session: ExamSession) => {
     try {
@@ -58,5 +72,23 @@ export const deleteSession = async (id: string) => {
         }
     } catch (error) {
         console.error('Failed to delete session:', error);
+    }
+};
+
+export const saveCategories = async (categories: Category[]) => {
+    try {
+        await AsyncStorage.setItem(CATEGORY_KEY, JSON.stringify(categories));
+    } catch (error) {
+        console.error('Failed to save categories:', error);
+    }
+};
+
+export const getCategories = async (): Promise<Category[]> => {
+    try {
+        const data = await AsyncStorage.getItem(CATEGORY_KEY);
+        return data ? JSON.parse(data) : DEFAULT_CATEGORIES;
+    } catch (error) {
+        console.error('Failed to get categories:', error);
+        return DEFAULT_CATEGORIES;
     }
 };

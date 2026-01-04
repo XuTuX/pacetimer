@@ -3,7 +3,6 @@ import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-    Dimensions,
     Modal,
     ScrollView,
     StatusBar,
@@ -12,10 +11,8 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { deleteSession, ExamSession, getSessions } from '../../lib/storage';
-
-const { width } = Dimensions.get('window');
 
 const COLORS = {
     bg: "#F8FAFC",
@@ -35,6 +32,7 @@ export default function StatsScreen() {
     const [filterCategory, setFilterCategory] = useState<string | null>(null);
     const [selectedSession, setSelectedSession] = useState<ExamSession | null>(null);
     const [lapSortMode, setLapSortMode] = useState<"number" | "slowest" | "fastest">("number");
+    const insets = useSafeAreaInsets();
 
     const loadSessions = useCallback(async () => {
         const data = await getSessions();
@@ -98,7 +96,7 @@ export default function StatsScreen() {
     }, [selectedSession, lapSortMode]);
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             <StatusBar barStyle="dark-content" />
             <View style={styles.header}>
                 <Text style={styles.title}>기록 분석</Text>
@@ -125,7 +123,11 @@ export default function StatsScreen() {
                 </ScrollView>
             </View>
 
-            <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+            <ScrollView
+                style={styles.list}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 40 + insets.bottom }}
+            >
                 {sections.length === 0 ? (
                     <View style={styles.emptyState}>
                         <Ionicons name="document-text-outline" size={64} color={COLORS.border} />
@@ -170,7 +172,6 @@ export default function StatsScreen() {
                         </View>
                     ))
                 )}
-                <View style={{ height: 40 }} />
             </ScrollView>
 
             <Modal visible={!!selectedSession} animationType="slide">
@@ -185,7 +186,10 @@ export default function StatsScreen() {
                                 <View style={{ width: 40 }} />
                             </View>
 
-                            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalScroll}>
+                            <ScrollView
+                                showsVerticalScrollIndicator={false}
+                                contentContainerStyle={[styles.modalScroll, { paddingBottom: 40 + insets.bottom }]}
+                            >
                                 <View style={styles.modalHero}>
                                     <Text style={styles.modalHeroLabel}>{selectedSession.categoryName}</Text>
                                     <Text style={styles.modalHeroDate}>{formatDate(selectedSession.date)}</Text>
@@ -243,7 +247,6 @@ export default function StatsScreen() {
                                         </View>
                                     );
                                 })}
-                                <View style={{ height: 40 }} />
                             </ScrollView>
                         </SafeAreaView>
                     </View>
@@ -290,8 +293,8 @@ const styles = StyleSheet.create({
     modalHero: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
     modalHeroLabel: { fontSize: 13, fontWeight: '800', color: COLORS.primary, backgroundColor: COLORS.primaryLight, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
     modalHeroDate: { fontSize: 14, color: COLORS.textMuted, fontWeight: '600' },
-    summaryGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 32 },
-    summaryBox: { flex: 1, height: 90, borderRadius: 20, padding: 12, marginRight: 8, justifyContent: 'center' },
+    summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 32 },
+    summaryBox: { width: '48%', minWidth: 140, height: 90, borderRadius: 20, padding: 12, marginBottom: 12, justifyContent: 'center' },
     summaryBoxLabel: { fontSize: 11, color: COLORS.textMuted, fontWeight: '700', marginBottom: 6 },
     summaryBoxVal: { fontSize: 15, color: COLORS.text, fontWeight: '800' },
     lapSectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },

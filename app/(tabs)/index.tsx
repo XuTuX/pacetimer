@@ -4,8 +4,10 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
     Alert,
     Dimensions,
+    FlatList,
     Modal,
     Platform,
+    Pressable,
     ScrollView,
     StatusBar,
     StyleSheet,
@@ -14,16 +16,13 @@ import {
     TouchableOpacity,
     View
 } from "react-native";
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { ExamSession, LapRecord, saveSession } from "../../lib/storage";
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Category, DEFAULT_CATEGORIES, ExamSession, LapRecord, getCategories, saveCategories, saveSession } from "../../lib/storage";
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 // --- Types ---
-type Category = {
-    id: string;
-    name: string;
-};
+// Category type is now imported from storage.ts
 
 const buildFallbackTitle = (categoryName: string) => {
     const now = new Date();
@@ -50,16 +49,17 @@ const COLORS = {
 
 export default function ExamScreen() {
     // --- Setup State ---
-    const [categories] = useState<Category[]>([
-        { id: "lang", name: "언어논리" },
-        { id: "data", name: "자료해석" },
-        { id: "situ", name: "상황판단" },
-        { id: "const", name: "헌법" },
-    ]);
+    const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
     const [selectedId, setSelectedId] = useState<string>("lang");
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isAdding, setIsAdding] = useState(false);
+    const [newCategoryName, setNewCategoryName] = useState("");
+    const insets = useSafeAreaInsets();
+    const dropdownWidth = Math.min(210, width - 48);
+    const dropdownMaxHeight = Math.max(260, height - insets.top - insets.bottom - 120);
 
     const selectedCategory = useMemo(() =>
-        categories.find((c) => c.id === selectedId) || categories[0]
+        categories.find((c) => c.id === selectedId) || categories[0] || DEFAULT_CATEGORIES[0]
         , [categories, selectedId]);
 
     const [viewMode, setViewMode] = useState<"setup" | "running" | "result">("setup");
@@ -136,6 +136,41 @@ export default function ExamScreen() {
         }
     };
 
+    const addCategory = () => {
+        if (!newCategoryName.trim()) return;
+        const newCat: Category = {
+            id: Date.now().toString(),
+            name: newCategoryName.trim(),
+            isDefault: false
+        };
+        const updated = [...categories, newCat];
+        setCategories(updated);
+        saveCategories(updated);
+        setNewCategoryName("");
+        setIsAdding(false);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    };
+
+    const deleteCategory = (id: string) => {
+        const cat = categories.find(c => c.id === id);
+        if (cat?.isDefault) return;
+
+        Alert.alert("카테고리 삭제", `'${cat?.name}' 카테고리를 삭제할까요?`, [
+            { text: "취소", style: "cancel" },
+            {
+                text: "삭제",
+                style: "destructive",
+                onPress: () => {
+                    const updated = categories.filter(c => c.id !== id);
+                    setCategories(updated);
+                    saveCategories(updated);
+                    if (selectedId === id) setSelectedId(updated[0]?.id || "lang");
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                }
+            }
+        ]);
+    };
+
     const stopExamManual = () => {
         Alert.alert(
             "시험 종료",
@@ -194,6 +229,14 @@ export default function ExamScreen() {
     };
 
     useEffect(() => {
+        const load = async () => {
+            const saved = await getCategories();
+            setCategories(saved);
+        };
+        load();
+    }, []);
+
+    useEffect(() => {
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
         };
@@ -221,29 +264,97 @@ export default function ExamScreen() {
     const renderSetup = () => (
         <SafeAreaView style={styles.screen} edges={['top']}>
             <StatusBar barStyle="dark-content" />
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <ScrollView
+                contentContainerStyle={[styles.scrollContent, { paddingBottom: 40 + insets.bottom }]}
+                showsVerticalScrollIndicator={false}
+            >
                 <View style={styles.header}>
                     <Text style={styles.headerSubtitle}>심플하게, 목표에 집중하세요</Text>
                     <Text style={styles.headerTitle}>PaceTime</Text>
                 </View>
 
-                {/* Simplified Category Selector (Tabs style) */}
-                <View style={styles.categoryTabRow}>
-                    {categories.map((cat) => (
-                        <TouchableOpacity
-                            key={cat.id}
-                            style={[styles.categoryTab, selectedId === cat.id && styles.categoryTabActive]}
-                            onPress={() => {
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                setSelectedId(cat.id);
-                            }}
-                        >
-                            <Text style={[styles.categoryTabText, selectedId === cat.id && styles.categoryTabTextActive]}>
-                                {cat.name}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
+                {/* Category Trigger */}
+                <TouchableOpacity
+                    style={styles.trigger}
+                    onPress={() => setIsMenuOpen(true)}
+                    activeOpacity={0.6}
+                >
+                    <Text style={styles.triggerText}>{selectedCategory.name}</Text>
+                    <View style={styles.iconCircle}>
+                        <Ionicons name="chevron-down" size={14} color={COLORS.textMuted} />
+                    </View>
+                </TouchableOpacity>
+
+                {/* Category Menu Modal */}
+                <Modal visible={isMenuOpen} transparent animationType="fade">
+                    <Pressable style={styles.menuOverlay} onPress={() => {
+                        setIsMenuOpen(false);
+                        setIsAdding(false);
+                    }}>
+                        <View style={[styles.menuContainer, { width: dropdownWidth, maxHeight: dropdownMaxHeight }]}>
+                            <View style={styles.menuShadow}>
+                                <View style={[styles.menu, { width: dropdownWidth, maxHeight: dropdownMaxHeight }]}>
+                                    <FlatList
+                                        data={categories}
+                                        keyExtractor={(item) => item.id}
+                                        keyboardShouldPersistTaps="handled"
+                                        renderItem={({ item }) => {
+                                            const isActive = item.id === selectedId;
+                                            return (
+                                                <View style={styles.menuItem}>
+                                                    <TouchableOpacity
+                                                        style={[styles.itemBtn, isActive && styles.activeItemBtn]}
+                                                        onPress={() => {
+                                                            setSelectedId(item.id);
+                                                            setIsMenuOpen(false);
+                                                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                                        }}
+                                                    >
+                                                        <Text style={[styles.itemText, isActive && styles.activeItemText]}>
+                                                            {item.name}
+                                                        </Text>
+                                                        {isActive && <View style={styles.activeDot} />}
+                                                    </TouchableOpacity>
+
+                                                    {!item.isDefault && (
+                                                        <TouchableOpacity
+                                                            style={styles.deleteArea}
+                                                            onPress={() => deleteCategory(item.id)}
+                                                        >
+                                                            <Ionicons name="close" size={14} color="#E5E7EB" />
+                                                        </TouchableOpacity>
+                                                    )}
+                                                </View>
+                                            );
+                                        }}
+                                        ListFooterComponent={
+                                            isAdding ? (
+                                                <View style={styles.addCategoryInputBox}>
+                                                    <TextInput
+                                                        style={styles.addInput}
+                                                        placeholder="새 카테고리"
+                                                        value={newCategoryName}
+                                                        onChangeText={setNewCategoryName}
+                                                        autoFocus
+                                                        onSubmitEditing={addCategory}
+                                                    />
+                                                    <TouchableOpacity onPress={addCategory}>
+                                                        <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
+                                                    </TouchableOpacity>
+                                                </View>
+                                            ) : (
+                                                <TouchableOpacity style={styles.addCategoryBtn} onPress={() => setIsAdding(true)}>
+                                                    <Ionicons name="add" size={16} color={COLORS.textMuted} />
+                                                    <Text style={styles.addCategoryBtnText}>새 카테고리 추가</Text>
+                                                </TouchableOpacity>
+                                            )
+                                        }
+                                    />
+                                </View>
+                            </View>
+                        </View>
+                    </Pressable>
+                </Modal>
 
                 {/* Title Input */}
                 <View style={styles.simpleCard}>
@@ -317,7 +428,6 @@ export default function ExamScreen() {
                 <TouchableOpacity style={styles.primaryActionBtn} onPress={startExam} activeOpacity={0.8}>
                     <Text style={styles.primaryActionText}>집중 기록 시작</Text>
                 </TouchableOpacity>
-                <View style={{ height: 40 }} />
             </ScrollView>
         </SafeAreaView>
     );
@@ -330,26 +440,28 @@ export default function ExamScreen() {
 
         return (
             <View style={styles.runningOverlay}>
-                <StatusBar barStyle="light-content" />
+                <StatusBar barStyle="dark-content" />
                 <TouchableOpacity style={styles.runningTouchArea} onPress={nextQuestion} activeOpacity={1}>
                     <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
                         <View style={styles.runningHeaderCompact}>
-                            <Text style={styles.runningTitleLabel}>{selectedCategory.name}</Text>
-                            <Text style={styles.runningMainTitle} numberOfLines={1}>{displayTitle}</Text>
+                            <View style={styles.runningTitleGroup}>
+                                <Text style={styles.runningTitleLabel}>{selectedCategory.name}</Text>
+                                <Text style={styles.runningMainTitle} numberOfLines={1}>{displayTitle}</Text>
+                            </View>
                             <TouchableOpacity style={styles.runningCloseBtn} onPress={stopExamManual}>
-                                <Ionicons name="close" size={24} color={COLORS.white} />
+                                <Ionicons name="close" size={24} color={COLORS.text} />
                             </TouchableOpacity>
                         </View>
 
                         <View style={styles.runningCenter}>
                             <View style={styles.runningQBadge}>
                                 <Text style={styles.runningQText}>{currentQuestion}</Text>
-                                <Text style={styles.runningQTotal}>/ {totalQuestions}</Text>
+                                <Text style={styles.runningQTotal}>/ {totalQuestions}문항</Text>
                             </View>
 
                             <View style={styles.runningTimerSection}>
                                 <View style={styles.lapTimerBox}>
-                                    <Text style={styles.lapTimerLabel}>현재 문항</Text>
+                                    <Text style={styles.lapTimerLabel}>이 문제에서</Text>
                                     <Text style={styles.lapTimerValue}>{formatDigital(currentLapSec)}</Text>
                                 </View>
 
@@ -361,8 +473,10 @@ export default function ExamScreen() {
                         </View>
 
                         <View style={styles.runningFooterCompact}>
-                            <Ionicons name="finger-print" size={28} color={COLORS.primary} style={{ marginBottom: 12 }} />
-                            <Text style={styles.runningTapHint}>화면을 터치해서 다음 문제로</Text>
+                            <View style={styles.tapIndicator}>
+                                <Ionicons name="finger-print" size={24} color={COLORS.primary} style={{ marginBottom: 8 }} />
+                                <Text style={styles.runningTapHint}>화면을 터치하여 다음 문항으로</Text>
+                            </View>
                         </View>
                     </SafeAreaView>
                 </TouchableOpacity>
@@ -374,7 +488,7 @@ export default function ExamScreen() {
         <View style={styles.resultOverlay}>
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
                 <StatusBar barStyle="dark-content" />
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 + insets.bottom }}>
                     <View style={styles.resultTop}>
                         <Text style={styles.resultTitleMain}>기록 완료</Text>
                         <Text style={styles.resultSubtitleMain}>오늘도 수고하셨습니다.</Text>
@@ -444,7 +558,7 @@ export default function ExamScreen() {
                     </View>
                 </ScrollView>
 
-                <View style={styles.resultActions}>
+                <View style={[styles.resultActions, { paddingBottom: (Platform.OS === 'ios' ? 40 : 24) + insets.bottom }]}>
                     <TouchableOpacity
                         style={styles.doneBtn}
                         onPress={() => {
@@ -479,16 +593,31 @@ export default function ExamScreen() {
 const styles = StyleSheet.create({
     screen: { flex: 1, backgroundColor: COLORS.bg },
     scrollContent: { padding: 24 },
-    header: { marginTop: 40, marginBottom: 32 },
+    header: { marginTop: 40, marginBottom: 24 },
     headerSubtitle: { fontSize: 14, color: COLORS.textMuted, fontWeight: "600", marginBottom: 4 },
     headerTitle: { fontSize: 32, fontWeight: "900", color: COLORS.text, letterSpacing: -1 },
 
-    // Category Tabs
-    categoryTabRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24, backgroundColor: '#EDF0F5', padding: 4, borderRadius: 16 },
-    categoryTab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 12 },
-    categoryTabActive: { backgroundColor: COLORS.surface, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
-    categoryTabText: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted },
-    categoryTabTextActive: { color: COLORS.primary },
+    // Category Selector
+    trigger: { flexDirection: "row", alignItems: "center", alignSelf: "flex-start", marginBottom: 32 },
+    triggerText: { fontSize: 22, fontWeight: "800", color: COLORS.text, letterSpacing: -0.8 },
+    iconCircle: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#E2E8F0", marginLeft: 8, alignItems: "center", justifyContent: "center" },
+
+    menuOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', paddingHorizontal: 24 },
+    menuContainer: { position: 'absolute', top: 180, left: 24 },
+    menuShadow: { shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 8 },
+    menu: { width: 210, backgroundColor: COLORS.surface, borderRadius: 20, padding: 8, borderWidth: 1, borderColor: COLORS.border },
+    menuItem: { flexDirection: "row", alignItems: "center" },
+    itemBtn: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12, paddingHorizontal: 14, borderRadius: 14 },
+    activeItemBtn: { backgroundColor: COLORS.primaryLight },
+    itemText: { fontSize: 15, fontWeight: "600", color: COLORS.textMuted },
+    activeItemText: { color: COLORS.primary, fontWeight: "700" },
+    activeDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: COLORS.primary },
+    deleteArea: { padding: 10 },
+
+    addCategoryBtn: { flexDirection: 'row', alignItems: 'center', padding: 12, marginTop: 4, borderTopWidth: 1, borderTopColor: COLORS.border },
+    addCategoryBtnText: { fontSize: 14, color: COLORS.textMuted, marginLeft: 8, fontWeight: '600' },
+    addCategoryInputBox: { flexDirection: 'row', alignItems: 'center', padding: 8, borderTopWidth: 1, borderTopColor: COLORS.border },
+    addInput: { flex: 1, height: 40, fontSize: 14, color: COLORS.text, fontWeight: '600' },
 
     // Simple Card
     simpleCard: { backgroundColor: COLORS.surface, borderRadius: 24, padding: 20, marginBottom: 20, borderWidth: 1, borderColor: COLORS.border },
@@ -511,26 +640,32 @@ const styles = StyleSheet.create({
     primaryActionBtn: { backgroundColor: COLORS.primary, paddingVertical: 20, borderRadius: 24, alignItems: "center", justifyContent: "center", shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 8 },
     primaryActionText: { color: COLORS.white, fontSize: 17, fontWeight: "800" },
 
-    // Running View
-    runningOverlay: { flex: 1, backgroundColor: COLORS.darkBg },
+    // Running View (Refined Light Mode)
+    runningOverlay: { flex: 1, backgroundColor: '#F1F5F9' },
     runningTouchArea: { flex: 1 },
     runningHeaderCompact: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingTop: 12, paddingBottom: 20 },
-    runningTitleLabel: { color: COLORS.primary, fontWeight: '800', fontSize: 12, marginRight: 12, backgroundColor: 'rgba(99, 102, 241, 0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-    runningMainTitle: { flex: 1, color: 'rgba(255,255,255,0.6)', fontSize: 14, fontWeight: '600' },
-    runningCloseBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+    runningTitleGroup: { flex: 1, flexDirection: 'row', alignItems: 'center' },
+    runningTitleLabel: { color: COLORS.primary, fontWeight: '800', fontSize: 12, marginRight: 12, backgroundColor: COLORS.primaryLight, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+    runningMainTitle: { flex: 1, color: COLORS.textMuted, fontSize: 14, fontWeight: '600' },
+    runningCloseBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.surface, borderRadius: 20 },
+
     runningCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    runningQBadge: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 40 },
-    runningQText: { fontSize: 100, fontWeight: '900', color: COLORS.white, letterSpacing: -2 },
-    runningQTotal: { fontSize: 24, fontWeight: '600', color: 'rgba(255,255,255,0.3)', marginLeft: 8 },
-    runningTimerSection: { alignItems: 'center' },
-    lapTimerBox: { alignItems: 'center', marginBottom: 40, backgroundColor: 'rgba(255,255,255,0.05)', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 20 },
-    lapTimerLabel: { fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: '700', marginBottom: 4 },
-    lapTimerValue: { fontSize: 32, fontWeight: '800', color: COLORS.primary, fontVariant: ['tabular-nums'] },
+    runningQBadge: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 32 },
+    runningQText: { fontSize: 110, fontWeight: '900', color: COLORS.text, letterSpacing: -4 },
+    runningQTotal: { fontSize: 20, fontWeight: '700', color: COLORS.textMuted, marginLeft: 8 },
+
+    runningTimerSection: { alignItems: 'center', width: '100%' },
+    lapTimerBox: { alignItems: 'center', marginBottom: 32, backgroundColor: COLORS.surface, paddingHorizontal: 32, paddingVertical: 16, borderRadius: 24, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
+    lapTimerLabel: { fontSize: 13, color: COLORS.textMuted, fontWeight: '700', marginBottom: 4 },
+    lapTimerValue: { fontSize: 36, fontWeight: '800', color: COLORS.primary, fontVariant: ['tabular-nums'] },
+
     mainTimerBox: { alignItems: 'center' },
-    mainTimerValue: { fontSize: 44, fontWeight: '800', color: COLORS.white, fontVariant: ['tabular-nums'] },
-    mainTimerLabel: { fontSize: 12, color: 'rgba(255,255,255,0.4)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginTop: 4 },
-    runningFooterCompact: { alignItems: 'center', paddingBottom: 40 },
-    runningTapHint: { fontSize: 13, color: 'rgba(255,255,255,0.3)', fontWeight: '500' },
+    mainTimerValue: { fontSize: 48, fontWeight: '800', color: COLORS.text, fontVariant: ['tabular-nums'], opacity: 0.8 },
+    mainTimerLabel: { fontSize: 13, color: COLORS.textMuted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginTop: 4 },
+
+    runningFooterCompact: { alignItems: 'center', paddingBottom: 60 },
+    tapIndicator: { alignItems: 'center' },
+    runningTapHint: { fontSize: 14, color: COLORS.textMuted, fontWeight: '600' },
 
     // Result View
     resultOverlay: { flex: 1, backgroundColor: COLORS.bg },
