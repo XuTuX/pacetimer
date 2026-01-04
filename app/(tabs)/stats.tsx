@@ -11,27 +11,16 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import AppHeader from '../../components/AppHeader';
+import SessionDetail from '../../components/SessionDetail';
 import { deleteSession, ExamSession, getSessions } from '../../lib/storage';
-
-const COLORS = {
-    bg: "#F8FAFC",
-    surface: "#FFFFFF",
-    text: "#0F172A",
-    textMuted: "#64748B",
-    primary: "#6366F1",
-    primaryLight: "#EEF2FF",
-    border: "#E2E8F0",
-    accent: "#F43F5E",
-    success: "#10B981",
-    white: "#FFFFFF",
-};
+import { COLORS } from '../../lib/theme';
 
 export default function StatsScreen() {
     const [sessions, setSessions] = useState<ExamSession[]>([]);
     const [filterCategory, setFilterCategory] = useState<string | null>(null);
     const [selectedSession, setSelectedSession] = useState<ExamSession | null>(null);
-    const [lapSortMode, setLapSortMode] = useState<"number" | "slowest" | "fastest">("number");
     const insets = useSafeAreaInsets();
 
     const loadSessions = useCallback(async () => {
@@ -79,29 +68,10 @@ export default function StatsScreen() {
 
     const sections = Object.keys(groupedData).sort((a, b) => b.localeCompare(a));
 
-    const analysis = useMemo(() => {
-        if (!selectedSession) return null;
-        const laps = selectedSession.laps;
-        const targetPaceSec = selectedSession.targetSeconds / selectedSession.totalQuestions;
-        const efficientLaps = laps.filter(l => l.duration <= targetPaceSec).length;
-        return { targetPaceSec, efficientLaps };
-    }, [selectedSession]);
-
-    const sortedLaps = useMemo(() => {
-        if (!selectedSession) return [];
-        const copy = [...selectedSession.laps];
-        if (lapSortMode === 'slowest') return copy.sort((a, b) => b.duration - a.duration);
-        if (lapSortMode === 'fastest') return copy.sort((a, b) => a.duration - b.duration);
-        return copy.sort((a, b) => a.questionNo - b.questionNo);
-    }, [selectedSession, lapSortMode]);
-
     return (
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             <StatusBar barStyle="dark-content" />
-            <View style={styles.header}>
-                <Text style={styles.title}>기록 분석</Text>
-                <Text style={styles.subtitle}>꾸준한 노력이 실력을 만듭니다.</Text>
-            </View>
+            <AppHeader />
 
             <View style={styles.filterBarContainer}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar} contentContainerStyle={styles.filterContent}>
@@ -126,7 +96,7 @@ export default function StatsScreen() {
             <ScrollView
                 style={styles.list}
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 40 + insets.bottom }}
+                contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
             >
                 {sections.length === 0 ? (
                     <View style={styles.emptyState}>
@@ -176,80 +146,27 @@ export default function StatsScreen() {
 
             <Modal visible={!!selectedSession} animationType="slide">
                 {selectedSession && (
-                    <View style={styles.modalFull}>
-                        <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-                            <View style={styles.modalHeaderCompact}>
-                                <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setSelectedSession(null)}>
-                                    <Ionicons name="chevron-down" size={28} color={COLORS.text} />
-                                </TouchableOpacity>
-                                <Text style={styles.modalHeaderText} numberOfLines={1}>{selectedSession.title}</Text>
-                                <View style={{ width: 40 }} />
-                            </View>
-
-                            <ScrollView
-                                showsVerticalScrollIndicator={false}
-                                contentContainerStyle={[styles.modalScroll, { paddingBottom: 40 + insets.bottom }]}
-                            >
-                                <View style={styles.modalHero}>
-                                    <Text style={styles.modalHeroLabel}>{selectedSession.categoryName}</Text>
-                                    <Text style={styles.modalHeroDate}>{formatDate(selectedSession.date)}</Text>
+                    <SafeAreaProvider>
+                        <View style={styles.modalFull}>
+                            <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+                                <View style={styles.modalHeaderCompact}>
+                                    <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setSelectedSession(null)}>
+                                        <Ionicons name="chevron-down" size={28} color={COLORS.text} />
+                                    </TouchableOpacity>
+                                    <Text style={styles.modalHeaderText} numberOfLines={1}>{selectedSession.title}</Text>
+                                    <View style={{ width: 40 }} />
                                 </View>
 
-                                <View style={styles.summaryGrid}>
-                                    <View style={[styles.summaryBox, { backgroundColor: COLORS.primaryLight }]}>
-                                        <Text style={styles.summaryBoxLabel}>소요 시간</Text>
-                                        <Text style={styles.summaryBoxVal}>{formatTime(selectedSession.totalSeconds)}</Text>
-                                    </View>
-                                    <View style={[styles.summaryBox, { backgroundColor: '#ECFDF5' }]}>
-                                        <Text style={styles.summaryBoxLabel}>평균 페이스</Text>
-                                        <Text style={styles.summaryBoxVal}>{formatTime(Math.floor(selectedSession.totalSeconds / selectedSession.totalQuestions))}</Text>
-                                    </View>
-                                    {analysis && (
-                                        <View style={[styles.summaryBox, { backgroundColor: '#FDF2F8' }]}>
-                                            <Text style={styles.summaryBoxLabel}>목표 내 달성</Text>
-                                            <Text style={styles.summaryBoxVal}>{analysis.efficientLaps}문항</Text>
-                                        </View>
-                                    )}
-                                </View>
-
-                                <View style={styles.lapSectionHeader}>
-                                    <Text style={styles.lapSectionTitle}>문항별 상세 기록</Text>
-                                    <View style={styles.sortToggleSmall}>
-                                        <TouchableOpacity
-                                            style={[styles.sortToggleItem, lapSortMode === 'number' && styles.sortToggleItemActive]}
-                                            onPress={() => setLapSortMode('number')}
-                                        >
-                                            <Text style={[styles.sortToggleItemText, lapSortMode === 'number' && styles.sortToggleItemTextActive]}>번호순</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            style={[styles.sortToggleItem, lapSortMode === 'slowest' && styles.sortToggleItemActive]}
-                                            onPress={() => setLapSortMode('slowest')}
-                                        >
-                                            <Text style={[styles.sortToggleItemText, lapSortMode === 'slowest' && styles.sortToggleItemTextActive]}>느린순</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-
-                                {sortedLaps.map((lap) => {
-                                    const isEfficient = analysis && lap.duration <= analysis.targetPaceSec;
-                                    const isTimeSink = analysis && lap.duration > analysis.targetPaceSec * 1.5;
-                                    return (
-                                        <View key={lap.questionNo} style={styles.lapItemRow}>
-                                            <View style={styles.lapItemNo}>
-                                                <Text style={styles.lapItemNoText}>{lap.questionNo}</Text>
-                                            </View>
-                                            <Text style={styles.lapItemTime}>{formatTime(lap.duration)}</Text>
-                                            {isTimeSink ? (
-                                                <View style={[styles.lapStatusBadge, { backgroundColor: '#FFF1F2' }]}><Text style={[styles.lapStatusBadgeText, { color: COLORS.accent }]}>지체</Text></View>
-                                            ) : isEfficient ? (
-                                                <View style={[styles.lapStatusBadge, { backgroundColor: '#ECFDF5' }]}><Text style={[styles.lapStatusBadgeText, { color: COLORS.success }]}>안정</Text></View>
-                                            ) : null}
-                                        </View>
-                                    );
-                                })}
-                            </ScrollView>
-                        </SafeAreaView>
-                    </View>
+                                <ScrollView
+                                    style={{ flex: 1 }}
+                                    showsVerticalScrollIndicator={false}
+                                    contentContainerStyle={[styles.modalScroll, { paddingBottom: 100 + insets.bottom }]}
+                                >
+                                    <SessionDetail session={selectedSession} />
+                                </ScrollView>
+                            </SafeAreaView>
+                        </View>
+                    </SafeAreaProvider>
                 )}
             </Modal>
         </SafeAreaView>
@@ -258,10 +175,7 @@ export default function StatsScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.bg },
-    header: { padding: 24, paddingBottom: 16 },
-    title: { fontSize: 32, fontWeight: '900', color: COLORS.text },
-    subtitle: { fontSize: 16, color: COLORS.textMuted, marginTop: 4, fontWeight: '500' },
-    filterBarContainer: { height: 50, marginBottom: 16 },
+    filterBarContainer: { height: 50, marginBottom: 16, marginTop: 8 },
     filterBar: { flex: 1 },
     filterContent: { paddingHorizontal: 24, paddingBottom: 8 },
     filterChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: COLORS.surface, marginRight: 8, borderWidth: 1, borderColor: COLORS.border, height: 40, justifyContent: 'center' },
@@ -290,24 +204,4 @@ const styles = StyleSheet.create({
     modalCloseBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
     modalHeaderText: { flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '800', color: COLORS.text },
     modalScroll: { padding: 24 },
-    modalHero: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-    modalHeroLabel: { fontSize: 13, fontWeight: '800', color: COLORS.primary, backgroundColor: COLORS.primaryLight, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
-    modalHeroDate: { fontSize: 14, color: COLORS.textMuted, fontWeight: '600' },
-    summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 32 },
-    summaryBox: { width: '48%', minWidth: 140, height: 90, borderRadius: 20, padding: 12, marginBottom: 12, justifyContent: 'center' },
-    summaryBoxLabel: { fontSize: 11, color: COLORS.textMuted, fontWeight: '700', marginBottom: 6 },
-    summaryBoxVal: { fontSize: 15, color: COLORS.text, fontWeight: '800' },
-    lapSectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-    lapSectionTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text },
-    sortToggleSmall: { flexDirection: 'row', backgroundColor: COLORS.border, padding: 3, borderRadius: 8 },
-    sortToggleItem: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6 },
-    sortToggleItemActive: { backgroundColor: COLORS.surface },
-    sortToggleItemText: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted },
-    sortToggleItemTextActive: { color: COLORS.text },
-    lapItemRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, borderRadius: 20, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: COLORS.border },
-    lapItemNo: { width: 32, height: 32, borderRadius: 10, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
-    lapItemNoText: { fontSize: 13, fontWeight: '800', color: COLORS.text },
-    lapItemTime: { flex: 1, fontSize: 15, fontWeight: '700', color: COLORS.text },
-    lapStatusBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-    lapStatusBadgeText: { fontSize: 11, fontWeight: '800' },
 });

@@ -18,7 +18,10 @@ import {
     View
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import AppHeader from '../../components/AppHeader';
+import SessionDetail from '../../components/SessionDetail';
 import { Category, DEFAULT_CATEGORIES, ExamSession, LapRecord, getCategories, saveCategories, saveSession } from "../../lib/storage";
+import { COLORS } from '../../lib/theme';
 
 const { width, height } = Dimensions.get('window');
 
@@ -31,21 +34,6 @@ const buildFallbackTitle = (categoryName: string) => {
     const m = String(now.getMonth() + 1).padStart(2, "0");
     const d = String(now.getDate()).padStart(2, "0");
     return `${y}.${m}.${d} ${categoryName}`;
-};
-
-// --- Colors ---
-const COLORS = {
-    bg: "#F8FAFC",
-    surface: "#FFFFFF",
-    text: "#0F172A",
-    textMuted: "#94A3B8", // Lighter mute for better hierarchy
-    primary: "#6366F1",
-    primaryLight: "#EEF2FF",
-    border: "#E2E8F0",
-    accent: "#F43F5E",
-    success: "#10B981",
-    darkBg: "#0F172A",
-    white: "#FFFFFF",
 };
 
 export default function ExamScreen() {
@@ -73,13 +61,13 @@ export default function ExamScreen() {
     const [totalSeconds, setTotalSeconds] = useState(0);
     const [lastLapTime, setLastLapTime] = useState(0);
     const [laps, setLaps] = useState<LapRecord[]>([]);
+    const [completedSession, setCompletedSession] = useState<ExamSession | null>(null);
 
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingName, setEditingName] = useState("");
     const [editingQ, setEditingQ] = useState("");
     const [editingT, setEditingT] = useState("");
 
-    const [lapSortMode, setLapSortMode] = useState<"number" | "slowest" | "fastest">("number");
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     // --- Logic ---
@@ -117,6 +105,7 @@ export default function ExamScreen() {
         setCurrentQuestion(1);
         setTotalSeconds(0);
         setLastLapTime(0);
+        setCompletedSession(null);
         setViewMode("running");
 
         if (timerRef.current) clearInterval(timerRef.current);
@@ -238,13 +227,9 @@ export default function ExamScreen() {
             laps: finalLaps,
         };
         await saveSession(session);
+        setCompletedSession(session);
+        setLaps(finalLaps);
         setViewMode("result");
-    };
-
-    const formatTime = (sec: number) => {
-        const m = Math.floor(sec / 60);
-        const s = sec % 60;
-        return `${m}분 ${s}초`;
     };
 
     const formatDigital = (sec: number) => {
@@ -275,35 +260,21 @@ export default function ExamScreen() {
         };
     }, []);
 
-    const analysis = useMemo(() => {
-        if (!laps.length) return null;
-        const avg = Math.floor(totalSeconds / laps.length);
-        const efficientLaps = laps.filter(l => l.duration <= (parseInt(targetMinutes) * 60) / parseInt(totalQuestions)).length;
-        const targetPaceSec = (parseInt(targetMinutes) * 60) / parseInt(totalQuestions);
-        return { avg, efficientLaps, targetPaceSec };
-    }, [laps, totalSeconds, targetMinutes, totalQuestions]);
-
-    const sortedLaps = useMemo(() => {
-        const copy = [...laps];
-        if (lapSortMode === 'slowest') return copy.sort((a, b) => b.duration - a.duration);
-        if (lapSortMode === 'fastest') return copy.sort((a, b) => a.duration - b.duration);
-        return copy.sort((a, b) => a.questionNo - b.questionNo);
-    }, [laps, lapSortMode]);
-
     // --- Views ---
 
     const renderSetup = () => (
         <SafeAreaView style={styles.screen} edges={['top']}>
             <StatusBar barStyle="dark-content" />
-            <View style={styles.fixedHeader}>
-                <Text style={styles.brand}>PaceTime</Text>
-            </View>
+            <AppHeader />
             <KeyboardAvoidingView
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
                 style={{ flex: 1 }}
             >
                 <View style={[styles.mainContainer, { paddingBottom: Math.max(20, insets.bottom) }]}>
-                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+                    <ScrollView
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={{ paddingBottom: 140 + insets.bottom }}
+                    >
                         <Text style={styles.sectionLabel}>기본 정보</Text>
 
                         <View style={styles.flatCard}>
@@ -396,7 +367,7 @@ export default function ExamScreen() {
                         )}
                     </ScrollView>
 
-                    <View style={styles.bottomAction}>
+                    <View style={[styles.bottomAction, { bottom: Math.max(20, insets.bottom + 12) }]}>
                         <TouchableOpacity style={styles.primaryActionBtn} onPress={startExam} activeOpacity={0.8}>
                             <Text style={styles.primaryActionText}>기록 시작하기</Text>
                         </TouchableOpacity>
@@ -545,45 +516,23 @@ export default function ExamScreen() {
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
                 <View style={styles.resultHeader}>
                     <Text style={styles.resultTitle}>기록 완료</Text>
-                    <Text style={styles.resultDate}>{new Date().toLocaleDateString()}</Text>
+                    <Text style={styles.resultDate}>{completedSession ? new Date(completedSession.date).toLocaleDateString() : ""}</Text>
                 </View>
 
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 100 }}>
-                    <View style={styles.summaryRow}>
-                        <View style={styles.summaryItem}>
-                            <Text style={styles.summaryLabel}>총 시간</Text>
-                            <Text style={styles.summaryValue}>{formatTime(totalSeconds)}</Text>
+                <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 140 + insets.bottom }}
+                >
+                    {completedSession ? (
+                        <SessionDetail session={completedSession} showDate={false} />
+                    ) : (
+                        <View style={styles.emptyResult}>
+                            <Text style={styles.emptyResultText}>기록 정보를 불러오지 못했어요.</Text>
                         </View>
-                        <View style={styles.summaryItem}>
-                            <Text style={styles.summaryLabel}>평균 페이스</Text>
-                            <Text style={styles.summaryValue}>
-                                {laps.length > 0 ? formatTime(Math.floor(totalSeconds / laps.length)) : "-"}
-                            </Text>
-                        </View>
-                    </View>
-
-                    <View style={styles.listHeaderBtnRow}>
-                        <Text style={styles.sectionTitle}>문항별 기록</Text>
-                        <View style={styles.sortRow}>
-                            <TouchableOpacity onPress={() => setLapSortMode('number')}><Text style={[styles.sortLink, lapSortMode === 'number' && styles.sortLinkActive]}>번호순</Text></TouchableOpacity>
-                            <Text style={styles.sep}>|</Text>
-                            <TouchableOpacity onPress={() => setLapSortMode('slowest')}><Text style={[styles.sortLink, lapSortMode === 'slowest' && styles.sortLinkActive]}>느린순</Text></TouchableOpacity>
-                        </View>
-                    </View>
-
-                    {sortedLaps.map((lap) => {
-                        const isTimeSink = analysis && lap.duration > analysis.targetPaceSec * 1.5;
-                        return (
-                            <View key={lap.questionNo} style={styles.simpleLapRow}>
-                                <Text style={styles.simpleLapNum}>{lap.questionNo}번</Text>
-                                <View style={styles.dottedLine} />
-                                <Text style={[styles.simpleLapTime, isTimeSink && { color: COLORS.accent }]}>{formatTime(lap.duration)}</Text>
-                            </View>
-                        );
-                    })}
+                    )}
                 </ScrollView>
 
-                <View style={styles.bottomFixed}>
+                <View style={[styles.bottomFixed, { paddingBottom: 24 + insets.bottom }]}>
                     <TouchableOpacity style={styles.primaryActionBtn} onPress={() => setViewMode("setup")}>
                         <Text style={styles.primaryActionText}>메인으로</Text>
                     </TouchableOpacity>
@@ -611,18 +560,6 @@ export default function ExamScreen() {
 
 const styles = StyleSheet.create({
     screen: { flex: 1, backgroundColor: COLORS.bg },
-    fixedHeader: {
-        paddingHorizontal: 24,
-        paddingTop: 12,
-        paddingBottom: 12,
-        backgroundColor: COLORS.bg,
-    },
-    brand: {
-        fontSize: 24,
-        fontWeight: '900',
-        color: COLORS.text,
-        letterSpacing: -0.5,
-    },
     mainContainer: {
         flex: 1,
         paddingHorizontal: 24,
@@ -771,19 +708,7 @@ const styles = StyleSheet.create({
     resultHeader: { padding: 24, paddingBottom: 12 },
     resultTitle: { fontSize: 28, fontWeight: '900', color: COLORS.text },
     resultDate: { fontSize: 14, color: COLORS.textMuted, marginTop: 4 },
-    summaryRow: { flexDirection: 'row', gap: 12, marginBottom: 32 },
-    summaryItem: { flex: 1, backgroundColor: COLORS.surface, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border },
-    summaryLabel: { fontSize: 12, color: COLORS.textMuted, fontWeight: '700', marginBottom: 4 },
-    summaryValue: { fontSize: 18, fontWeight: '800', color: COLORS.text },
-    listHeaderBtnRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-    sectionTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text },
-    sortRow: { flexDirection: 'row', gap: 8 },
-    sortLink: { fontSize: 13, color: COLORS.textMuted },
-    sortLinkActive: { color: COLORS.text, fontWeight: '700' },
-    sep: { color: COLORS.border },
-    simpleLapRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-    simpleLapNum: { fontSize: 15, color: COLORS.text, fontWeight: '600' },
-    dottedLine: { flex: 1, borderStyle: 'dotted', borderWidth: 1, borderColor: COLORS.border, marginHorizontal: 12, height: 1 },
-    simpleLapTime: { fontSize: 15, fontWeight: '700', color: COLORS.text, fontVariant: ['tabular-nums'] },
+    emptyResult: { backgroundColor: COLORS.surface, padding: 20, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' },
+    emptyResultText: { color: COLORS.textMuted, fontWeight: '700' },
     bottomFixed: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 24, backgroundColor: COLORS.bg },
 });
