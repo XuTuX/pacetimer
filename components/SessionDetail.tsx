@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useState } from 'react';
-import { StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { ScrollView, StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { ExamSession } from '../lib/storage';
 import { COLORS } from '../lib/theme';
 
@@ -35,7 +35,11 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
         const targetPaceSec = session.targetSeconds / session.totalQuestions;
         const efficientLaps = session.laps.filter(l => l.duration <= targetPaceSec).length;
         const average = session.totalQuestions ? Math.floor(session.totalSeconds / session.totalQuestions) : 0;
-        return { targetPaceSec, efficientLaps, average };
+
+        // Find max duration for bar graph normalization
+        const maxDuration = Math.max(...session.laps.map(l => l.duration), average * 2); // Ensure bar has some headroom
+
+        return { targetPaceSec, efficientLaps, average, maxDuration };
     }, [session]);
 
     const sortedLaps = useMemo(() => {
@@ -44,6 +48,11 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
         if (lapSortMode === 'fastest') return copy.sort((a, b) => a.duration - b.duration);
         return copy.sort((a, b) => a.questionNo - b.questionNo);
     }, [session.laps, lapSortMode]);
+
+    const slowLaps = useMemo(() => {
+        // Filter questions that took longer than average
+        return [...session.laps].filter(l => l.duration > analysis.average).sort((a, b) => b.duration - a.duration);
+    }, [session.laps, analysis.average]);
 
     const renderSortButton = (mode: LapSortMode, label: string) => {
         const isActive = lapSortMode === mode;
@@ -58,6 +67,42 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
         );
     };
 
+    const renderLapRow = (lap: any, showBadge = true) => {
+        const isEfficient = lap.duration <= analysis.targetPaceSec;
+        const isTimeSink = lap.duration > analysis.average;
+        const barWidth = `${Math.min((lap.duration / analysis.maxDuration) * 100, 100)}%`;
+
+        return (
+            <View key={lap.questionNo} style={styles.lapRowContainer}>
+                <View style={styles.lapRow}>
+                    <View style={styles.lapNumber}>
+                        <Text style={styles.lapNumberText}>{lap.questionNo}</Text>
+                    </View>
+
+                    <View style={styles.lapContent}>
+                        <View style={styles.lapBarContainer}>
+                            <View style={[styles.lapBar, { width: barWidth as any, backgroundColor: isTimeSink ? COLORS.accent : COLORS.primary }]} />
+                        </View>
+                        <View style={styles.lapMeta}>
+                            <Text style={styles.lapTime}>{formatTime(lap.duration)}</Text>
+                            {showBadge && (
+                                isTimeSink ? (
+                                    <View style={[styles.lapBadge, { backgroundColor: '#FFF1F2' }]}>
+                                        <Text style={[styles.lapBadgeText, { color: COLORS.accent }]}>+{Math.round(lap.duration - analysis.average)}초</Text>
+                                    </View>
+                                ) : isEfficient ? (
+                                    <View style={[styles.lapBadge, { backgroundColor: '#ECFDF5' }]}>
+                                        <Text style={[styles.lapBadgeText, { color: COLORS.success }]}>안정</Text>
+                                    </View>
+                                ) : null
+                            )}
+                        </View>
+                    </View>
+                </View>
+            </View>
+        );
+    };
+
     return (
         <View style={[styles.container, style]}>
             <View style={styles.header}>
@@ -69,6 +114,48 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
 
             <Text style={styles.title} numberOfLines={1}>{session.title}</Text>
             <Text style={styles.subtitle}>{session.totalQuestions}문항 · 목표 {formatTime(session.targetSeconds)}</Text>
+
+            {/* Session Bar Chart */}
+            <View style={styles.chartContainer}>
+                <View style={styles.yAxis}>
+                    <Text style={styles.yAxisLabel}>{formatTime(analysis.maxDuration)}</Text>
+                    <Text style={styles.yAxisLabel}>{formatTime(Math.round(analysis.maxDuration / 2))}</Text>
+                    <Text style={styles.yAxisLabel}>0</Text>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chartScroll}>
+                    <View style={styles.chartBars}>
+                        {/* Average Line */}
+                        <View
+                            style={[
+                                styles.averageLine,
+                                { bottom: `${(analysis.average / analysis.maxDuration) * 100 + 10}%` }
+                            ]}
+                        >
+                            <View style={styles.averageLabel}>
+                                <Text style={styles.averageLabelText}>평균 {formatTime(analysis.average)}</Text>
+                            </View>
+                        </View>
+
+                        {session.laps.map((lap, i) => {
+                            const barHeight = `${(lap.duration / analysis.maxDuration) * 100}%`;
+                            const isSlow = lap.duration > analysis.average;
+                            return (
+                                <View key={i} style={styles.barItem}>
+                                    <View style={styles.barWrapper}>
+                                        <View
+                                            style={[
+                                                styles.bar,
+                                                { height: barHeight as any, backgroundColor: isSlow ? COLORS.accent : COLORS.primary }
+                                            ]}
+                                        />
+                                    </View>
+                                    <Text style={styles.barLabel}>{lap.questionNo}</Text>
+                                </View>
+                            );
+                        })}
+                    </View>
+                </ScrollView>
+            </View>
 
             <View style={styles.summaryGrid}>
                 <View style={[styles.summaryBox, { backgroundColor: COLORS.primaryLight }]}>
@@ -89,8 +176,20 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
                 </View>
             </View>
 
+            {slowLaps.length > 0 && (
+                <View style={styles.slowSection}>
+                    <View style={styles.sectionHeader}>
+                        <Ionicons name="alert-circle-outline" size={18} color={COLORS.accent} />
+                        <Text style={styles.slowTitle}>평균보다 오래 걸린 문항 ({slowLaps.length})</Text>
+                    </View>
+                    <View style={styles.slowList}>
+                        {slowLaps.map(lap => renderLapRow(lap))}
+                    </View>
+                </View>
+            )}
+
             <View style={styles.lapHeader}>
-                <Text style={styles.lapTitle}>문항별 상세 기록</Text>
+                <Text style={styles.lapTitle}>전체 문항</Text>
                 <View style={styles.sortToggle}>
                     {renderSortButton('number', '번호순')}
                     {renderSortButton('slowest', '느린순')}
@@ -103,27 +202,7 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
                     <Text style={styles.emptyText}>기록된 문항이 없습니다.</Text>
                 </View>
             ) : (
-                sortedLaps.map(lap => {
-                    const isEfficient = lap.duration <= analysis.targetPaceSec;
-                    const isTimeSink = lap.duration > analysis.targetPaceSec * 1.5;
-                    return (
-                        <View key={lap.questionNo} style={styles.lapRow}>
-                            <View style={styles.lapNumber}>
-                                <Text style={styles.lapNumberText}>{lap.questionNo}</Text>
-                            </View>
-                            <Text style={styles.lapTime}>{formatTime(lap.duration)}</Text>
-                            {isTimeSink ? (
-                                <View style={[styles.lapBadge, { backgroundColor: '#FFF1F2' }]}>
-                                    <Text style={[styles.lapBadgeText, { color: COLORS.accent }]}>지체</Text>
-                                </View>
-                            ) : isEfficient ? (
-                                <View style={[styles.lapBadge, { backgroundColor: '#ECFDF5' }]}>
-                                    <Text style={[styles.lapBadgeText, { color: COLORS.success }]}>안정</Text>
-                                </View>
-                            ) : null}
-                        </View>
-                    );
-                })
+                sortedLaps.map(lap => renderLapRow(lap, true))
             )}
         </View>
     );
@@ -131,7 +210,7 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
 
 const styles = StyleSheet.create({
     container: {
-        gap: 12,
+        gap: 8,
     },
     header: {
         flexDirection: 'row',
@@ -155,36 +234,119 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     title: {
-        fontSize: 24,
+        fontSize: 22,
         fontWeight: '900',
         color: COLORS.text,
     },
     subtitle: {
-        fontSize: 14,
+        fontSize: 13,
         color: COLORS.textMuted,
         fontWeight: '600',
+    },
+    chartContainer: {
+        height: 180,
+        backgroundColor: COLORS.surface,
+        borderRadius: 16,
+        padding: 12,
+        flexDirection: 'row',
+        marginTop: 4,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    yAxis: {
+        width: 45,
+        justifyContent: 'space-between',
+        paddingVertical: 20,
+        borderRightWidth: 1,
+        borderRightColor: COLORS.border,
+    },
+    yAxisLabel: {
+        fontSize: 10,
+        color: COLORS.textMuted,
+        fontWeight: '600',
+        textAlign: 'right',
+        paddingRight: 6,
+    },
+    chartScroll: {
+        flex: 1,
+        paddingLeft: 10,
+    },
+    chartBars: {
+        flexDirection: 'row',
+        alignItems: 'flex-end',
+        height: '100%',
+        paddingBottom: 20,
+        paddingTop: 10,
+    },
+    barItem: {
+        width: 30,
+        height: '100%',
+        alignItems: 'center',
+        marginRight: 8,
+    },
+    barWrapper: {
+        flex: 1,
+        width: '100%',
+        justifyContent: 'flex-end',
+        alignItems: 'center',
+    },
+    bar: {
+        width: 14,
+        borderRadius: 4,
+    },
+    barLabel: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: COLORS.textMuted,
+        marginTop: 6,
+        height: 14,
+    },
+    averageLine: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        height: 1,
+        backgroundColor: COLORS.accent,
+        borderStyle: 'dashed',
+        opacity: 0.5,
+        zIndex: 5,
+    },
+    averageLabel: {
+        position: 'absolute',
+        right: 0,
+        top: -18,
+        backgroundColor: COLORS.accent,
+        paddingHorizontal: 4,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    averageLabelText: {
+        color: COLORS.white,
+        fontSize: 9,
+        fontWeight: '800',
     },
     summaryGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
-        gap: 10,
+        gap: 8,
+        marginBottom: 8,
     },
     summaryBox: {
-        flexBasis: '32%',
+        flexBasis: '31%',
         flexGrow: 1,
-        borderRadius: 16,
-        padding: 14,
-        minHeight: 90,
+        borderRadius: 14,
+        padding: 10,
+        minHeight: 80,
     },
     summaryLabel: {
-        fontSize: 12,
+        fontSize: 11,
         color: COLORS.textMuted,
         fontWeight: '700',
-        marginBottom: 6,
+        marginBottom: 4,
     },
     summaryValue: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '800',
         color: COLORS.text,
         fontVariant: ['tabular-nums'],
@@ -192,90 +354,143 @@ const styles = StyleSheet.create({
     summaryValueRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
+        gap: 4,
     },
     summaryHelper: {
-        marginTop: 6,
-        fontSize: 12,
+        marginTop: 4,
+        fontSize: 10,
         color: COLORS.textMuted,
     },
+    // Slow Section
+    slowSection: {
+        marginBottom: 16,
+        backgroundColor: '#FFF5F5',
+        borderRadius: 14,
+        padding: 12,
+        borderWidth: 1,
+        borderColor: '#FECACA'
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginBottom: 10
+    },
+    slowTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: COLORS.accent
+    },
+    slowList: {
+        gap: 6
+    },
+
+    // Lap List
     lapHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginTop: 4,
+        marginBottom: 8
     },
     lapTitle: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: '800',
         color: COLORS.text,
     },
     sortToggle: {
         flexDirection: 'row',
         backgroundColor: COLORS.border,
-        padding: 3,
-        borderRadius: 10,
+        padding: 2,
+        borderRadius: 8,
     },
     sortToggleItem: {
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 8,
+        paddingHorizontal: 8,
+        paddingVertical: 5,
+        borderRadius: 6,
     },
     sortToggleItemActive: {
         backgroundColor: COLORS.surface,
     },
     sortToggleText: {
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: '700',
         color: COLORS.textMuted,
     },
     sortToggleTextActive: {
         color: COLORS.text,
     },
+    lapRowContainer: {
+        marginBottom: 8,
+    },
     lapRow: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: COLORS.surface,
-        borderRadius: 18,
-        padding: 14,
-        marginBottom: 10,
+        borderRadius: 16,
+        padding: 10,
         borderWidth: 1,
         borderColor: COLORS.border,
-        gap: 12,
+        gap: 10,
     },
     lapNumber: {
-        width: 36,
-        height: 36,
-        borderRadius: 12,
+        width: 32,
+        height: 32,
+        borderRadius: 10,
         backgroundColor: COLORS.bg,
         alignItems: 'center',
         justifyContent: 'center',
     },
     lapNumberText: {
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: '800',
         color: COLORS.text,
     },
-    lapTime: {
+    lapContent: {
         flex: 1,
-        fontSize: 15,
+        justifyContent: 'center',
+    },
+    lapMeta: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        position: 'relative',
+        zIndex: 2,
+    },
+    lapTime: {
+        fontSize: 14,
         fontWeight: '800',
         color: COLORS.text,
         fontVariant: ['tabular-nums'],
     },
     lapBadge: {
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-        borderRadius: 8,
+        paddingHorizontal: 6,
+        paddingVertical: 3,
+        borderRadius: 6,
     },
     lapBadgeText: {
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: '800',
+    },
+    lapBarContainer: {
+        position: 'absolute',
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        justifyContent: 'flex-end',
+        opacity: 0.12,
+        height: '100%',
+        zIndex: 1,
+    },
+    lapBar: {
+        height: '100%',
+        borderRadius: 4,
     },
     emptyLaps: {
         backgroundColor: COLORS.surface,
-        borderRadius: 16,
-        padding: 16,
+        borderRadius: 14,
+        padding: 12,
         alignItems: 'center',
         borderWidth: 1,
         borderColor: COLORS.border,
