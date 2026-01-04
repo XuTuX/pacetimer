@@ -14,6 +14,7 @@ type Props = {
     initialSortMode?: LapSortMode;
     style?: StyleProp<ViewStyle>;
     showDate?: boolean;
+    onBack?: () => void;
 };
 
 const formatTime = (sec: number) => {
@@ -39,7 +40,7 @@ const formatDateFull = (dateString: string) => {
     return `${d.getMonth() + 1}/${d.getDate()} ${days[d.getDay()]}`;
 };
 
-export default function SessionDetail({ session, initialSortMode = 'number', style, showDate = true }: Props) {
+export default function SessionDetail({ session, initialSortMode = 'number', style, showDate = true, onBack }: Props) {
     const [lapSortMode, setLapSortMode] = useState<LapSortMode>(initialSortMode);
     const [activeTab, setActiveTab] = useState<'summary' | 'all'>('summary');
     const viewShotRef = useRef<View>(null);
@@ -191,12 +192,22 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
         <View style={[styles.container, style]}>
             {/* Header Area */}
             <View style={styles.header}>
-                <View>
-                    <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{session.categoryName}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', flex: 1 }}>
+                    {onBack && (
+                        <TouchableOpacity
+                            onPress={onBack}
+                            style={{ marginRight: 12, marginTop: 4, marginLeft: -4 }}
+                        >
+                            <Ionicons name="chevron-back" size={28} color={COLORS.text} />
+                        </TouchableOpacity>
+                    )}
+                    <View style={{ flex: 1 }}>
+                        <View style={styles.badge}>
+                            <Text style={styles.badgeText}>{session.categoryName}</Text>
+                        </View>
+                        <Text style={styles.title} numberOfLines={1}>{session.title}</Text>
+                        {showDate && <Text style={styles.dateText}>{formatDate(session.date)}</Text>}
                     </View>
-                    <Text style={styles.title} numberOfLines={1}>{session.title}</Text>
-                    {showDate && <Text style={styles.dateText}>{formatDate(session.date)}</Text>}
                 </View>
                 <TouchableOpacity style={styles.shareBtn} onPress={handleShare}>
                     <Ionicons name="share-outline" size={20} color={COLORS.primary} />
