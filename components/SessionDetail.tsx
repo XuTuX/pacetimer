@@ -1,6 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useMemo, useState } from 'react';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Sharing from 'expo-sharing';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { captureRef } from 'react-native-view-shot';
 import { ExamSession } from '../lib/storage';
 import { COLORS } from '../lib/theme';
 
@@ -19,13 +22,27 @@ const formatTime = (sec: number) => {
     return `${m}분 ${s}초`;
 };
 
+const formatTimeShort = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}m ${s}s`;
+};
+
 const formatDate = (dateString: string) => {
     const d = new Date(dateString);
     return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
 };
 
+const formatDateFull = (dateString: string) => {
+    const d = new Date(dateString);
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return `${d.getMonth() + 1}/${d.getDate()} ${days[d.getDay()]}`;
+};
+
 export default function SessionDetail({ session, initialSortMode = 'number', style, showDate = true }: Props) {
     const [lapSortMode, setLapSortMode] = useState<LapSortMode>(initialSortMode);
+    const [activeTab, setActiveTab] = useState<'summary' | 'all'>('summary');
+    const viewShotRef = useRef<View>(null);
 
     useEffect(() => {
         setLapSortMode(initialSortMode);
@@ -35,9 +52,7 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
         const targetPaceSec = session.targetSeconds / session.totalQuestions;
         const efficientLaps = session.laps.filter(l => l.duration <= targetPaceSec).length;
         const average = session.totalQuestions ? Math.floor(session.totalSeconds / session.totalQuestions) : 0;
-
-        // Find max duration for bar graph normalization
-        const maxDuration = Math.max(...session.laps.map(l => l.duration), average * 2); // Ensure bar has some headroom
+        const maxDuration = Math.max(...session.laps.map(l => l.duration), average * 2);
 
         return { targetPaceSec, efficientLaps, average, maxDuration };
     }, [session]);
@@ -50,33 +65,36 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
     }, [session.laps, lapSortMode]);
 
     const slowLaps = useMemo(() => {
-        // Filter questions that took longer than average
         return [...session.laps].filter(l => l.duration > analysis.average).sort((a, b) => b.duration - a.duration);
     }, [session.laps, analysis.average]);
 
-    const renderSortButton = (mode: LapSortMode, label: string) => {
-        const isActive = lapSortMode === mode;
-        return (
-            <TouchableOpacity
-                key={mode}
-                style={[styles.sortToggleItem, isActive && styles.sortToggleItemActive]}
-                onPress={() => setLapSortMode(mode)}
-            >
-                <Text style={[styles.sortToggleText, isActive && styles.sortToggleTextActive]}>{label}</Text>
-            </TouchableOpacity>
-        );
+    const handleShare = async () => {
+        try {
+            if (viewShotRef.current) {
+                const uri = await captureRef(viewShotRef, {
+                    format: 'png',
+                    quality: 1,
+                    result: 'tmpfile'
+                });
+                if (await Sharing.isAvailableAsync()) {
+                    await Sharing.shareAsync(uri);
+                }
+            }
+        } catch (e) {
+            console.error(e);
+        }
     };
 
-    const renderLapRow = (lap: any, showBadge = true) => {
+    const renderLapRow = (lap: any, showBadge = true, isCompact = false) => {
         const isEfficient = lap.duration <= analysis.targetPaceSec;
         const isTimeSink = lap.duration > analysis.average;
         const barWidth = `${Math.min((lap.duration / analysis.maxDuration) * 100, 100)}%`;
 
         return (
-            <View key={lap.questionNo} style={styles.lapRowContainer}>
-                <View style={styles.lapRow}>
-                    <View style={styles.lapNumber}>
-                        <Text style={styles.lapNumberText}>{lap.questionNo}</Text>
+            <View key={lap.questionNo} style={[styles.lapRowContainer, isCompact && { marginBottom: 8 }]}>
+                <View style={[styles.lapRow, isCompact && styles.lapRowCompact]}>
+                    <View style={[styles.lapNumber, isCompact && styles.lapNumberCompact]}>
+                        <Text style={[styles.lapNumberText, isCompact && { fontSize: 11 }]}>{lap.questionNo}</Text>
                     </View>
 
                     <View style={styles.lapContent}>
@@ -88,11 +106,11 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
                             {showBadge && (
                                 isTimeSink ? (
                                     <View style={[styles.lapBadge, { backgroundColor: '#FFF1F2' }]}>
-                                        <Text style={[styles.lapBadgeText, { color: COLORS.accent }]}>+{Math.round(lap.duration - analysis.average)}초</Text>
+                                        <Text style={[styles.lapBadgeText, { color: COLORS.accent }]}>+{Math.round(lap.duration - analysis.average)}s</Text>
                                     </View>
                                 ) : isEfficient ? (
                                     <View style={[styles.lapBadge, { backgroundColor: '#ECFDF5' }]}>
-                                        <Text style={[styles.lapBadgeText, { color: COLORS.success }]}>안정</Text>
+                                        <Text style={[styles.lapBadgeText, { color: COLORS.success }]}>Good</Text>
                                     </View>
                                 ) : null
                             )}
@@ -103,400 +121,318 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
         );
     };
 
-    return (
-        <View style={[styles.container, style]}>
-            <View style={styles.header}>
-                <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{session.categoryName}</Text>
-                </View>
-                {showDate && <Text style={styles.dateText}>{formatDate(session.date)}</Text>}
-            </View>
-
-            <Text style={styles.title} numberOfLines={1}>{session.title}</Text>
-            <Text style={styles.subtitle}>{session.totalQuestions}문항 · 목표 {formatTime(session.targetSeconds)}</Text>
-
-            {/* Session Bar Chart */}
-            <View style={styles.chartContainer}>
+    const ChartView = ({ height = 150, showYAxis = true }: { height?: number, showYAxis?: boolean }) => (
+        <View style={[styles.chartContainer, { height }]}>
+            {showYAxis && (
                 <View style={styles.yAxis}>
-                    <Text style={styles.yAxisLabel}>{formatTime(analysis.maxDuration)}</Text>
-                    <Text style={styles.yAxisLabel}>{formatTime(Math.round(analysis.maxDuration / 2))}</Text>
+                    <Text style={styles.yAxisLabel}>{formatTimeShort(analysis.maxDuration)}</Text>
+                    <Text style={styles.yAxisLabel}>{formatTimeShort(Math.round(analysis.maxDuration / 2))}</Text>
                     <Text style={styles.yAxisLabel}>0</Text>
                 </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chartScroll}>
-                    <View style={styles.chartBars}>
-                        {/* Average Line */}
-                        <View
-                            style={[
-                                styles.averageLine,
-                                { bottom: `${(analysis.average / analysis.maxDuration) * 100 + 10}%` }
-                            ]}
-                        >
-                            <View style={styles.averageLabel}>
-                                <Text style={styles.averageLabelText}>평균 {formatTime(analysis.average)}</Text>
+            )}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chartScroll}>
+                <View style={styles.chartBars}>
+                    {/* Average Line */}
+                    <View
+                        style={[
+                            styles.averageLine,
+                            { bottom: `${(analysis.average / analysis.maxDuration) * 100 + 5}%` }
+                        ]}
+                    >
+                        <View style={styles.averageLabel}>
+                            <Text style={styles.averageLabelText}>AVG</Text>
+                        </View>
+                    </View>
+
+                    {session.laps.map((lap, i) => {
+                        const barHeight = `${(lap.duration / analysis.maxDuration) * 100}%`;
+                        const isSlow = lap.duration > analysis.average;
+                        return (
+                            <View key={i} style={styles.barItem}>
+                                <View style={styles.barWrapper}>
+                                    <View
+                                        style={[
+                                            styles.bar,
+                                            { height: barHeight as any, backgroundColor: isSlow ? COLORS.accent : COLORS.primary }
+                                        ]}
+                                    />
+                                </View>
+                                <Text style={styles.barLabel}>{lap.questionNo}</Text>
+                            </View>
+                        );
+                    })}
+                </View>
+            </ScrollView>
+        </View>
+    );
+
+    const SummaryGrid = () => (
+        <View style={styles.summaryGrid}>
+            <View style={[styles.summaryBox, { backgroundColor: COLORS.primaryLight }]}>
+                <Text style={styles.summaryLabel}>Total Time</Text>
+                <View style={styles.summaryValueRow}>
+                    <Ionicons name="time-outline" size={16} color={COLORS.primary} />
+                    <Text style={styles.summaryValue}>{formatTime(session.totalSeconds)}</Text>
+                </View>
+            </View>
+            <View style={[styles.summaryBox, { backgroundColor: '#F0F9FF' }]}>
+                <Text style={styles.summaryLabel}>Avg Pace</Text>
+                <Text style={[styles.summaryValue, { color: '#0EA5E9' }]}>{formatTime(analysis.average)}</Text>
+            </View>
+            <View style={[styles.summaryBox, { backgroundColor: '#FDF2F8' }]}>
+                <Text style={styles.summaryLabel}>On Target</Text>
+                <Text style={[styles.summaryValue, { color: COLORS.accent }]}>{Math.round((analysis.efficientLaps / session.totalQuestions) * 100)}%</Text>
+                <Text style={styles.summaryHelper}>Target {formatTimeShort(Math.round(analysis.targetPaceSec))}</Text>
+            </View>
+        </View>
+    );
+
+    return (
+        <View style={[styles.container, style]}>
+            {/* Header Area */}
+            <View style={styles.header}>
+                <View>
+                    <View style={styles.badge}>
+                        <Text style={styles.badgeText}>{session.categoryName}</Text>
+                    </View>
+                    <Text style={styles.title} numberOfLines={1}>{session.title}</Text>
+                    {showDate && <Text style={styles.dateText}>{formatDate(session.date)}</Text>}
+                </View>
+                <TouchableOpacity style={styles.shareBtn} onPress={handleShare}>
+                    <Ionicons name="share-outline" size={20} color={COLORS.primary} />
+                    <Text style={styles.shareBtnText}>Share</Text>
+                </TouchableOpacity>
+            </View>
+
+            {/* Tabs */}
+            <View style={styles.tabContainer}>
+                <TouchableOpacity
+                    style={[styles.tab, activeTab === 'summary' && styles.tabActive]}
+                    onPress={() => setActiveTab('summary')}
+                >
+                    <Text style={[styles.tabText, activeTab === 'summary' && styles.tabTextActive]}>분석 요약</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.tab, activeTab === 'all' && styles.tabActive]}
+                    onPress={() => setActiveTab('all')}
+                >
+                    <Text style={[styles.tabText, activeTab === 'all' && styles.tabTextActive]}>전체 문항</Text>
+                    <View style={styles.countBadge}>
+                        <Text style={styles.countBadgeText}>{session.totalQuestions}</Text>
+                    </View>
+                </TouchableOpacity>
+            </View>
+
+            {/* Content */}
+            {activeTab === 'summary' ? (
+                <View style={styles.tabContent}>
+                    <ChartView />
+                    <SummaryGrid />
+
+                    {/* Slowest Questions */}
+                    <View style={styles.sectionHeader}>
+                        <Ionicons name="alert-circle" size={18} color={COLORS.accent} />
+                        <Text style={styles.sectionTitle}>오래 걸린 문항 Top 5</Text>
+                    </View>
+
+                    {slowLaps.length > 0 ? (
+                        <View style={styles.slowList}>
+                            {slowLaps.slice(0, 5).map(lap => renderLapRow(lap))}
+                            {slowLaps.length > 5 && (
+                                <Text style={styles.moreText}>...외 {slowLaps.length - 5}개 문항이 평균보다 늦음</Text>
+                            )}
+                        </View>
+                    ) : (
+                        <View style={styles.goodJobBox}>
+                            <Ionicons name="ribbon-outline" size={32} color={COLORS.success} />
+                            <Text style={styles.goodJobText}>모든 문항을 평균 시간 내에 풀었습니다!</Text>
+                        </View>
+                    )}
+                </View>
+            ) : (
+                <View style={styles.tabContent}>
+                    <View style={styles.lapHeader}>
+                        <View style={styles.sortToggle}>
+                            <TouchableOpacity onPress={() => setLapSortMode('number')} style={[styles.sortBtn, lapSortMode === 'number' && styles.sortBtnActive]}>
+                                <Text style={[styles.sortBtnText, lapSortMode === 'number' && styles.sortBtnTextActive]}>번호순</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => setLapSortMode('slowest')} style={[styles.sortBtn, lapSortMode === 'slowest' && styles.sortBtnActive]}>
+                                <Text style={[styles.sortBtnText, lapSortMode === 'slowest' && styles.sortBtnTextActive]}>느린순</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => setLapSortMode('fastest')} style={[styles.sortBtn, lapSortMode === 'fastest' && styles.sortBtnActive]}>
+                                <Text style={[styles.sortBtnText, lapSortMode === 'fastest' && styles.sortBtnTextActive]}>빠른순</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                    {sortedLaps.map(lap => renderLapRow(lap, true))}
+                </View>
+            )}
+
+            {/* Hidden Share Card (Rendered Off-Screen) */}
+            <View
+                collapsable={false}
+                ref={viewShotRef}
+                style={styles.shareCardContainer}
+                pointerEvents="none"
+            >
+                <LinearGradient
+                    colors={[COLORS.primary, '#818CF8']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.shareCardGradient}
+                >
+                    <View style={styles.shareCardContent}>
+                        <View style={styles.shareHeader}>
+                            <Text style={styles.shareTitle}>PACETIME</Text>
+                            <Text style={styles.shareDate}>{formatDateFull(session.date)}</Text>
+                        </View>
+
+                        <View style={styles.shareBody}>
+                            <Text style={styles.shareSessionTitle}>{session.title}</Text>
+                            <View style={styles.shareBadge}>
+                                <Text style={styles.shareBadgeText}>{session.categoryName}</Text>
+                            </View>
+
+                            <View style={styles.shareChartWrapper}>
+                                <ChartView height={180} showYAxis={false} />
                             </View>
                         </View>
 
-                        {session.laps.map((lap, i) => {
-                            const barHeight = `${(lap.duration / analysis.maxDuration) * 100}%`;
-                            const isSlow = lap.duration > analysis.average;
-                            return (
-                                <View key={i} style={styles.barItem}>
-                                    <View style={styles.barWrapper}>
-                                        <View
-                                            style={[
-                                                styles.bar,
-                                                { height: barHeight as any, backgroundColor: isSlow ? COLORS.accent : COLORS.primary }
-                                            ]}
-                                        />
-                                    </View>
-                                    <Text style={styles.barLabel}>{lap.questionNo}</Text>
-                                </View>
-                            );
-                        })}
+                        <View style={styles.shareFooter}>
+                            <View style={styles.shareStat}>
+                                <Text style={styles.shareStatLabel}>Total Time</Text>
+                                <Text style={styles.shareStatValue}>{formatTime(session.totalSeconds)}</Text>
+                            </View>
+                            <View style={styles.shareDivider} />
+                            <View style={styles.shareStat}>
+                                <Text style={styles.shareStatLabel}>Questions</Text>
+                                <Text style={styles.shareStatValue}>{session.totalQuestions}</Text>
+                            </View>
+                            <View style={styles.shareDivider} />
+                            <View style={styles.shareStat}>
+                                <Text style={styles.shareStatLabel}>Avg Pace</Text>
+                                <Text style={styles.shareStatValue}>{formatTime(analysis.average)}</Text>
+                            </View>
+                        </View>
                     </View>
-                </ScrollView>
+                </LinearGradient>
             </View>
-
-            <View style={styles.summaryGrid}>
-                <View style={[styles.summaryBox, { backgroundColor: COLORS.primaryLight }]}>
-                    <Text style={styles.summaryLabel}>소요 시간</Text>
-                    <View style={styles.summaryValueRow}>
-                        <Ionicons name="time-outline" size={16} color={COLORS.primary} />
-                        <Text style={styles.summaryValue}>{formatTime(session.totalSeconds)}</Text>
-                    </View>
-                </View>
-                <View style={[styles.summaryBox, { backgroundColor: '#ECFDF5' }]}>
-                    <Text style={styles.summaryLabel}>평균 페이스</Text>
-                    <Text style={styles.summaryValue}>{formatTime(analysis.average)}</Text>
-                </View>
-                <View style={[styles.summaryBox, { backgroundColor: '#FDF2F8' }]}>
-                    <Text style={styles.summaryLabel}>목표 내 달성</Text>
-                    <Text style={[styles.summaryValue, { color: COLORS.accent }]}>{analysis.efficientLaps}문항</Text>
-                    <Text style={styles.summaryHelper}>목표 페이스 {formatTime(Math.round(analysis.targetPaceSec))}</Text>
-                </View>
-            </View>
-
-            {slowLaps.length > 0 && (
-                <View style={styles.slowSection}>
-                    <View style={styles.sectionHeader}>
-                        <Ionicons name="alert-circle-outline" size={18} color={COLORS.accent} />
-                        <Text style={styles.slowTitle}>평균보다 오래 걸린 문항 ({slowLaps.length})</Text>
-                    </View>
-                    <View style={styles.slowList}>
-                        {slowLaps.map(lap => renderLapRow(lap))}
-                    </View>
-                </View>
-            )}
-
-            <View style={styles.lapHeader}>
-                <Text style={styles.lapTitle}>전체 문항</Text>
-                <View style={styles.sortToggle}>
-                    {renderSortButton('number', '번호순')}
-                    {renderSortButton('slowest', '느린순')}
-                    {renderSortButton('fastest', '빠른순')}
-                </View>
-            </View>
-
-            {sortedLaps.length === 0 ? (
-                <View style={styles.emptyLaps}>
-                    <Text style={styles.emptyText}>기록된 문항이 없습니다.</Text>
-                </View>
-            ) : (
-                sortedLaps.map(lap => renderLapRow(lap, true))
-            )}
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        gap: 8,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    badge: {
-        backgroundColor: COLORS.primaryLight,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 12,
-    },
-    badgeText: {
-        color: COLORS.primary,
-        fontSize: 12,
-        fontWeight: '800',
-    },
-    dateText: {
-        color: COLORS.textMuted,
-        fontSize: 13,
-        fontWeight: '600',
-    },
-    title: {
-        fontSize: 22,
-        fontWeight: '900',
-        color: COLORS.text,
-    },
-    subtitle: {
-        fontSize: 13,
-        color: COLORS.textMuted,
-        fontWeight: '600',
-    },
-    chartContainer: {
-        height: 180,
-        backgroundColor: COLORS.surface,
-        borderRadius: 16,
-        padding: 12,
-        flexDirection: 'row',
-        marginTop: 4,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-    },
-    yAxis: {
-        width: 45,
-        justifyContent: 'space-between',
-        paddingVertical: 20,
-        borderRightWidth: 1,
-        borderRightColor: COLORS.border,
-    },
-    yAxisLabel: {
-        fontSize: 10,
-        color: COLORS.textMuted,
-        fontWeight: '600',
-        textAlign: 'right',
-        paddingRight: 6,
-    },
-    chartScroll: {
-        flex: 1,
-        paddingLeft: 10,
-    },
-    chartBars: {
-        flexDirection: 'row',
-        alignItems: 'flex-end',
-        height: '100%',
-        paddingBottom: 20,
-        paddingTop: 10,
-    },
-    barItem: {
-        width: 30,
-        height: '100%',
-        alignItems: 'center',
-        marginRight: 8,
-    },
-    barWrapper: {
-        flex: 1,
-        width: '100%',
-        justifyContent: 'flex-end',
-        alignItems: 'center',
-    },
-    bar: {
-        width: 14,
-        borderRadius: 4,
-    },
-    barLabel: {
-        fontSize: 10,
-        fontWeight: '700',
-        color: COLORS.textMuted,
-        marginTop: 6,
-        height: 14,
-    },
-    averageLine: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        height: 1,
-        backgroundColor: COLORS.accent,
-        borderStyle: 'dashed',
-        opacity: 0.5,
-        zIndex: 5,
-    },
-    averageLabel: {
-        position: 'absolute',
-        right: 0,
-        top: -18,
-        backgroundColor: COLORS.accent,
-        paddingHorizontal: 4,
-        paddingVertical: 2,
-        borderRadius: 4,
-    },
-    averageLabelText: {
-        color: COLORS.white,
-        fontSize: 9,
-        fontWeight: '800',
-    },
-    summaryGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        gap: 8,
-        marginBottom: 8,
-    },
-    summaryBox: {
-        flexBasis: '31%',
-        flexGrow: 1,
-        borderRadius: 14,
-        padding: 10,
-        minHeight: 80,
-    },
-    summaryLabel: {
-        fontSize: 11,
-        color: COLORS.textMuted,
-        fontWeight: '700',
-        marginBottom: 4,
-    },
-    summaryValue: {
-        fontSize: 15,
-        fontWeight: '800',
-        color: COLORS.text,
-        fontVariant: ['tabular-nums'],
-    },
-    summaryValueRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-    },
-    summaryHelper: {
-        marginTop: 4,
-        fontSize: 10,
-        color: COLORS.textMuted,
-    },
-    // Slow Section
-    slowSection: {
-        marginBottom: 16,
-        backgroundColor: '#FFF5F5',
-        borderRadius: 14,
-        padding: 12,
-        borderWidth: 1,
-        borderColor: '#FECACA'
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        marginBottom: 10
-    },
-    slowTitle: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: COLORS.accent
-    },
-    slowList: {
-        gap: 6
-    },
+    container: { gap: 16 },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
+    badge: { backgroundColor: COLORS.primaryLight, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, alignSelf: 'flex-start', marginBottom: 6 },
+    badgeText: { color: COLORS.primary, fontSize: 10, fontWeight: '800' },
+    title: { fontSize: 22, fontWeight: '900', color: COLORS.text, marginBottom: 2, marginRight: 16, flex: 1 },
+    dateText: { color: COLORS.textMuted, fontSize: 13, fontWeight: '600' },
 
-    // Lap List
-    lapHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginTop: 4,
-        marginBottom: 8
-    },
-    lapTitle: {
-        fontSize: 16,
-        fontWeight: '800',
-        color: COLORS.text,
-    },
-    sortToggle: {
-        flexDirection: 'row',
-        backgroundColor: COLORS.border,
-        padding: 2,
-        borderRadius: 8,
-    },
-    sortToggleItem: {
-        paddingHorizontal: 8,
-        paddingVertical: 5,
-        borderRadius: 6,
-    },
-    sortToggleItemActive: {
-        backgroundColor: COLORS.surface,
-    },
-    sortToggleText: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: COLORS.textMuted,
-    },
-    sortToggleTextActive: {
-        color: COLORS.text,
-    },
-    lapRowContainer: {
-        marginBottom: 8,
-    },
-    lapRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: COLORS.surface,
-        borderRadius: 16,
-        padding: 10,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        gap: 10,
-    },
-    lapNumber: {
-        width: 32,
-        height: 32,
-        borderRadius: 10,
-        backgroundColor: COLORS.bg,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    lapNumberText: {
-        fontSize: 13,
-        fontWeight: '800',
-        color: COLORS.text,
-    },
-    lapContent: {
-        flex: 1,
-        justifyContent: 'center',
-    },
-    lapMeta: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        position: 'relative',
-        zIndex: 2,
-    },
-    lapTime: {
-        fontSize: 14,
-        fontWeight: '800',
-        color: COLORS.text,
-        fontVariant: ['tabular-nums'],
-    },
-    lapBadge: {
-        paddingHorizontal: 6,
-        paddingVertical: 3,
-        borderRadius: 6,
-    },
-    lapBadgeText: {
-        fontSize: 10,
-        fontWeight: '800',
-    },
-    lapBarContainer: {
+    shareBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F0F9FF', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, gap: 4, borderWidth: 1, borderColor: '#BAE6FD' },
+    shareBtnText: { fontSize: 12, fontWeight: '700', color: COLORS.primary },
+
+    tabContainer: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: COLORS.border, marginBottom: 8 },
+    tab: { paddingVertical: 12, marginRight: 24, flexDirection: 'row', alignItems: 'center', gap: 6 },
+    tabActive: { borderBottomWidth: 2, borderBottomColor: COLORS.primary },
+    tabText: { fontSize: 15, fontWeight: '600', color: COLORS.textMuted },
+    tabTextActive: { color: COLORS.primary, fontWeight: '800' },
+    countBadge: { backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10 },
+    countBadgeText: { fontSize: 10, color: '#64748B', fontWeight: '700' },
+
+    tabContent: { gap: 16 },
+
+    // Chart
+    chartContainer: { height: 150, backgroundColor: COLORS.surface, borderRadius: 16, padding: 12, flexDirection: 'row', borderWidth: 1, borderColor: COLORS.border },
+    yAxis: { width: 36, justifyContent: 'space-between', paddingVertical: 10, borderRightWidth: 1, borderRightColor: '#E2E8F0', marginRight: 8 },
+    yAxisLabel: { fontSize: 9, color: '#94A3B8', textAlign: 'right', paddingRight: 4, fontWeight: '600' },
+    chartScroll: { flex: 1 },
+    chartBars: { flexDirection: 'row', alignItems: 'flex-end', height: '100%', paddingBottom: 10, paddingTop: 10, paddingRight: 20 },
+    barItem: { width: 14, height: '100%', alignItems: 'center', marginRight: 4 },
+    barWrapper: { flex: 1, width: '100%', justifyContent: 'flex-end', alignItems: 'center' },
+    bar: { width: 6, borderRadius: 3, minHeight: 4 },
+    barLabel: { fontSize: 8, fontWeight: '700', color: '#94A3B8', marginTop: 4 },
+    averageLine: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: COLORS.accent, borderStyle: 'dashed', opacity: 0.5, zIndex: 10 },
+    averageLabel: { position: 'absolute', right: -20, top: -10, backgroundColor: COLORS.accent, paddingHorizontal: 4, paddingVertical: 1, borderRadius: 4 },
+    averageLabelText: { color: 'white', fontSize: 7, fontWeight: '800' },
+
+    // Summary Grid
+    summaryGrid: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
+    summaryBox: { flex: 1, borderRadius: 16, padding: 12, alignItems: 'center', justifyContent: 'center', gap: 4 },
+    summaryLabel: { fontSize: 11, color: '#64748B', fontWeight: '700' },
+    summaryValue: { fontSize: 16, fontWeight: '800', color: COLORS.text },
+    summaryValueRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    summaryHelper: { fontSize: 9, color: '#94A3B8' },
+
+    // Slow List
+    sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8, marginTop: 8 },
+    sectionTitle: { fontSize: 14, fontWeight: '800', color: COLORS.text },
+    slowList: { gap: 8 },
+    moreText: { textAlign: 'center', fontSize: 12, color: COLORS.textMuted, marginTop: 8 },
+    goodJobBox: { alignItems: 'center', padding: 24, backgroundColor: '#F0FDF4', borderRadius: 16, borderStyle: 'dashed', borderWidth: 1, borderColor: '#86EFAC' },
+    goodJobText: { marginTop: 8, color: '#166534', fontWeight: '700', fontSize: 13 },
+
+    // All Laps Header
+    lapHeader: { flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 8 },
+    sortToggle: { flexDirection: 'row', backgroundColor: '#F1F5F9', padding: 3, borderRadius: 8 },
+    sortBtn: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 },
+    sortBtnActive: { backgroundColor: 'white', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
+    sortBtnText: { fontSize: 11, color: '#64748B', fontWeight: '600' },
+    sortBtnTextActive: { color: COLORS.text, fontWeight: '700' },
+
+    // Lap Row
+    lapRowContainer: { marginBottom: 8 },
+    lapRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', borderRadius: 14, padding: 10, borderWidth: 1, borderColor: '#F1F5F9' },
+    lapRowCompact: { padding: 8, borderRadius: 10 },
+    lapNumber: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+    lapNumberCompact: { width: 24, height: 24, borderRadius: 8, marginRight: 8 },
+    lapNumberText: { fontSize: 13, fontWeight: '800', color: COLORS.text },
+    lapContent: { flex: 1 },
+    lapBarContainer: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'center', opacity: 0.08 },
+    lapBar: { height: '80%', borderRadius: 4 },
+    lapMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    lapTime: { fontSize: 14, fontWeight: '700', color: COLORS.text, fontVariant: ['tabular-nums'] },
+    lapBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+    lapBadgeText: { fontSize: 10, fontWeight: '700' },
+
+    // Share Card (Hidden)
+    shareCardContainer: {
         position: 'absolute',
         top: 0,
-        bottom: 0,
-        left: 0,
-        right: 0,
-        justifyContent: 'flex-end',
-        opacity: 0.12,
-        height: '100%',
-        zIndex: 1,
+        left: -10000, // Move off-screen
+        width: 375, // Fixed width for consistent image
+        height: 600, // Fixed aspect ratio ~9:16 approx or just tall
     },
-    lapBar: {
-        height: '100%',
-        borderRadius: 4,
+    shareCardGradient: {
+        flex: 1,
+        padding: 32,
+        justifyContent: 'center',
+        alignItems: 'center'
     },
-    emptyLaps: {
-        backgroundColor: COLORS.surface,
-        borderRadius: 14,
-        padding: 12,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: COLORS.border,
+    shareCardContent: {
+        width: '100%',
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: 24,
+        padding: 24,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 20 },
+        shadowOpacity: 0.3,
+        shadowRadius: 30,
+        elevation: 20,
     },
-    emptyText: {
-        color: COLORS.textMuted,
-        fontWeight: '700',
-    },
+    shareHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+    shareTitle: { fontSize: 14, fontWeight: '900', color: COLORS.primary, letterSpacing: 1 },
+    shareDate: { fontSize: 14, color: '#64748B', fontWeight: '600' },
+
+    shareBody: { alignItems: 'center', marginBottom: 32 },
+    shareSessionTitle: { fontSize: 22, fontWeight: '800', color: '#0F172A', textAlign: 'center', marginBottom: 8 },
+    shareBadge: { backgroundColor: '#EEF2FF', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, marginBottom: 24 },
+    shareBadgeText: { color: COLORS.primary, fontSize: 12, fontWeight: '700' },
+    shareChartWrapper: { width: '100%', height: 180 },
+
+    shareFooter: { flexDirection: 'row', alignItems: 'center', paddingTop: 24, borderTopWidth: 1, borderTopColor: '#E2E8F0' },
+    shareStat: { flex: 1, alignItems: 'center' },
+    shareStatLabel: { fontSize: 11, color: '#94A3B8', fontWeight: '700', marginBottom: 4, textTransform: 'uppercase' },
+    shareStatValue: { fontSize: 18, color: '#0F172A', fontWeight: '800' },
+    shareDivider: { width: 1, height: 30, backgroundColor: '#E2E8F0' },
 });
