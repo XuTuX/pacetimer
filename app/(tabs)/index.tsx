@@ -3,6 +3,8 @@ import * as Haptics from 'expo-haptics';
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
     Alert,
+    AppState,
+    AppStateStatus,
     Dimensions,
     FlatList,
     KeyboardAvoidingView,
@@ -69,12 +71,20 @@ export default function ExamScreen() {
     const [editingT, setEditingT] = useState("");
 
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const appState = useRef<AppStateStatus>(AppState.currentState);
+    const lastTickRef = useRef<number | null>(null);
 
     // --- Logic ---
+    const toPositiveNumber = (value: string, fallback: number) => {
+        const num = parseInt(value, 10);
+        if (Number.isNaN(num) || num <= 0) return fallback;
+        return num;
+    };
+
     const expectedPace = useMemo(() => {
-        const q = parseInt(totalQuestions);
-        const t = parseInt(targetMinutes);
-        if (isNaN(q) || isNaN(t) || q <= 0 || t <= 0) return null;
+        const q = toPositiveNumber(totalQuestions, 0);
+        const t = toPositiveNumber(targetMinutes, 0);
+        if (q <= 0 || t <= 0) return null;
 
         const totalSec = t * 60;
         const perQ = totalSec / q;
@@ -92,11 +102,30 @@ export default function ExamScreen() {
         setter(next.toString());
     };
 
+    const clearTimer = () => {
+        if (timerRef.current) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+        }
+    };
+
+    const startTimer = () => {
+        clearTimer();
+        lastTickRef.current = Date.now();
+        timerRef.current = setInterval(() => {
+            setTotalSeconds((prev) => {
+                lastTickRef.current = Date.now();
+                return prev + 1;
+            });
+        }, 1000);
+    };
+
     const startExam = () => {
-        const qCount = parseInt(totalQuestions);
-        if (isNaN(qCount) || qCount <= 0) {
+        const qCount = toPositiveNumber(totalQuestions, 0);
+        const targetMins = toPositiveNumber(targetMinutes, 0);
+        if (qCount <= 0 || targetMins <= 0) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            Alert.alert("알림", "올바른 문항 수를 입력해주세요.");
+            Alert.alert("알림", "올바른 문항 수와 목표 시간을 입력해주세요.");
             return;
         }
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -108,15 +137,12 @@ export default function ExamScreen() {
         setCompletedSession(null);
         setViewMode("running");
 
-        if (timerRef.current) clearInterval(timerRef.current);
-        timerRef.current = setInterval(() => {
-            setTotalSeconds((prev) => prev + 1);
-        }, 1000);
+        startTimer();
     };
 
     const nextQuestion = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        const qCount = parseInt(totalQuestions);
+        const qCount = toPositiveNumber(totalQuestions, 0);
         const lapDuration = totalSeconds - lastLapTime;
         const newLap: LapRecord = { questionNo: currentQuestion, duration: lapDuration };
 
@@ -134,11 +160,13 @@ export default function ExamScreen() {
 
     const addCategory = () => {
         if (!newCategoryName.trim()) return;
+        const safeQ = toPositiveNumber(newCategoryQ, 40).toString();
+        const safeT = toPositiveNumber(newCategoryT, 90).toString();
         const newCat: Category = {
             id: Date.now().toString(),
             name: newCategoryName.trim(),
-            defaultQuestions: newCategoryQ,
-            defaultMinutes: newCategoryT,
+            defaultQuestions: safeQ,
+            defaultMinutes: safeT,
             isDefault: false
         };
         const updated = [...categories, newCat];
@@ -164,8 +192,10 @@ export default function ExamScreen() {
             setEditingId(null);
             return;
         }
+        const safeQ = toPositiveNumber(editingQ || "0", 40).toString();
+        const safeT = toPositiveNumber(editingT || "0", 90).toString();
         const updated = categories.map(c =>
-            c.id === editingId ? { ...c, name: editingName.trim(), defaultQuestions: editingQ, defaultMinutes: editingT } : c
+            c.id === editingId ? { ...c, name: editingName.trim(), defaultQuestions: safeQ, defaultMinutes: safeT } : c
         );
         setCategories(updated);
         saveCategories(updated);
@@ -213,8 +243,9 @@ export default function ExamScreen() {
     };
 
     const exitAndSave = async (finalLaps: LapRecord[]) => {
-        if (timerRef.current) clearInterval(timerRef.current);
+        clearTimer();
         const finalTitle = title.trim() || buildFallbackTitle(selectedCategory.name);
+        const safeTargetSeconds = toPositiveNumber(targetMinutes, 0) * 60;
         const session: ExamSession = {
             id: Date.now().toString(),
             title: finalTitle,
@@ -223,7 +254,7 @@ export default function ExamScreen() {
             date: new Date().toISOString(),
             totalQuestions: finalLaps.length,
             totalSeconds: totalSeconds,
-            targetSeconds: parseInt(targetMinutes) * 60,
+            targetSeconds: safeTargetSeconds,
             laps: finalLaps,
         };
         await saveSession(session);
@@ -250,15 +281,49 @@ export default function ExamScreen() {
         const load = async () => {
             const saved = await getCategories();
             setCategories(saved);
+            const initial = saved.find((c) => c.id === selectedId) || saved[0] || DEFAULT_CATEGORIES[0];
+            setSelectedId(initial.id);
+            setTotalQuestions(toPositiveNumber(initial.defaultQuestions || "40", 40).toString());
+            setTargetMinutes(toPositiveNumber(initial.defaultMinutes || "90", 90).toString());
         };
         load();
     }, []);
 
     useEffect(() => {
+        if (viewMode !== 'running') {
+            clearTimer();
+        }
+    }, [viewMode]);
+
+    useEffect(() => {
         return () => {
-            if (timerRef.current) clearInterval(timerRef.current);
+            clearTimer();
         };
     }, []);
+
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', (nextState) => {
+            const wasInBackground = appState.current === 'background' || appState.current === 'inactive';
+            const goingInactive = nextState === 'background' || nextState === 'inactive';
+
+            if (wasInBackground && nextState === 'active') {
+                if (viewMode === 'running' && lastTickRef.current) {
+                    const delta = Math.floor((Date.now() - lastTickRef.current) / 1000);
+                    if (delta > 0) {
+                        setTotalSeconds((prev) => prev + delta);
+                        setLastLapTime((prev) => prev + delta);
+                    }
+                    startTimer();
+                }
+            } else if (goingInactive) {
+                lastTickRef.current = Date.now();
+                clearTimer();
+            }
+            appState.current = nextState;
+        });
+
+        return () => subscription.remove();
+    }, [viewMode]);
 
     // --- Views ---
 
@@ -443,8 +508,8 @@ export default function ExamScreen() {
                                                 style={[styles.categorySimpleItem, isActive && styles.categorySimpleItemActive]}
                                                 onPress={() => {
                                                     setSelectedId(item.id);
-                                                    setTotalQuestions(item.defaultQuestions || "40");
-                                                    setTargetMinutes(item.defaultMinutes || "90");
+                                                    setTotalQuestions(toPositiveNumber(item.defaultQuestions || "40", 40).toString());
+                                                    setTargetMinutes(toPositiveNumber(item.defaultMinutes || "90", 90).toString());
                                                     setIsMenuOpen(false);
                                                 }}
                                             >
@@ -476,9 +541,11 @@ export default function ExamScreen() {
 
     const renderRunning = () => {
         const displayTitle = title.trim() || buildFallbackTitle(selectedCategory.name);
-        const targetSec = parseInt(targetMinutes) * 60;
+        const targetSec = toPositiveNumber(targetMinutes, 0) * 60;
         const remainingSec = Math.max(0, targetSec - totalSeconds);
         const currentLapSec = totalSeconds - lastLapTime;
+        const totalQCount = Math.max(1, toPositiveNumber(totalQuestions, 1));
+        const progress = Math.min((currentQuestion / totalQCount) * 100, 100);
 
         return (
             <View style={styles.runningOverlay}>
@@ -494,7 +561,7 @@ export default function ExamScreen() {
 
                         <View style={styles.runningCenter}>
                             <View style={styles.runningProgressBg}>
-                                <View style={[styles.runningProgressBar, { width: `${(currentQuestion / parseInt(totalQuestions)) * 100}%` }]} />
+                                <View style={[styles.runningProgressBar, { width: `${progress}%` }]} />
                             </View>
                             <Text style={styles.runningQText}>Q{currentQuestion}</Text>
 

@@ -44,15 +44,6 @@ export default function TabLayout() {
                     ),
                 }}
             />
-            <Tabs.Screen
-                name="store"
-                options={{
-                    title: '상점',
-                    tabBarIcon: ({ color, focused }) => (
-                        <Ionicons name={focused ? "cart" : "cart-outline"} size={24} color={color} />
-                    ),
-                }}
-            />
         </Tabs>
     );
 }

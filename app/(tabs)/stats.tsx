@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+    Alert,
     BackHandler,
     ScrollView,
     StatusBar,
@@ -56,6 +57,13 @@ export default function StatsScreen() {
     const handleDelete = async (id: string) => {
         await deleteSession(id);
         loadSessions();
+    };
+
+    const confirmDelete = (id: string) => {
+        Alert.alert("기록 삭제", "이 시험 기록을 삭제할까요? 삭제 후 복구할 수 없습니다.", [
+            { text: "취소", style: "cancel" },
+            { text: "삭제", style: "destructive", onPress: () => handleDelete(id) }
+        ]);
     };
 
     const formatTime = (sec: number) => {
@@ -257,7 +265,7 @@ export default function StatsScreen() {
                                                 </View>
                                             </View>
                                         </View>
-                                        <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(session.id)}>
+                                        <TouchableOpacity style={styles.deleteBtn} onPress={() => confirmDelete(session.id)}>
                                             <Ionicons name="trash-outline" size={18} color={COLORS.border} />
                                         </TouchableOpacity>
                                     </TouchableOpacity>
