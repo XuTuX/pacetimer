@@ -205,8 +205,6 @@ export default function ExamScreen() {
 
     const deleteCategory = (id: string) => {
         const cat = categories.find(c => c.id === id);
-        if (cat?.isDefault) return;
-
         Alert.alert("카테고리 삭제", `'${cat?.name}' 카테고리를 삭제할까요?`, [
             { text: "취소", style: "cancel" },
             {
@@ -521,11 +519,9 @@ export default function ExamScreen() {
                                                     <TouchableOpacity onPress={() => startEditing(item)} style={{ padding: 4 }}>
                                                         <Ionicons name="create-outline" size={20} color={COLORS.textMuted} />
                                                     </TouchableOpacity>
-                                                    {!item.isDefault && (
-                                                        <TouchableOpacity onPress={() => deleteCategory(item.id)} style={{ padding: 4 }}>
-                                                            <Ionicons name="trash-outline" size={20} color={COLORS.accent} />
-                                                        </TouchableOpacity>
-                                                    )}
+                                                    <TouchableOpacity onPress={() => deleteCategory(item.id)} style={{ padding: 4 }}>
+                                                        <Ionicons name="trash-outline" size={20} color={COLORS.accent} />
+                                                    </TouchableOpacity>
                                                 </View>
                                             </TouchableOpacity>
                                         );

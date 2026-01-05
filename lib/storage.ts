@@ -88,7 +88,11 @@ export const saveCategories = async (categories: Category[]) => {
 export const getCategories = async (): Promise<Category[]> => {
     try {
         const data = await AsyncStorage.getItem(CATEGORY_KEY);
-        return data ? JSON.parse(data) : DEFAULT_CATEGORIES;
+        if (!data) {
+            await AsyncStorage.setItem(CATEGORY_KEY, JSON.stringify(DEFAULT_CATEGORIES));
+            return DEFAULT_CATEGORIES;
+        }
+        return JSON.parse(data);
     } catch (error) {
         console.error('Failed to get categories:', error);
         return DEFAULT_CATEGORIES;
