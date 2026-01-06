@@ -632,6 +632,7 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: COLORS.textMuted,
         marginBottom: 10,
+        marginTop: 20,
         marginLeft: 2,
     },
     flatCard: {

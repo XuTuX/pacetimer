@@ -19,13 +19,27 @@ import SessionDetail from '../../components/SessionDetail';
 import { deleteSession, ExamSession, getSessions } from '../../lib/storage';
 import { COLORS } from '../../lib/theme';
 
+// --- 이미지의 초록색 느낌을 반영한 내부 컬러 설정 ---
+const THEME_GREEN = {
+    point: '#00D094',      // 잔디 및 숫자 강조색 (민트 그린)
+    pointLight: '#E6F9F4', // 아이콘 배경 및 태그 배경 (매우 연한 민트)
+    pointDeep: '#00B380',  // 좀 더 짙은 민트 (필요시)
+};
+
+type DateSection = {
+    date: string;
+    displayDate: string;
+    sessions: ExamSession[];
+};
+
+type TabType = 'stats' | 'history';
+
 export default function StatsScreen() {
+    const [activeTab, setActiveTab] = useState<TabType>('stats');
     const [sessions, setSessions] = useState<ExamSession[]>([]);
     const [selectedSession, setSelectedSession] = useState<ExamSession | null>(null);
-    const [weekOffset, setWeekOffset] = useState(0);
     const insets = useSafeAreaInsets();
 
-    // 안드로이드 뒤로가기 버튼 대응
     useEffect(() => {
         const backAction = () => {
             if (selectedSession) {
@@ -34,12 +48,7 @@ export default function StatsScreen() {
             }
             return false;
         };
-
-        const backHandler = BackHandler.addEventListener(
-            'hardwareBackPress',
-            backAction
-        );
-
+        const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
         return () => backHandler.remove();
     }, [selectedSession]);
 
@@ -48,216 +57,189 @@ export default function StatsScreen() {
         setSessions(data);
     }, []);
 
-    useFocusEffect(
-        useCallback(() => {
-            loadSessions();
-        }, [loadSessions])
-    );
+    useFocusEffect(useCallback(() => { loadSessions(); }, [loadSessions]));
+
+    const getStudyDate = (dateString: string | Date) => {
+        const d = new Date(dateString);
+        const shifted = new Date(d.getTime() - (6 * 60 * 60 * 1000));
+        return shifted.toISOString().split('T')[0];
+    };
+
+    const formatDisplayDate = (dateStr: string) => {
+        const today = new Date().toISOString().split('T')[0];
+        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        if (dateStr === today) return '오늘';
+        if (dateStr === yesterday) return '어제';
+        const d = new Date(dateStr);
+        return `${d.getMonth() + 1}월 ${d.getDate()}일`;
+    };
+
+    const processedData = useMemo(() => {
+        if (sessions.length === 0) return { dateSections: [], currentStreak: 0, heatmapData: [] };
+        const dateMap: Record<string, ExamSession[]> = {};
+        sessions.forEach(s => {
+            const d = getStudyDate(s.date);
+            if (!dateMap[d]) dateMap[d] = [];
+            dateMap[d].push(s);
+        });
+        const sortedDates = Object.keys(dateMap).sort((a, b) => b.localeCompare(a));
+
+        let curStrk = 0;
+        const today = getStudyDate(new Date());
+        const yesterday = getStudyDate(new Date(Date.now() - 86400000));
+        if (sortedDates.includes(today) || sortedDates.includes(yesterday)) {
+            let checkDate = sortedDates.includes(today) ? new Date(today) : new Date(yesterday);
+            while (true) {
+                const checkStr = checkDate.toISOString().split('T')[0];
+                if (dateMap[checkStr]) {
+                    curStrk++;
+                    checkDate.setDate(checkDate.getDate() - 1);
+                } else { break; }
+            }
+        }
+
+        const sections: DateSection[] = sortedDates.map(date => ({
+            date,
+            displayDate: formatDisplayDate(date),
+            sessions: dateMap[date].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        }));
+
+        const heatmap = Object.entries(dateMap).map(([date, items]) => ({
+            date,
+            count: items.reduce((sum, s) => sum + s.totalQuestions, 0)
+        }));
+
+        return { dateSections: sections, currentStreak: curStrk, heatmapData: heatmap };
+    }, [sessions]);
+
+    const handleTabChange = (tab: TabType) => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setActiveTab(tab);
+    };
 
     const handleDelete = async (id: string) => {
         await deleteSession(id);
         loadSessions();
     };
 
-    const confirmDelete = (id: string) => {
-        Alert.alert("기록 삭제", "이 시험 기록을 삭제할까요? 삭제 후 복구할 수 없습니다.", [
-            { text: "취소", style: "cancel" },
-            { text: "삭제", style: "destructive", onPress: () => handleDelete(id) }
-        ]);
-    };
-
-    const formatTime = (sec: number) => {
-        const m = Math.floor(sec / 60);
-        const s = sec % 60;
-        return `${m}분 ${s}초`;
-    };
-
-    const formatDate = (dateString: string) => {
-        const d = new Date(dateString);
-        return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
-    };
-
-    const canGoBack = useMemo(() => {
-        if (sessions.length === 0) return false;
-        return true;
-    }, [sessions]);
-
-    // 그룹화된 리스트 (필터 없이 전체 세션 사용)
-    // 히트맵 데이터 및 스트릭 계산 (오전 6시 기준 일자 변경 적용)
-    const getStudyDate = (date: string | Date) => {
-        const d = new Date(date);
-        // UTC+9 기준 오전 6시 이전이면 이전 날짜로 취급
-        // 간단하게 6시간을 빼서 날짜를 구하면 됨
-        const shifted = new Date(d.getTime() - (6 * 60 * 60 * 1000));
-        return shifted.toISOString().split('T')[0];
-    };
-
-    const heatmapData = useMemo(() => {
-        const map: Record<string, number> = {};
-        sessions.forEach(s => {
-            const d = getStudyDate(s.date);
-            map[d] = (map[d] || 0) + s.totalQuestions;
-        });
-        return Object.entries(map).map(([date, count]) => ({ date, count }));
-    }, [sessions]);
-
-    const { currentStreak, bestStreak } = useMemo(() => {
-        const activeDates = Array.from(new Set(sessions.map(s => getStudyDate(s.date)))).sort();
-        if (activeDates.length === 0) return { currentStreak: 0, bestStreak: 0 };
-
-        let max = 0;
-        let current = 0;
-        let streak = 0;
-
-        // Best Streak
-        for (let i = 0; i < activeDates.length; i++) {
-            if (i === 0) {
-                streak = 1;
-            } else {
-                const prev = new Date(activeDates[i - 1]);
-                const curr = new Date(activeDates[i]);
-                const diffTime = Math.abs(curr.getTime() - prev.getTime());
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                if (diffDays === 1) {
-                    streak++;
-                } else {
-                    streak = 1;
-                }
-            }
-            max = Math.max(max, streak);
-        }
-
-        // Current Streak
-        const today = getStudyDate(new Date());
-        const yesterday = getStudyDate(new Date(Date.now() - 86400000));
-
-        let lastDate = activeDates[activeDates.length - 1];
-        if (lastDate === today || lastDate === yesterday) {
-            let tempStreak = 0;
-            let checkDate = new Date(lastDate);
-
-            for (let i = activeDates.length - 1; i >= 0; i--) {
-                const d = new Date(activeDates[i]);
-                const diffTime = Math.abs(checkDate.getTime() - d.getTime());
-                const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
-                if (diffDays === 0 || diffDays === 1) {
-                    tempStreak++;
-                    checkDate = d;
-                } else {
-                    break;
-                }
-            }
-            current = tempStreak;
-        }
-
-        return { currentStreak: current, bestStreak: max };
-    }, [sessions]);
-
-    const groupedData = useMemo(() => {
-        return sessions.reduce((acc: any, session) => {
-            const date = formatDate(session.date);
-            if (!acc[date]) acc[date] = [];
-            acc[date].push(session);
-            return acc;
-        }, {});
-    }, [sessions]);
-
-    const sections = Object.keys(groupedData).sort((a, b) => b.localeCompare(a));
-
     return (
         <View style={styles.container}>
-            <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+            <SafeAreaView style={{ flex: 1 }} edges={['top']}>
                 <StatusBar barStyle="dark-content" />
                 <AppHeader />
 
+                <View style={styles.tabContainer}>
+                    <TouchableOpacity
+                        style={[styles.tabButton, activeTab === 'stats' && styles.activeTabButton]}
+                        onPress={() => handleTabChange('stats')}
+                    >
+                        <Text style={[styles.tabText, activeTab === 'stats' && styles.activeTabText]}>리포트</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.tabButton, activeTab === 'history' && styles.activeTabButton]}
+                        onPress={() => handleTabChange('history')}
+                    >
+                        <Text style={[styles.tabText, activeTab === 'history' && styles.activeTabText]}>학습 기록</Text>
+                    </TouchableOpacity>
+                </View>
+
                 <ScrollView
-                    style={styles.list}
+                    style={styles.content}
                     showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
+                    contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
                 >
-                    {/* 월간 스트릭 히트맵 섹션 */}
-                    <View style={{ marginTop: 20, marginBottom: 12 }}>
-                        <MonthlyStreakHeatmap
-                            month={new Date().toISOString().slice(0, 7)}
-                            data={heatmapData}
-                            currentStreak={currentStreak}
-                            bestStreak={bestStreak}
-                        />
-                    </View>
+                    {activeTab === 'stats' ? (
+                        <View>
+                            <View style={styles.summaryCard}>
+                                <View style={styles.streakInfo}>
+                                    <Text style={styles.summaryLabel}>현재 스트릭</Text>
+                                    <Text style={styles.summaryValue}>
+                                        <Text style={styles.highlightText}>{processedData.currentStreak}일</Text> 연속 성장 중
+                                    </Text>
+                                </View>
+                                <View style={styles.streakIcon}>
+                                    {/* 아이콘도 초록색으로 통일 */}
+                                    <Ionicons name="flame" size={30} color={THEME_GREEN.point} />
+                                </View>
+                            </View>
 
-
-                    {/* 리스트 헤더 타이틀 추가로 더 심플하게 구분 */}
-                    <View style={styles.listHeader}>
-                        <Text style={styles.listHeaderText}>모든 학습 기록</Text>
-                    </View>
-
-                    {sections.length === 0 ? (
-                        <View style={styles.emptyState}>
-                            <Ionicons name="document-text-outline" size={64} color={COLORS.border} />
-                            <Text style={styles.emptyText}>아직 기록된 시험이 없습니다.</Text>
+                            <Text style={styles.sectionTitle}>학습 활동</Text>
+                            <MonthlyStreakHeatmap
+                                data={processedData.heatmapData}
+                                currentStreak={processedData.currentStreak}
+                            />
                         </View>
                     ) : (
-                        sections.map(date => (
-                            <View key={date} style={styles.section}>
-                                <Text style={styles.sectionDate}>{date}</Text>
-                                {groupedData[date].map((session: ExamSession) => (
-                                    <TouchableOpacity
-                                        key={session.id}
-                                        style={styles.sessionCard}
-                                        onPress={() => {
-                                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                            setSelectedSession(session);
-                                        }}
-                                    >
-                                        <View style={styles.cardInfo}>
-                                            <View style={styles.cardHeaderRow}>
-                                                <View style={styles.categoryBadge}>
-                                                    <Text style={styles.categoryText}>{session.categoryName}</Text>
-                                                </View>
-                                                <Text style={styles.cardTitle}>{session.title}</Text>
-                                            </View>
-                                            <View style={styles.statsRow}>
-                                                <View style={styles.stat}>
-                                                    <Ionicons name="time-outline" size={14} color={COLORS.textMuted} />
-                                                    <Text style={styles.statValue}>{formatTime(session.totalSeconds)}</Text>
-                                                </View>
-                                                <View style={styles.stat}>
-                                                    <Ionicons name="list-outline" size={14} color={COLORS.textMuted} />
-                                                    <Text style={styles.statValue}>{session.totalQuestions}문항</Text>
-                                                </View>
-                                            </View>
-                                        </View>
-                                        <TouchableOpacity style={styles.deleteBtn} onPress={() => confirmDelete(session.id)}>
-                                            <Ionicons name="trash-outline" size={18} color={COLORS.border} />
-                                        </TouchableOpacity>
-                                    </TouchableOpacity>
-                                ))}
+                        <View>
+                            <View style={styles.historyHeader}>
+                                <Text style={styles.historyCount}>전체 {sessions.length}개의 기록</Text>
                             </View>
-                        ))
+
+                            {processedData.dateSections.length === 0 ? (
+                                <View style={styles.emptyState}>
+                                    <Ionicons name="document-text-outline" size={40} color={COLORS.border} />
+                                    <Text style={styles.emptyText}>학습 기록이 아직 없습니다.</Text>
+                                </View>
+                            ) : (
+                                processedData.dateSections.map((section) => (
+                                    <View key={section.date} style={styles.dateGroup}>
+                                        <Text style={styles.dateHeader}>{section.displayDate}</Text>
+                                        {section.sessions.map((session) => (
+                                            <TouchableOpacity
+                                                key={session.id}
+                                                style={styles.sessionCard}
+                                                activeOpacity={0.7}
+                                                onPress={() => {
+                                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                                    setSelectedSession(session);
+                                                }}
+                                            >
+                                                <View style={styles.cardInfo}>
+                                                    <View style={styles.tagRow}>
+                                                        <View style={styles.categoryTag}>
+                                                            <Text style={styles.categoryTagText}>{session.categoryName}</Text>
+                                                        </View>
+                                                        <Text style={styles.cardTime}>
+                                                            {new Date(session.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </Text>
+                                                    </View>
+                                                    <Text style={styles.cardTitle} numberOfLines={1}>{session.title}</Text>
+                                                    <Text style={styles.cardSub}>
+                                                        {Math.floor(session.totalSeconds / 60)}분 · {session.totalQuestions}문항
+                                                    </Text>
+                                                </View>
+                                                <TouchableOpacity
+                                                    style={styles.deleteBtn}
+                                                    onPress={() => {
+                                                        Alert.alert("삭제", "이 기록을 삭제하시겠습니까?", [
+                                                            { text: "취소", style: "cancel" },
+                                                            { text: "삭제", style: "destructive", onPress: () => handleDelete(session.id) }
+                                                        ]);
+                                                    }}
+                                                >
+                                                    <Ionicons name="trash-outline" size={18} color={COLORS.border} />
+                                                </TouchableOpacity>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                ))
+                            )}
+                        </View>
                     )}
                 </ScrollView>
             </SafeAreaView>
 
-            {/* 상세 보기 화면 (모달 대신 조건부 렌더링) */}
             {selectedSession && (
                 <View style={[StyleSheet.absoluteFill, { backgroundColor: COLORS.bg, zIndex: 100 }]}>
-                    <ScrollView
-                        style={{ flex: 1 }}
-                        showsVerticalScrollIndicator={false}
-                        contentContainerStyle={[styles.modalScroll, {
-                            paddingBottom: 100 + insets.bottom,
-                            paddingTop: insets.top + 20,
-                            paddingHorizontal: 24
-                        }]}
-                    >
-                        <SessionDetail
-                            session={selectedSession}
-                            showDate={true}
-                            onBack={() => setSelectedSession(null)}
-                        />
-                    </ScrollView>
+                    <SafeAreaView style={{ flex: 1 }}>
+                        <ScrollView contentContainerStyle={{ padding: 24 }}>
+                            <SessionDetail
+                                session={selectedSession}
+                                showDate={true}
+                                onBack={() => setSelectedSession(null)}
+                            />
+                        </ScrollView>
+                    </SafeAreaView>
                 </View>
             )}
         </View>
@@ -266,59 +248,88 @@ export default function StatsScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.bg },
-    list: { flex: 1, paddingHorizontal: 24 },
-    listHeader: { marginBottom: 16, marginTop: 8 },
-    listHeaderText: { fontSize: 18, fontWeight: '800', color: COLORS.text },
+    content: { flex: 1, paddingHorizontal: 20 },
 
-    section: { marginBottom: 24 },
-    sectionDate: { fontSize: 14, fontWeight: '700', color: COLORS.textMuted, marginBottom: 12 },
+    tabContainer: {
+        flexDirection: 'row',
+        backgroundColor: '#F1F1F5',
+        marginHorizontal: 20,
+        borderRadius: 14,
+        padding: 4,
+        marginTop: 12,
+        marginBottom: 24,
+    },
+    tabButton: {
+        flex: 1,
+        paddingVertical: 12,
+        alignItems: 'center',
+        borderRadius: 10,
+    },
+    activeTabButton: {
+        backgroundColor: COLORS.surface,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    tabText: { fontSize: 14, fontWeight: '600', color: COLORS.textMuted },
+    activeTabText: { color: COLORS.text, fontWeight: '800' },
 
-    sessionCard: { backgroundColor: COLORS.surface, borderRadius: 24, padding: 18, marginBottom: 12, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
+    summaryCard: {
+        backgroundColor: COLORS.surface,
+        borderRadius: 24,
+        padding: 24,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 32,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    streakInfo: { flex: 1 },
+    summaryLabel: { fontSize: 14, color: COLORS.textMuted, fontWeight: '600', marginBottom: 6 },
+    summaryValue: { fontSize: 22, fontWeight: '800', color: COLORS.text },
+    // 숫자 강조색 적용
+    highlightText: { color: THEME_GREEN.point, fontWeight: '900' },
+
+    streakIcon: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: THEME_GREEN.pointLight, // 이미지의 연한 초록 배경 느낌
+        alignItems: 'center',
+        justifyContent: 'center'
+    },
+
+    sectionTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text, marginBottom: 16, marginLeft: 4 },
+
+    historyHeader: { marginBottom: 16, paddingLeft: 4 },
+    historyCount: { fontSize: 14, color: COLORS.textMuted, fontWeight: '600' },
+    dateGroup: { marginBottom: 28 },
+    dateHeader: { fontSize: 16, fontWeight: '800', color: COLORS.text, marginBottom: 14, marginLeft: 4 },
+
+    sessionCard: {
+        backgroundColor: COLORS.surface,
+        borderRadius: 18,
+        padding: 18,
+        marginBottom: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
     cardInfo: { flex: 1 },
-    cardHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 },
-    categoryBadge: { backgroundColor: COLORS.pointLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-    categoryText: { color: COLORS.point, fontSize: 10, fontWeight: '800' },
-    cardTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text },
+    tagRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
+    // 카테고리 태그 색상 변경
+    categoryTag: { backgroundColor: THEME_GREEN.pointLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+    categoryTagText: { color: THEME_GREEN.point, fontSize: 11, fontWeight: '800' },
 
-    statsRow: { flexDirection: 'row' },
-    stat: { flexDirection: 'row', alignItems: 'center', marginRight: 16 },
-    statValue: { fontSize: 12, color: COLORS.textMuted, marginLeft: 4, fontWeight: '600' },
+    cardTime: { fontSize: 12, color: COLORS.textMuted, fontWeight: '500' },
+    cardTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text, marginBottom: 6 },
+    cardSub: { fontSize: 13, color: COLORS.textMuted, fontWeight: '500' },
 
-    deleteBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-    emptyState: { alignItems: 'center', justifyContent: 'center', paddingTop: 100 },
-    emptyText: { marginTop: 16, fontSize: 16, color: COLORS.textMuted, fontWeight: '500' },
-
-    // Weekly Flow
-    weeklyContainer: { marginTop: 20, marginBottom: 32 },
-    weeklyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-    sectionTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text },
-    weekNav: { flexDirection: 'row', gap: 6 },
-    navBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: COLORS.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border },
-    navBtnDisabled: { opacity: 0.2 },
-
-    // Weekly Widget
-    weeklyWidget: { backgroundColor: COLORS.surface, borderRadius: 28, padding: 4, borderWidth: 1, borderColor: 'rgba(226, 232, 240, 0.6)', shadowColor: '#6366F1', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.05, shadowRadius: 20, elevation: 4 },
-    weeklyDaysRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 110, paddingHorizontal: 16, marginBottom: 8, marginTop: 12 },
-    dayColumn: { alignItems: 'center', flex: 1 },
-    barContainer: { height: 70, width: '100%', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 12 },
-    activeBar: { width: 14, borderRadius: 7, minHeight: 6 },
-    emptyDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#EDF2F7' },
-    todayPointer: { position: 'absolute', bottom: -10, width: 4, height: 4, borderRadius: 2, backgroundColor: COLORS.point },
-    dayLabel: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted, marginBottom: 1 },
-    dayLabelActive: { color: '#475569' },
-    dayDateTiny: { fontSize: 10, color: COLORS.textMuted, opacity: 0.5, fontWeight: '600' },
-
-    weeklySummaryFooter: { padding: 20, borderRadius: 24, marginTop: 4 },
-    summaryItem: {},
-    summaryHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8 },
-    summaryLabel: { fontSize: 10, fontWeight: '900', color: COLORS.point, letterSpacing: 1 },
-    summaryRow: { flexDirection: 'row', alignItems: 'center' },
-    summaryGroup: { flexDirection: 'row', alignItems: 'baseline' },
-    summaryValue: { fontSize: 24, fontWeight: '900', color: COLORS.text, letterSpacing: -0.5 },
-    summaryUnit: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted, marginLeft: 2 },
-    summarySpace: { width: 24 },
-
-    // Modal / Screen
-    modalFull: { flex: 1, backgroundColor: COLORS.bg },
-    modalScroll: { paddingTop: 0 },
+    deleteBtn: { padding: 10, marginLeft: 10 },
+    emptyState: { alignItems: 'center', marginTop: 80, gap: 12 },
+    emptyText: { color: COLORS.textMuted, fontSize: 15, fontWeight: '500' }
 });
