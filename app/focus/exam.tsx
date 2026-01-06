@@ -125,8 +125,8 @@ export default function FocusExamScreen() {
     }, [currentQuestion, finishExam, lastLapTime, laps, totalQuestionsValue, totalSeconds]);
 
     useEffect(() => {
+        if (viewMode !== 'running') return;
         const preventLeave = navigation.addListener('beforeRemove', (e) => {
-            if (viewMode !== 'running') return;
             e.preventDefault();
             Alert.alert("집중 모드", "타이머 종료 후 이동할 수 있어요.", [
                 { text: "계속 진행", style: "cancel" },

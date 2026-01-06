@@ -35,6 +35,11 @@ const buildFallbackTitle = (categoryName: string) => {
     return `${now.getMonth() + 1}월 ${now.getDate()}일 ${categoryName} 연습`;
 };
 
+const toPositiveNumber = (value: string, fallback: number) => {
+    const num = parseInt(value, 10);
+    return (Number.isNaN(num) || num <= 0) ? fallback : num;
+};
+
 export default function ExamScreen() {
     const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
     const [selectedId, setSelectedId] = useState<string>("lang");
@@ -59,20 +64,16 @@ export default function ExamScreen() {
     useEffect(() => {
         const init = async () => {
             const saved = await getCategories();
-            setCategories(saved);
-            const first = saved.find(c => c.id === selectedId) || saved[0];
+            const list = saved.length ? saved : DEFAULT_CATEGORIES;
+            setCategories(list);
+            const first = list.find(c => c.id === selectedId) || list[0];
+            if (!first) return;
             setSelectedId(first.id);
             setTotalQuestions(first.defaultQuestions ?? "40");
             setTargetMinutes(first.defaultMinutes ?? "90");
         };
         init();
     }, []);
-
-    // --- 유틸리티 및 로직 ---
-    const toPositiveNumber = (value: string, fallback: number) => {
-        const num = parseInt(value, 10);
-        return (Number.isNaN(num) || num <= 0) ? fallback : num;
-    };
 
     const expectedPace = useMemo(() => {
         const q = toPositiveNumber(totalQuestions, 0);
@@ -145,6 +146,7 @@ export default function ExamScreen() {
 
     const startExam = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        if (!selectedCategory) return;
         router.push({
             pathname: "/focus/exam",
             params: {
