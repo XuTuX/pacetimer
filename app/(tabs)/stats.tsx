@@ -19,11 +19,12 @@ import SessionDetail from '../../components/SessionDetail';
 import { deleteSession, ExamSession, getSessions } from '../../lib/storage';
 import { COLORS } from '../../lib/theme';
 
-// --- 이미지의 초록색 느낌을 반영한 내부 컬러 설정 ---
+// --- 초록색 테마 설정 ---
 const THEME_GREEN = {
-    point: '#00D094',      // 잔디 및 숫자 강조색 (민트 그린)
-    pointLight: '#E6F9F4', // 아이콘 배경 및 태그 배경 (매우 연한 민트)
-    pointDeep: '#00B380',  // 좀 더 짙은 민트 (필요시)
+    point: '#00D094',      // 선명한 포인트 민트 그린 (도트 및 숫자)
+    pointLight: '#E6F9F4', // 아이콘 배경용 연한 민트
+    textMain: '#222222',   // 가독성을 위한 진한 텍스트
+    textMuted: '#8E8E93',  // 부가 정보용 회색
 };
 
 type DateSection = {
@@ -117,17 +118,13 @@ export default function StatsScreen() {
         setActiveTab(tab);
     };
 
-    const handleDelete = async (id: string) => {
-        await deleteSession(id);
-        loadSessions();
-    };
-
     return (
         <View style={styles.container}>
             <SafeAreaView style={{ flex: 1 }} edges={['top']}>
                 <StatusBar barStyle="dark-content" />
                 <AppHeader />
 
+                {/* 탭 버튼 */}
                 <View style={styles.tabContainer}>
                     <TouchableOpacity
                         style={[styles.tabButton, activeTab === 'stats' && styles.activeTabButton]}
@@ -149,6 +146,7 @@ export default function StatsScreen() {
                     contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
                 >
                     {activeTab === 'stats' ? (
+                        /* --- 리포트 탭 --- */
                         <View>
                             <View style={styles.summaryCard}>
                                 <View style={styles.streakInfo}>
@@ -158,7 +156,6 @@ export default function StatsScreen() {
                                     </Text>
                                 </View>
                                 <View style={styles.streakIcon}>
-                                    {/* 아이콘도 초록색으로 통일 */}
                                     <Ionicons name="flame" size={30} color={THEME_GREEN.point} />
                                 </View>
                             </View>
@@ -170,74 +167,64 @@ export default function StatsScreen() {
                             />
                         </View>
                     ) : (
+                        /* --- 기록 탭 (도트 스타일 적용) --- */
                         <View>
                             <View style={styles.historyHeader}>
                                 <Text style={styles.historyCount}>전체 {sessions.length}개의 기록</Text>
                             </View>
 
-                            {processedData.dateSections.length === 0 ? (
-                                <View style={styles.emptyState}>
-                                    <Ionicons name="document-text-outline" size={40} color={COLORS.border} />
-                                    <Text style={styles.emptyText}>학습 기록이 아직 없습니다.</Text>
-                                </View>
-                            ) : (
-                                processedData.dateSections.map((section) => (
-                                    <View key={section.date} style={styles.dateGroup}>
-                                        <Text style={styles.dateHeader}>{section.displayDate}</Text>
-                                        {section.sessions.map((session) => (
-                                            <TouchableOpacity
-                                                key={session.id}
-                                                style={styles.sessionCard}
-                                                activeOpacity={0.7}
-                                                onPress={() => {
-                                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                                    setSelectedSession(session);
-                                                }}
-                                            >
-                                                <View style={styles.cardInfo}>
-                                                    <View style={styles.tagRow}>
-                                                        <View style={styles.categoryTag}>
-                                                            <Text style={styles.categoryTagText}>{session.categoryName}</Text>
-                                                        </View>
-                                                        <Text style={styles.cardTime}>
-                                                            {new Date(session.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                        </Text>
-                                                    </View>
-                                                    <Text style={styles.cardTitle} numberOfLines={1}>{session.title}</Text>
-                                                    <Text style={styles.cardSub}>
-                                                        {Math.floor(session.totalSeconds / 60)}분 · {session.totalQuestions}문항
+                            {processedData.dateSections.map((section) => (
+                                <View key={section.date} style={styles.dateGroup}>
+                                    <Text style={styles.dateHeader}>{section.displayDate}</Text>
+                                    {section.sessions.map((session) => (
+                                        <TouchableOpacity
+                                            key={session.id}
+                                            style={styles.sessionCard}
+                                            onPress={() => setSelectedSession(session)}
+                                        >
+                                            <View style={styles.cardInfo}>
+                                                <View style={styles.tagRow}>
+                                                    {/* 방법 3: 초록 도트 + 카테고리명 */}
+                                                    <View style={styles.categoryDot} />
+                                                    <Text style={styles.categoryNameText}>{session.categoryName}</Text>
+                                                    <Text style={styles.cardTime}>
+                                                        {new Date(session.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                     </Text>
                                                 </View>
-                                                <TouchableOpacity
-                                                    style={styles.deleteBtn}
-                                                    onPress={() => {
-                                                        Alert.alert("삭제", "이 기록을 삭제하시겠습니까?", [
-                                                            { text: "취소", style: "cancel" },
-                                                            { text: "삭제", style: "destructive", onPress: () => handleDelete(session.id) }
-                                                        ]);
-                                                    }}
-                                                >
-                                                    <Ionicons name="trash-outline" size={18} color={COLORS.border} />
-                                                </TouchableOpacity>
+
+                                                <Text style={styles.cardTitle} numberOfLines={1}>{session.title}</Text>
+
+                                                <Text style={styles.cardSub}>
+                                                    {Math.floor(session.totalSeconds / 60)}분 · {session.totalQuestions}문항
+                                                </Text>
+                                            </View>
+
+                                            <TouchableOpacity
+                                                style={styles.deleteBtn}
+                                                onPress={() => {
+                                                    Alert.alert("삭제", "이 기록을 삭제하시겠습니까?", [
+                                                        { text: "취소", style: "cancel" },
+                                                        { text: "삭제", style: "destructive", onPress: () => deleteSession(session.id).then(loadSessions) }
+                                                    ]);
+                                                }}
+                                            >
+                                                <Ionicons name="trash-outline" size={18} color={COLORS.border} />
                                             </TouchableOpacity>
-                                        ))}
-                                    </View>
-                                ))
-                            )}
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            ))}
                         </View>
                     )}
                 </ScrollView>
             </SafeAreaView>
 
+            {/* 상세 보기 레이어 */}
             {selectedSession && (
                 <View style={[StyleSheet.absoluteFill, { backgroundColor: COLORS.bg, zIndex: 100 }]}>
                     <SafeAreaView style={{ flex: 1 }}>
                         <ScrollView contentContainerStyle={{ padding: 24 }}>
-                            <SessionDetail
-                                session={selectedSession}
-                                showDate={true}
-                                onBack={() => setSelectedSession(null)}
-                            />
+                            <SessionDetail session={selectedSession} showDate={true} onBack={() => setSelectedSession(null)} />
                         </ScrollView>
                     </SafeAreaView>
                 </View>
@@ -259,20 +246,8 @@ const styles = StyleSheet.create({
         marginTop: 12,
         marginBottom: 24,
     },
-    tabButton: {
-        flex: 1,
-        paddingVertical: 12,
-        alignItems: 'center',
-        borderRadius: 10,
-    },
-    activeTabButton: {
-        backgroundColor: COLORS.surface,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-    },
+    tabButton: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 10 },
+    activeTabButton: { backgroundColor: COLORS.surface, elevation: 3, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
     tabText: { fontSize: 14, fontWeight: '600', color: COLORS.textMuted },
     activeTabText: { color: COLORS.text, fontWeight: '800' },
 
@@ -290,25 +265,18 @@ const styles = StyleSheet.create({
     streakInfo: { flex: 1 },
     summaryLabel: { fontSize: 14, color: COLORS.textMuted, fontWeight: '600', marginBottom: 6 },
     summaryValue: { fontSize: 22, fontWeight: '800', color: COLORS.text },
-    // 숫자 강조색 적용
     highlightText: { color: THEME_GREEN.point, fontWeight: '900' },
-
-    streakIcon: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        backgroundColor: THEME_GREEN.pointLight, // 이미지의 연한 초록 배경 느낌
-        alignItems: 'center',
-        justifyContent: 'center'
-    },
+    streakIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: THEME_GREEN.pointLight, alignItems: 'center', justifyContent: 'center' },
 
     sectionTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text, marginBottom: 16, marginLeft: 4 },
 
+    // 기록 탭 헤더
     historyHeader: { marginBottom: 16, paddingLeft: 4 },
     historyCount: { fontSize: 14, color: COLORS.textMuted, fontWeight: '600' },
     dateGroup: { marginBottom: 28 },
     dateHeader: { fontSize: 16, fontWeight: '800', color: COLORS.text, marginBottom: 14, marginLeft: 4 },
 
+    // 세션 카드 & 도트 스타일
     sessionCard: {
         backgroundColor: COLORS.surface,
         borderRadius: 18,
@@ -320,16 +288,31 @@ const styles = StyleSheet.create({
         borderColor: COLORS.border,
     },
     cardInfo: { flex: 1 },
-    tagRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
-    // 카테고리 태그 색상 변경
-    categoryTag: { backgroundColor: THEME_GREEN.pointLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-    categoryTagText: { color: THEME_GREEN.point, fontSize: 11, fontWeight: '800' },
+    tagRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
 
-    cardTime: { fontSize: 12, color: COLORS.textMuted, fontWeight: '500' },
-    cardTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text, marginBottom: 6 },
-    cardSub: { fontSize: 13, color: COLORS.textMuted, fontWeight: '500' },
+    // 도트(Dot) 스타일 핵심
+    categoryDot: {
+        width: 7,
+        height: 7,
+        borderRadius: 3.5,
+        backgroundColor: THEME_GREEN.point, // 초록 점
+        marginRight: 6
+    },
+    categoryNameText: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#444', // 제목보다 약간 연한 다크 그레이
+        marginRight: 10
+    },
+    cardTime: { fontSize: 12, color: THEME_GREEN.textMuted, fontWeight: '500' },
+
+    cardTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: THEME_GREEN.textMain,
+        marginBottom: 6
+    },
+    cardSub: { fontSize: 13, color: THEME_GREEN.textMuted, fontWeight: '500' },
 
     deleteBtn: { padding: 10, marginLeft: 10 },
-    emptyState: { alignItems: 'center', marginTop: 80, gap: 12 },
-    emptyText: { color: COLORS.textMuted, fontSize: 15, fontWeight: '500' }
 });
