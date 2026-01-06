@@ -7,14 +7,15 @@ import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "rea
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import SessionDetail from '../../components/SessionDetail';
 import { ExamSession, LapRecord, saveSession } from "../../lib/storage";
+import { COLORS } from '../../lib/theme';
 
 const THEME_GREEN = {
-    point: '#00D094',
-    pointLight: '#E6F9F4',
-    textMain: '#1C1C1E',
-    textMuted: '#8E8E93',
-    bg: '#F8F9FA',
-    border: '#F2F2F7',
+    point: COLORS.point,
+    pointLight: COLORS.pointLight,
+    textMain: COLORS.text,
+    textMuted: COLORS.textMuted,
+    bg: COLORS.bg,
+    border: COLORS.border,
     accent: '#FF3B30',
 };
 
@@ -187,6 +188,7 @@ export default function FocusExamScreen() {
                 <View style={{ width: 32 }} />
             </View>
             <ScrollView
+                style={{ backgroundColor: COLORS.bg }}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={[styles.resultContent, { paddingBottom: insets.bottom + 24 }]}
             >
@@ -213,7 +215,7 @@ const styles = StyleSheet.create({
     timerHint: { fontSize: 13, color: THEME_GREEN.textMuted, fontWeight: '700', marginTop: 4 },
     runTap: { textAlign: 'center', marginBottom: 60, fontSize: 15, fontWeight: '800', color: THEME_GREEN.point },
 
-    resultScreen: { flex: 1, backgroundColor: '#FFF' },
+    resultScreen: { flex: 1, backgroundColor: COLORS.bg },
     resHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: THEME_GREEN.border },
     backBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
     resTitle: { fontSize: 20, fontWeight: '800', color: THEME_GREEN.textMain },

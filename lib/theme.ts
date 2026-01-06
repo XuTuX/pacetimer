@@ -2,7 +2,8 @@ export const COLORS = {
     // 배경 및 레이아웃
     bg: "#F8F9FA",         // 전체 화면 배경 (연한 회색으로 카드가 돋보이게 함)
     surface: "#FFFFFF",    // 카드, 모달 등 하얀 표면
-    surfaceVariant: "#F2F2F7", // 보조 배경 또는 입력창 배경
+    surface2: "#F2F2F7",   // 보조 배경 또는 입력창 배경
+    surfaceVariant: "#F2F2F7", // TODO: 지우기 전까지 하위 호환
 
     // 텍스트
     text: "#1C1C1E",       // 메인 텍스트 (완전 검정보다 부드러운 검정)

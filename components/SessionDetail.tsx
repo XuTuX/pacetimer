@@ -5,15 +5,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { Alert, StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
 import { ExamSession } from '../lib/storage';
-
-const THEME_GREEN = {
-    point: '#00D094',
-    pointLight: '#E6F9F4',
-    textMain: '#1C1C1E',
-    textMuted: '#8E8E93',
-    accent: '#FF5252',
-    border: '#F2F2F7',
-};
+import { COLORS } from '../lib/theme';
 
 export type LapSortMode = 'number' | 'slowest';
 
@@ -88,7 +80,7 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
                 <View style={styles.headerTitleRow}>
                     {onBack && (
                         <TouchableOpacity onPress={onBack} style={styles.backBtn}>
-                            <Ionicons name="chevron-back" size={24} color={THEME_GREEN.textMain} />
+                            <Ionicons name="chevron-back" size={24} color={COLORS.text} />
                         </TouchableOpacity>
                     )}
                     <View>
@@ -97,7 +89,7 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
                     </View>
                 </View>
                 <TouchableOpacity onPress={handleShare} style={styles.miniShareBtn}>
-                    <Ionicons name="share-outline" size={20} color={THEME_GREEN.textMuted} />
+                    <Ionicons name="share-outline" size={20} color={COLORS.textMuted} />
                 </TouchableOpacity>
             </View>
 
@@ -150,14 +142,14 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
                                     <Text style={styles.lapNoText}>Q{String(lap.questionNo).padStart(2, '0')}</Text>
                                     {isSlow && <View style={styles.slowDot} />}
                                 </View>
-                                <Text style={[styles.lapTimeText, isSlow && { color: THEME_GREEN.accent }]}>
+                                <Text style={[styles.lapTimeText, isSlow && { color: COLORS.accent }]}>
                                     {formatTime(lap.duration)}
                                 </Text>
                             </View>
                             <View style={styles.lapBarMiniBg}>
                                 <View style={[styles.lapBarMini, {
                                     width: `${(lap.duration / analysis.maxDuration) * 100}%` as any,
-                                    backgroundColor: isSlow ? THEME_GREEN.accent : THEME_GREEN.point,
+                                    backgroundColor: isSlow ? COLORS.accent : COLORS.point,
                                     opacity: 0.5
                                 }]} />
                             </View>
@@ -173,7 +165,7 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
                 style={styles.hiddenShareContainer}
             >
                 <LinearGradient
-                    colors={[THEME_GREEN.point, '#00A878']}
+                    colors={[COLORS.point, '#00A878']}
                     style={styles.shareCard}
                 >
                     <Text style={styles.shareBrand}>PACETIME</Text>
@@ -203,39 +195,39 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
 }
 
 const styles = StyleSheet.create({
-    container: { backgroundColor: '#FFF', gap: 28 },
+    container: { backgroundColor: COLORS.bg, gap: 28 },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     backBtn: { padding: 4 },
-    title: { fontSize: 19, fontWeight: '800', color: THEME_GREEN.textMain },
-    subInfo: { fontSize: 13, color: THEME_GREEN.textMuted, marginTop: 2, fontWeight: '500' },
-    miniShareBtn: { padding: 8, backgroundColor: '#F2F2F7', borderRadius: 12 },
+    title: { fontSize: 19, fontWeight: '800', color: COLORS.text },
+    subInfo: { fontSize: 13, color: COLORS.textMuted, marginTop: 2, fontWeight: '500' },
+    miniShareBtn: { padding: 8, backgroundColor: COLORS.surface2, borderRadius: 12 },
 
-    summaryGrid: { flexDirection: 'row', backgroundColor: '#F8F9FA', borderRadius: 20, paddingVertical: 20 },
+    summaryGrid: { flexDirection: 'row', backgroundColor: COLORS.surface, borderRadius: 20, paddingVertical: 20, borderWidth: 1, borderColor: COLORS.border },
     summaryItem: { flex: 1, alignItems: 'center', gap: 6 },
-    summaryLabel: { fontSize: 12, color: THEME_GREEN.textMuted, fontWeight: '600' },
-    summaryValue: { fontSize: 16, fontWeight: '800', color: THEME_GREEN.textMain },
+    summaryLabel: { fontSize: 12, color: COLORS.textMuted, fontWeight: '600' },
+    summaryValue: { fontSize: 16, fontWeight: '800', color: COLORS.text },
 
     sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    sectionTitle: { fontSize: 17, fontWeight: '800', color: THEME_GREEN.textMain },
-    alertBadge: { backgroundColor: THEME_GREEN.pointLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-    alertBadgeText: { fontSize: 11, color: THEME_GREEN.point, fontWeight: '700' },
+    sectionTitle: { fontSize: 17, fontWeight: '800', color: COLORS.text },
+    alertBadge: { backgroundColor: COLORS.pointLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+    alertBadgeText: { fontSize: 11, color: COLORS.point, fontWeight: '700' },
 
-    filterRow: { flexDirection: 'row', backgroundColor: '#F2F2F7', padding: 3, borderRadius: 10 },
+    filterRow: { flexDirection: 'row', backgroundColor: COLORS.surface2, padding: 3, borderRadius: 10 },
     filterBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8 },
-    filterBtnActive: { backgroundColor: '#FFF' },
-    filterBtnText: { fontSize: 12, color: THEME_GREEN.textMuted, fontWeight: '600' },
-    filterBtnTextActive: { color: THEME_GREEN.textMain, fontWeight: '800' },
+    filterBtnActive: { backgroundColor: COLORS.surface },
+    filterBtnText: { fontSize: 12, color: COLORS.textMuted, fontWeight: '600' },
+    filterBtnTextActive: { color: COLORS.text, fontWeight: '800' },
 
     lapList: { gap: 4 },
-    lapItem: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: THEME_GREEN.border, gap: 8 },
+    lapItem: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border, gap: 8 },
     lapMainInfo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     lapNoContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    lapNoText: { fontSize: 15, fontWeight: '700', color: THEME_GREEN.textMain },
-    slowDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: THEME_GREEN.accent },
-    lapTimeText: { fontSize: 15, fontWeight: '800', color: THEME_GREEN.textMain, fontVariant: ['tabular-nums'] },
-    lapBarMiniBg: { width: '100%', height: 3, backgroundColor: '#F2F2F7', borderRadius: 1.5, overflow: 'hidden' },
+    lapNoText: { fontSize: 15, fontWeight: '700', color: COLORS.text },
+    slowDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: COLORS.accent },
+    lapTimeText: { fontSize: 15, fontWeight: '800', color: COLORS.text, fontVariant: ['tabular-nums'] },
+    lapBarMiniBg: { width: '100%', height: 3, backgroundColor: COLORS.surface2, borderRadius: 1.5, overflow: 'hidden' },
     lapBarMini: { height: '100%' },
 
     // --- 공유 카드용 스타일 (화면 밖 배치) ---
@@ -257,7 +249,7 @@ const styles = StyleSheet.create({
         padding: 24,
         alignItems: 'center',
     },
-    shareCategory: { fontSize: 12, fontWeight: '800', color: THEME_GREEN.point, marginBottom: 8 },
+    shareCategory: { fontSize: 12, fontWeight: '800', color: COLORS.point, marginBottom: 8 },
     shareTitle: { fontSize: 20, fontWeight: '800', color: '#111', textAlign: 'center', marginBottom: 4 },
     shareDate: { fontSize: 13, color: '#888', marginBottom: 20 },
     shareDivider: { width: '100%', height: 1, backgroundColor: '#EEE', marginBottom: 20 },

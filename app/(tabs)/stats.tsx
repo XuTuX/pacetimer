@@ -181,8 +181,11 @@ export default function StatsScreen() {
             {/* 상세 보기 레이어 */}
             {selectedSession && (
                 <View style={[StyleSheet.absoluteFill, { backgroundColor: COLORS.bg, zIndex: 100 }]}>
-                    <SafeAreaView style={{ flex: 1 }}>
-                        <ScrollView contentContainerStyle={{ padding: 24 }}>
+                    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
+                        <ScrollView
+                            style={{ backgroundColor: COLORS.bg }}
+                            contentContainerStyle={{ padding: 24 }}
+                        >
                             <SessionDetail session={selectedSession} showDate={true} onBack={() => setSelectedSession(null)} />
                         </ScrollView>
                     </SafeAreaView>
@@ -194,7 +197,7 @@ export default function StatsScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.bg },
-    content: { flex: 1, paddingHorizontal: 20 },
+    content: { flex: 1, paddingHorizontal: 20, backgroundColor: COLORS.bg },
 
     tabContainer: {
         flexDirection: 'row',

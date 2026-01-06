@@ -267,7 +267,7 @@ export default function ExamScreen() {
 }
 
 const styles = StyleSheet.create({
-    screen: { flex: 1 },
+    screen: { flex: 1, backgroundColor: '#FFF' },
     scrollContent: { paddingHorizontal: 24, paddingBottom: 40 },
     label: { fontSize: 13, fontWeight: '700', color: THEME_GREEN.textMuted, marginTop: 24, marginBottom: 12, marginLeft: 4 },
     card: { backgroundColor: '#FFF', borderRadius: 20, padding: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: THEME_GREEN.border },
