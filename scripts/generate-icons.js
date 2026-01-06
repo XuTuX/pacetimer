@@ -35,6 +35,8 @@ const SVG_FOREGROUND = `
       <stop offset="100%" style="stop-color:#818CF8;stop-opacity:0.2" />
     </linearGradient>
   </defs>
+
+
   
   <g transform="translate(512, 512)">
     <!-- Dynamic flowing lines representing pace/rhythm -->
@@ -105,18 +107,18 @@ const SVG_BACKGROUND = `
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#5B5FC0;stop-opacity:1" />
-      <stop offset="50%" style="stop-color:#6366F1;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#7C7FFF;stop-opacity:1" />
+      <stop offset="0%" style="stop-color:#000000;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#111111;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#222222;stop-opacity:1" />
     </linearGradient>
     <radialGradient id="centerGlow" cx="50%" cy="45%">
-      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:0.25" />
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:0.2" />
       <stop offset="50%" style="stop-color:#FFFFFF;stop-opacity:0.1" />
       <stop offset="100%" style="stop-color:#FFFFFF;stop-opacity:0" />
     </radialGradient>
     <radialGradient id="accentGlow" cx="75%" cy="75%">
-      <stop offset="0%" style="stop-color:#F43F5E;stop-opacity:0.12" />
-      <stop offset="100%" style="stop-color:#F43F5E;stop-opacity:0" />
+      <stop offset="0%" style="stop-color:#14B8A6;stop-opacity:0.15" />
+      <stop offset="100%" style="stop-color:#14B8A6;stop-opacity:0" />
     </radialGradient>
   </defs>
   

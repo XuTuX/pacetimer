@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
+import { COLORS } from '../../lib/theme';
 
 export default function TabLayout() {
     return (
@@ -9,7 +10,7 @@ export default function TabLayout() {
                 headerShown: false,
                 tabBarStyle: {
                     backgroundColor: '#FFFFFF',
-                    borderTopColor: '#F1F5F9',
+                    borderTopColor: '#EEEEEE',
                     height: Platform.OS === 'ios' ? 88 : 68,
                     paddingBottom: Platform.OS === 'ios' ? 30 : 12,
                     paddingTop: 12,
@@ -17,11 +18,11 @@ export default function TabLayout() {
                     elevation: 0,
                     shadowOpacity: 0,
                 },
-                tabBarActiveTintColor: '#6366F1',
-                tabBarInactiveTintColor: '#94A3B8',
+                tabBarActiveTintColor: COLORS.point,
+                tabBarInactiveTintColor: '#CCCCCC',
                 tabBarLabelStyle: {
                     fontSize: 12,
-                    fontWeight: '700',
+                    fontWeight: '800',
                     marginTop: 4,
                 },
             }}

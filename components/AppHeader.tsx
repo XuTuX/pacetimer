@@ -1,10 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-
-const COLORS = {
-    bg: "#F8FAFC",
-    text: "#0F172A",
-};
+import { COLORS } from '../lib/theme';
 
 export default function AppHeader() {
     return (
@@ -17,14 +13,15 @@ export default function AppHeader() {
 const styles = StyleSheet.create({
     header: {
         paddingHorizontal: 24,
-        paddingTop: 12,
-        paddingBottom: 12,
+        paddingTop: 16,
+        paddingBottom: 8,
         backgroundColor: COLORS.bg,
     },
     brand: {
-        fontSize: 24,
+        fontSize: 28,
         fontWeight: '900',
         color: COLORS.text,
-        letterSpacing: -0.5,
+        letterSpacing: -1,
     },
 });
+

@@ -636,9 +636,9 @@ const styles = StyleSheet.create({
     },
     flatCard: {
         backgroundColor: COLORS.surface,
-        borderRadius: 16,
-        padding: 18,
-        marginBottom: 10,
+        borderRadius: 24,
+        padding: 20,
+        marginBottom: 12,
         borderWidth: 1,
         borderColor: COLORS.border,
     },
@@ -687,8 +687,8 @@ const styles = StyleSheet.create({
     stepperBtn: {
         width: 44,
         height: 44,
-        borderRadius: 14,
-        backgroundColor: COLORS.bg,
+        borderRadius: 22,
+        backgroundColor: COLORS.white,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
@@ -702,7 +702,7 @@ const styles = StyleSheet.create({
         opacity: 0.8,
     },
     paceLabel: { fontSize: 13, color: COLORS.textMuted, marginRight: 6 },
-    paceValue: { fontSize: 13, color: COLORS.primary, fontWeight: '700' },
+    paceValue: { fontSize: 13, color: COLORS.point, fontWeight: '700' },
 
     bottomAction: {
         position: 'absolute',
@@ -711,13 +711,13 @@ const styles = StyleSheet.create({
         right: 24,
     },
     primaryActionBtn: {
-        backgroundColor: COLORS.primary,
+        backgroundColor: COLORS.point,
         paddingVertical: 18,
-        borderRadius: 18,
+        borderRadius: 28,
         alignItems: "center",
         justifyContent: "center",
     },
-    primaryActionText: { color: COLORS.white, fontSize: 16, fontWeight: "800" },
+    primaryActionText: { color: COLORS.white, fontSize: 16, fontWeight: "900" },
 
     // Menu / Modal
     menuOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
@@ -746,10 +746,10 @@ const styles = StyleSheet.create({
     formLabel: { fontSize: 12, color: COLORS.textMuted, fontWeight: '700', marginBottom: 6 },
     formInput: { backgroundColor: COLORS.surface, borderRadius: 10, padding: 12, fontSize: 15, fontWeight: '600' },
     formActions: { flexDirection: 'row', gap: 10 },
-    formCancelBtn: { flex: 1, padding: 14, alignItems: 'center', backgroundColor: COLORS.border, borderRadius: 10 },
-    formSaveBtn: { flex: 2, padding: 14, alignItems: 'center', backgroundColor: COLORS.primary, borderRadius: 10 },
-    formBtnTextMuted: { fontWeight: '700', color: COLORS.textMuted },
-    formBtnTextWhite: { fontWeight: '700', color: COLORS.white },
+    formCancelBtn: { flex: 1, padding: 14, alignItems: 'center', backgroundColor: COLORS.white, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border },
+    formSaveBtn: { flex: 2, padding: 14, alignItems: 'center', backgroundColor: COLORS.primary, borderRadius: 16 },
+    formBtnTextMuted: { fontWeight: '700', color: COLORS.text },
+    formBtnTextWhite: { fontWeight: '800', color: COLORS.white },
 
     // Running
     runningOverlay: { flex: 1, backgroundColor: COLORS.bg },
@@ -759,11 +759,11 @@ const styles = StyleSheet.create({
     closeIcon: { padding: 8, backgroundColor: COLORS.surface, borderRadius: 20 },
     runningCenter: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
     runningProgressBg: { width: '100%', height: 8, backgroundColor: COLORS.border, borderRadius: 4, overflow: 'hidden', marginBottom: 32 },
-    runningProgressBar: { height: '100%', backgroundColor: COLORS.primary },
-    runningQText: { fontSize: 48, fontWeight: '900', color: COLORS.text, marginBottom: 12 },
+    runningProgressBar: { height: '100%', backgroundColor: COLORS.point },
+    runningQText: { fontSize: 56, fontWeight: '900', color: COLORS.text, marginBottom: 8 },
     timerDisplay: { alignItems: 'center' },
-    lapTimerBig: { fontSize: 64, fontWeight: '900', color: COLORS.primary, fontVariant: ['tabular-nums'] },
-    totalTimerSmall: { fontSize: 16, fontWeight: '600', color: COLORS.textMuted, marginTop: 8 },
+    lapTimerBig: { fontSize: 72, fontWeight: '900', color: COLORS.point, fontVariant: ['tabular-nums'], letterSpacing: -2 },
+    totalTimerSmall: { fontSize: 14, fontWeight: '700', color: COLORS.textMuted, marginTop: 12 },
     tapHint: { textAlign: 'center', paddingBottom: 60, color: COLORS.textMuted, fontSize: 14, fontWeight: '600' },
 
     // Result

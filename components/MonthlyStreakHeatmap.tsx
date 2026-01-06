@@ -28,11 +28,11 @@ const DAYS_OF_WEEK = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 // GitHub-style Green Palette
 const LEVEL_COLORS = {
-    EMPTY: '#F1F5F9', // 연한 회색 (bg-slate-100)
-    LEVEL1: '#D1FAE5', // 초록 1단계
-    LEVEL2: '#6EE7B7', // 초록 2단계
-    LEVEL3: '#10B981', // 초록 3단계
-    LEVEL4: '#047857', // 초록 4단계
+    EMPTY: '#F5F5F5',
+    LEVEL1: '#E0E0E0',
+    LEVEL2: '#9E9E9E',
+    LEVEL3: '#616161',
+    LEVEL4: '#000000',
 };
 
 const MonthlyStreakHeatmap: React.FC<MonthlyStreakHeatmapProps> = ({
@@ -191,13 +191,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingVertical: 18,
         borderWidth: 1,
-        borderColor: 'rgba(226, 232, 240, 0.8)',
+        borderColor: COLORS.border,
         marginBottom: 20,
-        shadowColor: '#6366F1',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.03,
-        shadowRadius: 10,
-        elevation: 2
     },
     header: {
         flexDirection: 'row',
@@ -208,7 +203,7 @@ const styles = StyleSheet.create({
     streakInfo: {},
     streakLabel: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginBottom: 2 },
     streakValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
-    streakCount: { fontSize: 22, fontWeight: '900', color: COLORS.text },
+    streakCount: { fontSize: 22, fontWeight: '900', color: COLORS.point },
     streakUnit: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted },
 
     monthNav: {
