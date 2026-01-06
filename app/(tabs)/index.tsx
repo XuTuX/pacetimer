@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useNavigation } from 'expo-router';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     Alert,
@@ -39,6 +40,7 @@ export default function ExamScreen() {
     const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
     const [selectedId, setSelectedId] = useState<string>("lang");
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const navigation = useNavigation();
 
     // 과목 관리 모드 및 폼 상태
     const [menuMode, setMenuMode] = useState<"select" | "add" | "edit">("select");
@@ -59,17 +61,27 @@ export default function ExamScreen() {
     const insets = useSafeAreaInsets();
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+    const stopTimer = useCallback(() => {
+        if (timerRef.current) clearInterval(timerRef.current);
+        timerRef.current = null;
+    }, []);
+
+    const resetExamState = useCallback(() => {
+        stopTimer();
+        setTotalSeconds(0);
+        setLastLapTime(0);
+        setCurrentQuestion(1);
+        setLaps([]);
+    }, [stopTimer]);
+
     // 탭 이동 시 화면 초기화 (setup 모드로 리셋)
     useFocusEffect(
         useCallback(() => {
             setViewMode("setup");
-            stopTimer();
-            setTotalSeconds(0);
-            setLastLapTime(0);
-            setCurrentQuestion(1);
-            setLaps([]);
+            resetExamState();
             setCompletedSession(null);
-        }, [])
+            return () => stopTimer();
+        }, [resetExamState, stopTimer])
     );
 
     const selectedCategory = useMemo(() =>
@@ -89,10 +101,79 @@ export default function ExamScreen() {
         init();
     }, []);
 
+    useEffect(() => () => stopTimer(), [stopTimer]);
+
+    useEffect(() => {
+        const parent = navigation.getParent();
+        if (!parent) return;
+
+        const onTabPress = (e: any) => {
+            if (viewMode === 'running') {
+                e.preventDefault();
+                Alert.alert("집중 모드", "타이머 종료 후 이동할 수 있어요.");
+            }
+        };
+
+        parent.addListener('tabPress', onTabPress);
+
+        return () => {
+            parent.removeListener?.('tabPress', onTabPress);
+        };
+    }, [navigation, viewMode]);
+
+    useEffect(() => {
+        const preventLeave = navigation.addListener('beforeRemove', (e) => {
+            if (viewMode === 'running') {
+                e.preventDefault();
+                Alert.alert("집중 모드", "타이머 종료 후 이동할 수 있어요.");
+            }
+        });
+        return () => {
+            preventLeave();
+        };
+    }, [navigation, viewMode]);
+
+    useEffect(() => {
+        const parent = navigation.getParent();
+        if (!parent) return;
+
+        const baseTabStyle = {
+            backgroundColor: '#FFFFFF',
+            borderTopColor: '#EEEEEE',
+            height: Platform.OS === 'ios' ? 88 : 68,
+            paddingBottom: Platform.OS === 'ios' ? 30 : 12,
+            paddingTop: 12,
+            borderTopWidth: 1,
+            elevation: 0,
+            shadowOpacity: 0,
+        };
+
+        parent.setOptions({
+            tabBarStyle: viewMode === 'running' ? [{ display: 'none' }, baseTabStyle] : baseTabStyle,
+        });
+    }, [navigation, viewMode]);
+
+    useEffect(() => {
+        const tag = 'exam-timer';
+        if (viewMode === 'running') {
+            activateKeepAwakeAsync(tag).catch(() => { });
+        } else {
+            deactivateKeepAwake(tag).catch(() => { });
+        }
+        return () => { deactivateKeepAwake(tag).catch(() => { }); };
+    }, [viewMode]);
+
     // --- 유틸리티 및 로직 ---
     const toPositiveNumber = (value: string, fallback: number) => {
         const num = parseInt(value, 10);
         return (Number.isNaN(num) || num <= 0) ? fallback : num;
+    };
+
+    const formatClock = (sec: number) => {
+        const safe = Math.max(0, sec);
+        const m = Math.floor(safe / 60);
+        const s = safe % 60;
+        return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     };
 
     const expectedPace = useMemo(() => {
@@ -110,6 +191,29 @@ export default function ExamScreen() {
         const next = Math.max(1, val + delta);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setter(next.toString());
+    };
+
+    const adjustTargetMinutes = (direction: 1 | -1) => {
+        const current = toPositiveNumber(targetMinutes, 90);
+        let next = current;
+
+        if (direction > 0) {
+            if (current < 10) {
+                next = Math.min(10, current + 1);
+            } else {
+                next = current + 5;
+            }
+        } else {
+            if (current <= 10) {
+                next = current - 1;
+            } else {
+                next = Math.max(10, current - 5);
+            }
+        }
+
+        next = Math.max(1, next);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setTargetMinutes(next.toString());
     };
 
     // 과목 관리 로직
@@ -147,13 +251,10 @@ export default function ExamScreen() {
         timerRef.current = setInterval(() => setTotalSeconds(prev => prev + 1), 1000);
     };
 
-    const stopTimer = () => {
-        if (timerRef.current) clearInterval(timerRef.current);
-        timerRef.current = null;
-    };
-
     const startExam = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        resetExamState();
+        setCompletedSession(null);
         setViewMode("running");
         startTimer();
     };
@@ -225,8 +326,8 @@ export default function ExamScreen() {
                         <Text style={styles.smallLabel}>목표 시간</Text>
                         <Text style={styles.value}>{targetMinutes}<Text style={styles.unit}>분</Text></Text>
                         <View style={styles.stepper}>
-                            <TouchableOpacity onPress={() => adjustValue(setTargetMinutes, targetMinutes, -5)} style={styles.stepBtn}><Ionicons name="remove" size={18} /></TouchableOpacity>
-                            <TouchableOpacity onPress={() => adjustValue(setTargetMinutes, targetMinutes, 5)} style={styles.stepBtn}><Ionicons name="add" size={18} /></TouchableOpacity>
+                            <TouchableOpacity onPress={() => adjustTargetMinutes(-1)} style={styles.stepBtn}><Ionicons name="remove" size={18} /></TouchableOpacity>
+                            <TouchableOpacity onPress={() => adjustTargetMinutes(1)} style={styles.stepBtn}><Ionicons name="add" size={18} /></TouchableOpacity>
                         </View>
                     </View>
                 </View>
@@ -298,6 +399,10 @@ export default function ExamScreen() {
 
     const renderRunning = () => {
         const curLapSec = totalSeconds - lastLapTime;
+        const targetSecondsTotal = toPositiveNumber(targetMinutes, 90) * 60;
+        const remainingSeconds = targetSecondsTotal - totalSeconds;
+        const isOverTarget = remainingSeconds <= 0;
+        const remainingAbs = Math.abs(remainingSeconds);
         const progress = (currentQuestion / toPositiveNumber(totalQuestions, 40)) * 100;
         return (
             <TouchableOpacity style={styles.runningScreen} activeOpacity={1} onPress={nextQuestion}>
@@ -311,8 +416,14 @@ export default function ExamScreen() {
                     <View style={styles.runMain}>
                         <View style={styles.progress}><View style={[styles.bar, { width: `${progress}%` }]} /></View>
                         <Text style={styles.runQ}>Q.{currentQuestion}</Text>
-                        <Text style={styles.runTime}>{String(Math.floor(curLapSec / 60)).padStart(2, '0')}:{String(curLapSec % 60).padStart(2, '0')}</Text>
-                        <Text style={styles.runTotal}>총 시간 {Math.floor(totalSeconds / 60)}분 {totalSeconds % 60}초</Text>
+                        <Text style={styles.runTime}>{formatClock(curLapSec)}</Text>
+                        <View style={styles.timerBlock}>
+                            <Text style={styles.timerLabel}>타이머</Text>
+                            <Text style={[styles.timerValue, isOverTarget && { color: THEME_GREEN.accent }]}>
+                                {formatClock(remainingAbs)}
+                            </Text>
+                            <Text style={styles.timerHint}>{isOverTarget ? "초과됨" : "남음"}</Text>
+                        </View>
                     </View>
                     <Text style={styles.runTap}>터치하여 다음 문항</Text>
                 </SafeAreaView>
@@ -325,7 +436,12 @@ export default function ExamScreen() {
             {viewMode === 'setup' ? renderSetup() : viewMode === 'running' ? renderRunning() : (
                 <SafeAreaView style={styles.screen}>
                     <View style={styles.resHeader}><Text style={styles.resTitle}>분석 리포트</Text><TouchableOpacity onPress={() => setViewMode("setup")}><Ionicons name="close" size={28} /></TouchableOpacity></View>
-                    <ScrollView showsVerticalScrollIndicator={false}>{completedSession && <SessionDetail session={completedSession} onBack={() => setViewMode("setup")} />}</ScrollView>
+                    <ScrollView
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={[styles.resultContent, { paddingBottom: insets.bottom + 24 }]}
+                    >
+                        {completedSession && <SessionDetail session={completedSession} />}
+                    </ScrollView>
                 </SafeAreaView>
             )}
         </View>
@@ -376,8 +492,12 @@ const styles = StyleSheet.create({
     bar: { height: '100%', backgroundColor: THEME_GREEN.point },
     runQ: { fontSize: 24, fontWeight: '800', color: THEME_GREEN.textMuted, marginBottom: 8 },
     runTime: { fontSize: 80, fontWeight: '900', fontVariant: ['tabular-nums'], letterSpacing: -2 },
-    runTotal: { fontSize: 14, color: THEME_GREEN.textMuted, fontWeight: '600', marginTop: 12 },
+    timerBlock: { alignItems: 'center', marginTop: 12 },
+    timerLabel: { fontSize: 13, color: THEME_GREEN.textMuted, fontWeight: '700', marginBottom: 4 },
+    timerValue: { fontSize: 32, fontWeight: '800', color: THEME_GREEN.textMain, fontVariant: ['tabular-nums'] },
+    timerHint: { fontSize: 13, color: THEME_GREEN.textMuted, fontWeight: '700', marginTop: 4 },
     runTap: { textAlign: 'center', marginBottom: 60, fontSize: 15, fontWeight: '800', color: THEME_GREEN.point },
     resHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: THEME_GREEN.border },
-    resTitle: { fontSize: 20, fontWeight: '800' }
+    resTitle: { fontSize: 20, fontWeight: '800' },
+    resultContent: { paddingHorizontal: 24, paddingTop: 16 }
 });
