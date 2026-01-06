@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -15,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppHeader from '../../components/AppHeader';
+import MonthlyStreakHeatmap from '../../components/MonthlyStreakHeatmap';
 import SessionDetail from '../../components/SessionDetail';
 import { deleteSession, ExamSession, getSessions } from '../../lib/storage';
 import { COLORS } from '../../lib/theme';
@@ -77,51 +77,84 @@ export default function StatsScreen() {
         return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
     };
 
-    // 주간 통계 로직
-    const weeklyStats = useMemo(() => {
-        const stats = [];
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const baseDate = new Date(today);
-        baseDate.setDate(today.getDate() - (weekOffset * 7));
-
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date(baseDate);
-            d.setDate(baseDate.getDate() - i);
-
-            const daysSessions = sessions.filter(s => {
-                const sDate = new Date(s.date);
-                return sDate.getDate() === d.getDate() &&
-                    sDate.getMonth() === d.getMonth() &&
-                    sDate.getFullYear() === d.getFullYear();
-            });
-
-            const totalTime = daysSessions.reduce((sum, s) => sum + s.totalSeconds, 0);
-            const totalQuestions = daysSessions.reduce((sum, s) => sum + s.totalQuestions, 0);
-            const subjects = Array.from(new Set(daysSessions.map(s => s.categoryName)));
-
-            stats.push({
-                date: d,
-                dayLabel: ['일', '월', '화', '수', '목', '금', '토'][d.getDay()],
-                dateLabel: `${d.getMonth() + 1}.${d.getDate()}`,
-                totalTime,
-                totalQuestions,
-                subjects,
-                hasData: daysSessions.length > 0
-            });
-        }
-        return stats;
-    }, [sessions, weekOffset]);
-
     const canGoBack = useMemo(() => {
         if (sessions.length === 0) return false;
-        const oldestSessionDate = new Date(sessions[sessions.length - 1].date);
-        oldestSessionDate.setHours(0, 0, 0, 0);
-        return oldestSessionDate < weeklyStats[0].date;
-    }, [sessions, weeklyStats]);
+        return true;
+    }, [sessions]);
 
     // 그룹화된 리스트 (필터 없이 전체 세션 사용)
+    // 히트맵 데이터 및 스트릭 계산 (오전 6시 기준 일자 변경 적용)
+    const getStudyDate = (date: string | Date) => {
+        const d = new Date(date);
+        // UTC+9 기준 오전 6시 이전이면 이전 날짜로 취급
+        // 간단하게 6시간을 빼서 날짜를 구하면 됨
+        const shifted = new Date(d.getTime() - (6 * 60 * 60 * 1000));
+        return shifted.toISOString().split('T')[0];
+    };
+
+    const heatmapData = useMemo(() => {
+        const map: Record<string, number> = {};
+        sessions.forEach(s => {
+            const d = getStudyDate(s.date);
+            map[d] = (map[d] || 0) + s.totalQuestions;
+        });
+        return Object.entries(map).map(([date, count]) => ({ date, count }));
+    }, [sessions]);
+
+    const { currentStreak, bestStreak } = useMemo(() => {
+        const activeDates = Array.from(new Set(sessions.map(s => getStudyDate(s.date)))).sort();
+        if (activeDates.length === 0) return { currentStreak: 0, bestStreak: 0 };
+
+        let max = 0;
+        let current = 0;
+        let streak = 0;
+
+        // Best Streak
+        for (let i = 0; i < activeDates.length; i++) {
+            if (i === 0) {
+                streak = 1;
+            } else {
+                const prev = new Date(activeDates[i - 1]);
+                const curr = new Date(activeDates[i]);
+                const diffTime = Math.abs(curr.getTime() - prev.getTime());
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays === 1) {
+                    streak++;
+                } else {
+                    streak = 1;
+                }
+            }
+            max = Math.max(max, streak);
+        }
+
+        // Current Streak
+        const today = getStudyDate(new Date());
+        const yesterday = getStudyDate(new Date(Date.now() - 86400000));
+
+        let lastDate = activeDates[activeDates.length - 1];
+        if (lastDate === today || lastDate === yesterday) {
+            let tempStreak = 0;
+            let checkDate = new Date(lastDate);
+
+            for (let i = activeDates.length - 1; i >= 0; i--) {
+                const d = new Date(activeDates[i]);
+                const diffTime = Math.abs(checkDate.getTime() - d.getTime());
+                const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays === 0 || diffDays === 1) {
+                    tempStreak++;
+                    checkDate = d;
+                } else {
+                    break;
+                }
+            }
+            current = tempStreak;
+        }
+
+        return { currentStreak: current, bestStreak: max };
+    }, [sessions]);
+
     const groupedData = useMemo(() => {
         return sessions.reduce((acc: any, session) => {
             const date = formatDate(session.date);
@@ -144,85 +177,16 @@ export default function StatsScreen() {
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
                 >
-                    {/* 주간 학습 흐름 섹션 */}
-                    <View style={styles.weeklyContainer}>
-                        <View style={styles.weeklyHeader}>
-                            <Text style={styles.sectionTitle}>
-                                {weekOffset === 0 ? '이번 주 학습 흐름' : `${weekOffset}주 전 학습 흐름`}
-                            </Text>
-                            <View style={styles.weekNav}>
-                                <TouchableOpacity
-                                    style={[styles.navBtn, !canGoBack && styles.navBtnDisabled]}
-                                    onPress={() => canGoBack && setWeekOffset(v => v + 1)}
-                                    disabled={!canGoBack}
-                                >
-                                    <Ionicons name="chevron-back" size={20} color={canGoBack ? COLORS.text : COLORS.border} />
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[styles.navBtn, weekOffset === 0 && styles.navBtnDisabled]}
-                                    onPress={() => weekOffset > 0 && setWeekOffset(v => v - 1)}
-                                    disabled={weekOffset === 0}
-                                >
-                                    <Ionicons name="chevron-forward" size={20} color={weekOffset > 0 ? COLORS.text : COLORS.border} />
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-
-                        <View style={styles.weeklyWidget}>
-                            <View style={styles.weeklyDaysRow}>
-                                {weeklyStats.map((day, index) => {
-                                    const maxTime = Math.max(...weeklyStats.map(d => d.totalTime), 60 * 60); // min 1hr for scale
-                                    const barHeight = day.hasData ? Math.max((day.totalTime / maxTime) * 100, 12) : 0;
-                                    const isToday = index === weeklyStats.length - 1 && weekOffset === 0;
-
-                                    return (
-                                        <View key={index} style={styles.dayColumn}>
-                                            <View style={styles.barContainer}>
-                                                {day.hasData ? (
-                                                    <LinearGradient
-                                                        colors={isToday ? ['#818CF8', '#6366F1'] : ['#C7D2FE', '#818CF8']}
-                                                        style={[styles.activeBar, { height: `${barHeight}%` }]}
-                                                    />
-                                                ) : (
-                                                    <View style={styles.emptyDot} />
-                                                )}
-                                                {isToday && <View style={styles.todayPointer} />}
-                                            </View>
-                                            <Text style={[styles.dayLabel, day.hasData && styles.dayLabelActive, isToday && { color: COLORS.primary, fontWeight: '900' }]}>{day.dayLabel}</Text>
-                                            <Text style={styles.dayDateTiny}>{day.dateLabel.split('.')[1]}</Text>
-                                        </View>
-                                    );
-                                })}
-                            </View>
-
-                            <LinearGradient
-                                colors={['#F8FAFC', '#F1F5F9']}
-                                style={styles.weeklySummaryFooter}
-                            >
-                                <View style={styles.summaryItem}>
-                                    <View style={styles.summaryHeaderRow}>
-                                        <Ionicons name="flash" size={12} color={COLORS.primary} />
-                                        <Text style={styles.summaryLabel}>WEEKLY INSIGHT</Text>
-                                    </View>
-                                    <View style={styles.summaryRow}>
-                                        <View style={styles.summaryGroup}>
-                                            <Text style={styles.summaryValue}>
-                                                {Math.floor(weeklyStats.reduce((sum, d) => sum + d.totalTime, 0) / 60)}
-                                            </Text>
-                                            <Text style={styles.summaryUnit}>분</Text>
-                                        </View>
-                                        <View style={styles.summarySpace} />
-                                        <View style={styles.summaryGroup}>
-                                            <Text style={styles.summaryValue}>
-                                                {weeklyStats.reduce((sum, d) => sum + d.totalQuestions, 0)}
-                                            </Text>
-                                            <Text style={styles.summaryUnit}>문항</Text>
-                                        </View>
-                                    </View>
-                                </View>
-                            </LinearGradient>
-                        </View>
+                    {/* 월간 스트릭 히트맵 섹션 */}
+                    <View style={{ marginTop: 20, marginBottom: 12 }}>
+                        <MonthlyStreakHeatmap
+                            month={new Date().toISOString().slice(0, 7)}
+                            data={heatmapData}
+                            currentStreak={currentStreak}
+                            bestStreak={bestStreak}
+                        />
                     </View>
+
 
                     {/* 리스트 헤더 타이틀 추가로 더 심플하게 구분 */}
                     <View style={styles.listHeader}>
