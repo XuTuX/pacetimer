@@ -3,7 +3,6 @@ import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    Alert,
     BackHandler,
     ScrollView,
     StatusBar,
@@ -14,10 +13,12 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AppHeader from '../../components/AppHeader';
+import HistoryTab from '../../components/HistoryTab';
 import MonthlyStreakHeatmap from '../../components/MonthlyStreakHeatmap';
 import SessionDetail from '../../components/SessionDetail';
-import { deleteSession, ExamSession, getSessions } from '../../lib/storage';
+import { ExamSession, getSessions } from '../../lib/storage';
 import { COLORS } from '../../lib/theme';
+
 
 // --- 초록색 테마 설정 ---
 const THEME_GREEN = {
@@ -167,54 +168,12 @@ export default function StatsScreen() {
                             />
                         </View>
                     ) : (
-                        /* --- 기록 탭 (도트 스타일 적용) --- */
-                        <View>
-                            <View style={styles.historyHeader}>
-                                <Text style={styles.historyCount}>전체 {sessions.length}개의 기록</Text>
-                            </View>
-
-                            {processedData.dateSections.map((section) => (
-                                <View key={section.date} style={styles.dateGroup}>
-                                    <Text style={styles.dateHeader}>{section.displayDate}</Text>
-                                    {section.sessions.map((session) => (
-                                        <TouchableOpacity
-                                            key={session.id}
-                                            style={styles.sessionCard}
-                                            onPress={() => setSelectedSession(session)}
-                                        >
-                                            <View style={styles.cardInfo}>
-                                                <View style={styles.tagRow}>
-                                                    {/* 방법 3: 초록 도트 + 카테고리명 */}
-                                                    <View style={styles.categoryDot} />
-                                                    <Text style={styles.categoryNameText}>{session.categoryName}</Text>
-                                                    <Text style={styles.cardTime}>
-                                                        {new Date(session.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                    </Text>
-                                                </View>
-
-                                                <Text style={styles.cardTitle} numberOfLines={1}>{session.title}</Text>
-
-                                                <Text style={styles.cardSub}>
-                                                    {Math.floor(session.totalSeconds / 60)}분 · {session.totalQuestions}문항
-                                                </Text>
-                                            </View>
-
-                                            <TouchableOpacity
-                                                style={styles.deleteBtn}
-                                                onPress={() => {
-                                                    Alert.alert("삭제", "이 기록을 삭제하시겠습니까?", [
-                                                        { text: "취소", style: "cancel" },
-                                                        { text: "삭제", style: "destructive", onPress: () => deleteSession(session.id).then(loadSessions) }
-                                                    ]);
-                                                }}
-                                            >
-                                                <Ionicons name="trash-outline" size={18} color={COLORS.border} />
-                                            </TouchableOpacity>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                            ))}
-                        </View>
+                        <HistoryTab
+                            sessionsCount={sessions.length}
+                            dateSections={processedData.dateSections}
+                            onSelectSession={(s) => setSelectedSession(s)}
+                            onDeleted={() => loadSessions()}
+                        />
                     )}
                 </ScrollView>
             </SafeAreaView>
