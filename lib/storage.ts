@@ -29,10 +29,9 @@ export type Category = {
 };
 
 export const DEFAULT_CATEGORIES: Category[] = [
-    { id: "lang", name: "언어논리", isDefault: true, defaultQuestions: "40", defaultMinutes: "90" },
-    { id: "data", name: "자료해석", isDefault: true, defaultQuestions: "40", defaultMinutes: "90" },
-    { id: "situ", name: "상황판단", isDefault: true, defaultQuestions: "40", defaultMinutes: "90" },
-    { id: "const", name: "헌법", isDefault: true, defaultQuestions: "25", defaultMinutes: "25" },
+    { id: "lang", name: "국어", isDefault: true, defaultQuestions: "45", defaultMinutes: "80" },
+    { id: "math", name: "수학", isDefault: true, defaultQuestions: "30", defaultMinutes: "100" },
+    { id: "eng", name: "영어", isDefault: true, defaultQuestions: "45   ", defaultMinutes: "70" },
 ];
 
 export const saveSession = async (session: ExamSession) => {
