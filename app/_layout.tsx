@@ -1,25 +1,83 @@
-import { Stack } from "expo-router";
+import { ClerkLoaded, ClerkProvider, useAuth } from "@clerk/clerk-expo";
+import { Stack, useRouter, useSegments } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import { useEffect } from "react";
+import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { COLORS } from "../lib/theme";
 
+const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
+
+if (!publishableKey) {
+  console.error("Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in .env");
+}
+
+const tokenCache = {
+  async getToken(key: string) {
+    try {
+      return await SecureStore.getItemAsync(key);
+    } catch (err) {
+      return null;
+    }
+  },
+  async saveToken(key: string, value: string) {
+    try {
+      return await SecureStore.setItemAsync(key, value);
+    } catch (err) {
+      return;
+    }
+  },
+};
+
+function InitialLayout() {
+  const { isLoaded, isSignedIn } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    const inAuthGroup = segments[0] === "auth";
+
+    if (isSignedIn && inAuthGroup) {
+      router.replace("/(tabs)");
+    } else if (!isSignedIn && !inAuthGroup) {
+      router.replace("/auth/login");
+    }
+  }, [isSignedIn, isLoaded, segments]);
+
+  if (!isLoaded) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.bg }}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
+  return (
+    <Stack
+      initialRouteName="(tabs)"
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: COLORS.bg },
+        animation: "fade_from_bottom",
+      }}
+    >
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="auth/login" options={{ headerShown: false }} />
+      <Stack.Screen name="index" options={{ headerShown: false }} />
+    </Stack>
+  );
+}
+
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
-      <Stack
-        initialRouteName="(tabs)"
-        screenOptions={{
-          // 1. 기본 헤더를 숨김 (우리가 만든 UI가 헤더 역할을 대신함)
-          headerShown: false,
-          // 2. 기본 배경을 테마 bg로 통일
-          contentStyle: { backgroundColor: COLORS.bg },
-          // 3. 화면 전환 애니메이션 (iOS 스타일로 부드럽게)
-          animation: "fade_from_bottom",
-        }}
-      >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="focus/exam" options={{ headerShown: false }} />
-      </Stack>
-    </SafeAreaProvider>
+    <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
+      <ClerkLoaded>
+        <SafeAreaProvider>
+          <InitialLayout />
+        </SafeAreaProvider>
+      </ClerkLoaded>
+    </ClerkProvider>
   );
 }

@@ -22,5 +22,9 @@ export const COLORS = {
     accent: "#FF5252",     // 느린 문항, 삭제 버튼 등 경고성 포인트 (레드)
     success: "#00D094",    // 완료, 성공 표시
 
+    // 추가 색상 (호환성)
+    gray: "#8E8E93",
+    error: "#FF5252",
+
     white: "#FFFFFF",
 };

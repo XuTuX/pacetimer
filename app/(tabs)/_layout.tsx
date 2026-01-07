@@ -5,15 +5,14 @@ import { COLORS } from "../../lib/theme";
 
 export default function TabLayout() {
 
-
     return (
         <Tabs
             screenOptions={{
                 headerShown: false,
                 tabBarStyle: [
                     {
-                        backgroundColor: "#FFFFFF",
-                        borderTopColor: "#EEEEEE",
+                        backgroundColor: COLORS.bg,
+                        borderTopColor: COLORS.border,
                         height: Platform.OS === "ios" ? 88 : 68,
                         paddingBottom: Platform.OS === "ios" ? 30 : 12,
                         paddingTop: 12,
@@ -22,11 +21,11 @@ export default function TabLayout() {
                         shadowOpacity: 0,
                     },
                 ],
-                tabBarActiveTintColor: COLORS.point,
-                tabBarInactiveTintColor: "#CCCCCC",
+                tabBarActiveTintColor: COLORS.primary,
+                tabBarInactiveTintColor: COLORS.gray,
                 tabBarLabelStyle: {
-                    fontSize: 12,
-                    fontWeight: "800",
+                    fontSize: 10,
+                    fontWeight: "600",
                     marginTop: 4,
                 },
             }}
@@ -34,19 +33,52 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="index"
                 options={{
-                    title: "시험",
+                    title: "홈",
                     tabBarIcon: ({ color, focused }) => (
-                        <Ionicons name={focused ? "timer" : "timer-outline"} size={24} color={color} />
+                        <Ionicons name={focused ? "home" : "home-outline"} size={24} color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="explore"
+                options={{
+                    title: "탐색",
+                    tabBarIcon: ({ color, focused }) => (
+                        <Ionicons name={focused ? "search" : "search-outline"} size={24} color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="shop"
+                options={{
+                    title: "상점",
+                    tabBarIcon: ({ color, focused }) => (
+                        <Ionicons name={focused ? "cart" : "cart-outline"} size={24} color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="my-rooms"
+                options={{
+                    title: "내 방",
+                    tabBarIcon: ({ color, focused }) => (
+                        <Ionicons name={focused ? "library" : "library-outline"} size={24} color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="my-page"
+                options={{
+                    title: "마이",
+                    tabBarIcon: ({ color, focused }) => (
+                        <Ionicons name={focused ? "person" : "person-outline"} size={24} color={color} />
                     ),
                 }}
             />
             <Tabs.Screen
                 name="stats"
                 options={{
-                    title: "분석",
-                    tabBarIcon: ({ color, focused }) => (
-                        <Ionicons name={focused ? "stats-chart" : "stats-chart-outline"} size={24} color={color} />
-                    ),
+                    href: null, // Hide from tab bar
                 }}
             />
         </Tabs>
