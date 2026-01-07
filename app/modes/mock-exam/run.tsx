@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import StopwatchDisplay from '../../../components/StopwatchDisplay';
 import { useAppStore } from '../../../lib/store';
@@ -64,7 +64,7 @@ export default function MockExamRunScreen() {
         if (status === 'RUNNING' && lapStartAt) {
             interval = setInterval(() => {
                 setLapElapsed(Date.now() - lapStartAt);
-            }, 50);
+            }, 16);
         }
         return () => clearInterval(interval);
     }, [status, lapStartAt]);
@@ -100,16 +100,16 @@ export default function MockExamRunScreen() {
     };
 
     const handleEndExam = () => {
-        Alert.alert("Finish Exam", "Are you sure you want to finish?", [
-            { text: "Cancel", style: "cancel" },
-            { text: "Finish", onPress: () => router.back() }
+        Alert.alert("시험 종료", "현재까지의 기록을 저장하고 종료하시겠습니까?", [
+            { text: "취소", style: "cancel" },
+            { text: "종료", onPress: () => router.back() }
         ]);
     };
 
     const formatSec = (s: number) => {
         const m = Math.floor(s / 60);
         const sec = s % 60;
-        return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+        return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')} `;
     };
 
     const formatMs = (ms: number) => {
@@ -117,30 +117,31 @@ export default function MockExamRunScreen() {
         const m = Math.floor(totalSeconds / 60);
         const s = totalSeconds % 60;
         const dec = Math.floor((ms % 1000) / 10);
-        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${dec.toString().padStart(2, '0')}`;
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}.${dec.toString().padStart(2, '0')} `;
     };
 
     const currentQ = qMap[currentSubjectId] || 1;
 
     return (
         <SafeAreaView style={styles.container}>
-            {/* Top Bar */}
-            <View style={styles.topBar}>
-                <View>
-                    <Text style={styles.timerLabel}>REMAINING</Text>
-                    <Text style={[styles.examTimer, remainingSec < 300 && { color: COLORS.error }]}>
+            <View style={styles.header}>
+                <View style={styles.headerTimer}>
+                    <Text style={styles.timerLabel}>남은 시간</Text>
+                    <Text style={[styles.examTimer, remainingSec < 300 && { color: COLORS.accent }]}>
                         {formatSec(remainingSec)}
                     </Text>
                 </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={styles.timerLabel}>GLOBAL</Text>
+                <View style={styles.headerGlobal}>
+                    <Text style={styles.timerLabel}>전체 진행</Text>
                     <StopwatchDisplay textStyle={styles.globalTime} showSeconds={false} />
                 </View>
+                <TouchableOpacity onPress={handleEndExam} style={styles.endBtn}>
+                    <Text style={styles.endBtnText}>종료</Text>
+                </TouchableOpacity>
             </View>
 
-            {/* Subject Tabs */}
-            <View style={styles.tabs}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.tabBar}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabContainer}>
                     {activeSubjects.map(sub => (
                         <TouchableOpacity
                             key={sub.id}
@@ -153,155 +154,172 @@ export default function MockExamRunScreen() {
                 </ScrollView>
             </View>
 
-            {/* Main Area */}
-            <View style={styles.mainArea}>
-                <Text style={styles.qText}>Q{currentQ}</Text>
+            <View style={styles.main}>
+                <View style={styles.infoRow}>
+                    <View style={styles.qBadge}>
+                        <Text style={styles.qBadgeText}>Q{currentQ}</Text>
+                    </View>
+                    <Text style={styles.subjectHint}>{activeSubjects.find(s => s.id === currentSubjectId)?.name}</Text>
+                </View>
                 <Text style={styles.lapText}>{formatMs(lapElapsed)}</Text>
             </View>
 
-            {/* Tap Button */}
-            <TouchableOpacity
-                style={[styles.tapButton, status === 'RUNNING' ? styles.tapButtonRunning : styles.tapButtonIdle]}
-                onPress={handleTap}
-                activeOpacity={0.8}
-            >
-                <Text style={styles.tapButtonText}>{status === 'IDLE' ? 'START' : 'DONE'}</Text>
-            </TouchableOpacity>
-
-            {/* End Button */}
-            <TouchableOpacity style={styles.endButton} onPress={handleEndExam}>
-                <Text style={styles.endButtonText}>Finish Exam</Text>
-            </TouchableOpacity>
+            <View style={styles.footer}>
+                <TouchableOpacity
+                    style={[styles.tapBtn, status === 'RUNNING' ? styles.tapBtnRunning : styles.tapBtnIdle]}
+                    onPress={handleTap}
+                    activeOpacity={0.9}
+                >
+                    <Text style={styles.tapBtnText}>{status === 'IDLE' ? 'START' : 'DONE'}</Text>
+                    <Text style={styles.tapBtnSub}>{status === 'IDLE' ? '터치하여 풀이 시작' : '터치하여 문항 저장'}</Text>
+                </TouchableOpacity>
+            </View>
         </SafeAreaView>
     );
 }
 
-type Styles = {
-    container: ViewStyle;
-    topBar: ViewStyle;
-    timerLabel: TextStyle;
-    examTimer: TextStyle;
-    globalTime: TextStyle;
-    tabs: ViewStyle;
-    tab: ViewStyle;
-    activeTab: ViewStyle;
-    tabText: TextStyle;
-    activeTabText: TextStyle;
-    mainArea: ViewStyle;
-    qText: TextStyle;
-    lapText: TextStyle;
-    tapButton: ViewStyle;
-    tapButtonIdle: ViewStyle;
-    tapButtonRunning: ViewStyle;
-    tapButtonText: TextStyle;
-    endButton: ViewStyle;
-    endButtonText: TextStyle;
-};
-
-const styles = StyleSheet.create<Styles>({
+const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: COLORS.bg,
     },
-    topBar: {
+    header: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.border,
+        alignItems: 'center',
+        paddingHorizontal: 24,
+        paddingVertical: 20,
+        gap: 20,
+    },
+    headerTimer: {
+        flex: 1,
+    },
+    headerGlobal: {
+        flex: 1,
     },
     timerLabel: {
-        fontSize: 12,
-        color: COLORS.gray,
+        fontSize: 11,
         fontWeight: '700',
+        color: COLORS.textMuted,
+        textTransform: 'uppercase',
         marginBottom: 4,
     },
     examTimer: {
-        fontSize: 28,
+        fontSize: 24,
         fontWeight: '900',
         color: COLORS.text,
         fontVariant: ['tabular-nums'],
     },
     globalTime: {
         fontSize: 18,
-        color: COLORS.text,
-        fontWeight: '600',
+        fontWeight: '700',
+        color: COLORS.textMuted,
     },
-    tabs: {
-        flexDirection: 'row',
-        paddingVertical: 12,
-        paddingHorizontal: 8,
-        backgroundColor: '#fff',
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.border,
+    endBtn: {
+        backgroundColor: COLORS.white,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    endBtnText: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: COLORS.accent,
+    },
+    tabBar: {
+        backgroundColor: COLORS.bg,
+    },
+    tabContainer: {
+        paddingHorizontal: 20,
+        gap: 8,
     },
     tab: {
         paddingHorizontal: 16,
-        paddingVertical: 8,
+        paddingVertical: 10,
         borderRadius: 20,
-        marginHorizontal: 4,
-        backgroundColor: COLORS.bg,
+        backgroundColor: COLORS.white,
+        borderWidth: 1,
+        borderColor: COLORS.border,
     },
     activeTab: {
         backgroundColor: COLORS.primary,
+        borderColor: COLORS.primary,
     },
     tabText: {
-        color: COLORS.gray,
-        fontWeight: '600',
+        fontSize: 14,
+        fontWeight: '700',
+        color: COLORS.textMuted,
     },
     activeTabText: {
-        color: '#fff',
+        color: COLORS.white,
     },
-    mainArea: {
+    main: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+        paddingBottom: 40,
     },
-    qText: {
-        fontSize: 24,
-        fontWeight: '800',
+    infoRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 16,
+    },
+    qBadge: {
+        backgroundColor: COLORS.primaryLight,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 12,
+    },
+    qBadgeText: {
+        fontSize: 16,
+        fontWeight: '900',
         color: COLORS.primary,
-        marginBottom: 8,
+    },
+    subjectHint: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: COLORS.textMuted,
     },
     lapText: {
-        fontSize: 64,
+        fontSize: 72,
         fontWeight: '900',
         color: COLORS.text,
         fontVariant: ['tabular-nums'],
+        letterSpacing: -2,
     },
-    tapButton: {
-        height: 180,
-        justifyContent: 'center',
+    footer: {
+        padding: 32,
+        paddingBottom: Platform.OS === 'ios' ? 48 : 32,
+    },
+    tapBtn: {
+        height: 120,
+        borderRadius: 32,
         alignItems: 'center',
-        marginBottom: 0,
+        justifyContent: 'center',
+        gap: 4,
     },
-    tapButtonIdle: {
+    tapBtnIdle: {
         backgroundColor: COLORS.primary,
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+        elevation: 8,
     },
-    tapButtonRunning: {
+    tapBtnRunning: {
         backgroundColor: COLORS.text,
     },
-    tapButtonText: {
+    tapBtnText: {
         fontSize: 32,
         fontWeight: '900',
-        color: '#FFF',
-        letterSpacing: 2,
+        color: COLORS.white,
     },
-    endButton: {
-        position: 'absolute',
-        bottom: 200, // Above tap button? No, tap button is huge.
-        // Re-layout: Tap Button at bottom. End button top right?
-        // Or small "Finish" text below tabs?
-        // Let's put End Button at Top Right of header in real app, but here I put it floating or just keep it as a small bar below tap button?
-        // Actually standard UI: Tap Button occupies bottom area.
-        // I'll put End Button top right in the Header area actually.
-        // Modifying TopBar to include End Button?
-        // Let's just create a small "Quit" button top left or right.
-        display: 'none', // Hide for now, relying on Back button which triggers alert
-    },
-    endButtonText: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#fff',
+    tapBtnSub: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: COLORS.white,
+        opacity: 0.7,
     },
 });

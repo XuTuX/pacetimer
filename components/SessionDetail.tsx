@@ -30,8 +30,6 @@ const formatDate = (dateString: string) => {
 
 export default function SessionDetail({ session, initialSortMode = 'number', style, showDate = true, onBack }: Props) {
     const [lapSortMode, setLapSortMode] = useState<LapSortMode>(initialSortMode);
-
-    // 1. 캡처를 위한 Ref 생성
     const viewShotRef = useRef<View>(null);
 
     const analysis = useMemo(() => {
@@ -47,21 +45,13 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
         return copy.sort((a, b) => a.questionNo - b.questionNo);
     }, [session.laps, lapSortMode]);
 
-    // 2. 공유 함수 수정
     const handleShare = async () => {
         try {
             if (!viewShotRef.current) {
                 Alert.alert("알림", "공유 이미지를 생성할 수 없습니다.");
                 return;
             }
-
-            // 이미지 캡처
-            const uri = await captureRef(viewShotRef, {
-                format: 'png',
-                quality: 0.8,
-            });
-
-            // 공유 다이얼로그 열기
+            const uri = await captureRef(viewShotRef, { format: 'png', quality: 0.8 });
             if (await Sharing.isAvailableAsync()) {
                 await Sharing.shareAsync(uri);
             } else {
@@ -75,7 +65,6 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
 
     return (
         <View style={[styles.container, style]}>
-            {/* --- 실제 화면에 보이는 UI --- */}
             <View style={styles.header}>
                 <View style={styles.headerTitleRow}>
                     {onBack && (
@@ -89,7 +78,7 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
                     </View>
                 </View>
                 <TouchableOpacity onPress={handleShare} style={styles.miniShareBtn}>
-                    <Ionicons name="share-outline" size={20} color={COLORS.textMuted} />
+                    <Ionicons name="share-outline" size={20} color={COLORS.primary} />
                 </TouchableOpacity>
             </View>
 
@@ -98,10 +87,12 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
                     <Text style={styles.summaryLabel}>총 시간</Text>
                     <Text style={styles.summaryValue}>{formatTime(session.totalSeconds)}</Text>
                 </View>
+                <View style={styles.summaryDivider} />
                 <View style={styles.summaryItem}>
                     <Text style={styles.summaryLabel}>평균 페이스</Text>
                     <Text style={styles.summaryValue}>{formatTime(analysis.average)}</Text>
                 </View>
+                <View style={styles.summaryDivider} />
                 <View style={styles.summaryItem}>
                     <Text style={styles.summaryLabel}>문항 수</Text>
                     <Text style={styles.summaryValue}>{session.totalQuestions}개</Text>
@@ -133,24 +124,26 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
             </View>
 
             <View style={styles.lapList}>
-                {sortedLaps.map((lap) => {
+                {sortedLaps.map((lap: { questionNo: number; duration: number }) => {
                     const isSlow = lap.duration > analysis.average;
                     return (
                         <View key={lap.questionNo} style={styles.lapItem}>
                             <View style={styles.lapMainInfo}>
                                 <View style={styles.lapNoContainer}>
-                                    <Text style={styles.lapNoText}>Q{String(lap.questionNo).padStart(2, '0')}</Text>
-                                    {isSlow && <View style={styles.slowDot} />}
+                                    <View style={[styles.lapNoCircle, isSlow && { backgroundColor: COLORS.accentLight }]}>
+                                        <Text style={[styles.lapNoText, isSlow && { color: COLORS.accent }]}>
+                                            Q{String(lap.questionNo).padStart(2, '0')}
+                                        </Text>
+                                    </View>
                                 </View>
                                 <Text style={[styles.lapTimeText, isSlow && { color: COLORS.accent }]}>
                                     {formatTime(lap.duration)}
                                 </Text>
                             </View>
-                            <View style={styles.lapBarMiniBg}>
-                                <View style={[styles.lapBarMini, {
-                                    width: `${(lap.duration / analysis.maxDuration) * 100}%` as any,
-                                    backgroundColor: isSlow ? COLORS.accent : COLORS.point,
-                                    opacity: 0.5
+                            <View style={styles.lapBarContainer}>
+                                <View style={[styles.lapBar, {
+                                    width: `${Math.max(5, (lap.duration / analysis.maxDuration) * 100)}%` as any,
+                                    backgroundColor: isSlow ? COLORS.accent : COLORS.primary,
                                 }]} />
                             </View>
                         </View>
@@ -158,25 +151,17 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
                 })}
             </View>
 
-            {/* --- 3. 캡처용 숨겨진 뷰 (화면 밖 왼쪽 -5000에 배치) --- */}
-            <View
-                collapsable={false}
-                ref={viewShotRef}
-                style={styles.hiddenShareContainer}
-            >
-                <LinearGradient
-                    colors={[COLORS.point, '#00A878']}
-                    style={styles.shareCard}
-                >
+            {/* Hidden Share Card */}
+            <View collapsable={false} ref={viewShotRef} style={styles.hiddenShareContainer}>
+                <LinearGradient colors={[COLORS.primary, '#00A878']} style={styles.shareCard}>
                     <Text style={styles.shareBrand}>PACETIME</Text>
                     <View style={styles.shareInnerCard}>
-                        <Text style={styles.shareCategory}>{session.categoryName}</Text>
+                        <View style={styles.shareHeader}>
+                            <Text style={styles.shareCategory}>{session.categoryName}</Text>
+                            <Text style={styles.shareDate}>{formatDate(session.date)}</Text>
+                        </View>
                         <Text style={styles.shareTitle}>{session.title}</Text>
-                        <Text style={styles.shareDate}>{formatDate(session.date)}</Text>
-
-                        <View style={styles.shareDivider} />
-
-                        <View style={styles.shareStatRow}>
+                        <View style={styles.shareStatGrid}>
                             <View style={styles.shareStatItem}>
                                 <Text style={styles.shareStatLabel}>Total Time</Text>
                                 <Text style={styles.shareStatValue}>{formatTime(session.totalSeconds)}</Text>
@@ -185,9 +170,13 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
                                 <Text style={styles.shareStatLabel}>Average</Text>
                                 <Text style={styles.shareStatValue}>{formatTime(analysis.average)}</Text>
                             </View>
+                            <View style={styles.shareStatItem}>
+                                <Text style={styles.shareStatLabel}>Questions</Text>
+                                <Text style={styles.shareStatValue}>{session.totalQuestions}</Text>
+                            </View>
                         </View>
                     </View>
-                    <Text style={styles.shareFooter}>성장하는 페이스 메이커, 페이스 타임</Text>
+                    <Text style={styles.shareFooter}>모든 순간의 페이스메이커, 페이스타임</Text>
                 </LinearGradient>
             </View>
         </View>
@@ -195,67 +184,83 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
 }
 
 const styles = StyleSheet.create({
-    container: { backgroundColor: COLORS.bg, gap: 28 },
+    container: { backgroundColor: COLORS.bg, gap: 32 },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    backBtn: { padding: 4 },
-    title: { fontSize: 19, fontWeight: '800', color: COLORS.text },
-    subInfo: { fontSize: 13, color: COLORS.textMuted, marginTop: 2, fontWeight: '500' },
-    miniShareBtn: { padding: 8, backgroundColor: COLORS.surface2, borderRadius: 12 },
-
-    summaryGrid: { flexDirection: 'row', backgroundColor: COLORS.surface, borderRadius: 20, paddingVertical: 20, borderWidth: 1, borderColor: COLORS.border },
+    headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+    backBtn: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: COLORS.white,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    title: { fontSize: 20, fontWeight: '800', color: COLORS.text },
+    subInfo: { fontSize: 13, color: COLORS.textMuted, marginTop: 2, fontWeight: '600' },
+    miniShareBtn: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: COLORS.primaryLight,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    summaryGrid: {
+        flexDirection: 'row',
+        backgroundColor: COLORS.white,
+        borderRadius: 32,
+        padding: 24,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        alignItems: 'center',
+    },
     summaryItem: { flex: 1, alignItems: 'center', gap: 6 },
-    summaryLabel: { fontSize: 12, color: COLORS.textMuted, fontWeight: '600' },
-    summaryValue: { fontSize: 16, fontWeight: '800', color: COLORS.text },
+    summaryDivider: { width: 1, height: 24, backgroundColor: COLORS.border },
+    summaryLabel: { fontSize: 12, color: COLORS.textMuted, fontWeight: '700', textTransform: 'uppercase' },
+    summaryValue: { fontSize: 17, fontWeight: '800', color: COLORS.text },
 
     sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    sectionTitle: { fontSize: 17, fontWeight: '800', color: COLORS.text },
-    alertBadge: { backgroundColor: COLORS.pointLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-    alertBadgeText: { fontSize: 11, color: COLORS.point, fontWeight: '700' },
+    sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    sectionTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text },
+    alertBadge: { backgroundColor: COLORS.accentLight, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
+    alertBadgeText: { fontSize: 11, color: COLORS.accent, fontWeight: '800' },
 
-    filterRow: { flexDirection: 'row', backgroundColor: COLORS.surface2, padding: 3, borderRadius: 10 },
-    filterBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8 },
-    filterBtnActive: { backgroundColor: COLORS.surface },
-    filterBtnText: { fontSize: 12, color: COLORS.textMuted, fontWeight: '600' },
-    filterBtnTextActive: { color: COLORS.text, fontWeight: '800' },
+    filterRow: { flexDirection: 'row', backgroundColor: COLORS.surfaceVariant, padding: 4, borderRadius: 16 },
+    filterBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 12 },
+    filterBtnActive: { backgroundColor: COLORS.white, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
+    filterBtnText: { fontSize: 13, color: COLORS.textMuted, fontWeight: '700' },
+    filterBtnTextActive: { color: COLORS.text },
 
-    lapList: { gap: 4 },
-    lapItem: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: COLORS.border, gap: 8 },
-    lapMainInfo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    lapNoContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    lapNoText: { fontSize: 15, fontWeight: '700', color: COLORS.text },
-    slowDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: COLORS.accent },
-    lapTimeText: { fontSize: 15, fontWeight: '800', color: COLORS.text, fontVariant: ['tabular-nums'] },
-    lapBarMiniBg: { width: '100%', height: 3, backgroundColor: COLORS.surface2, borderRadius: 1.5, overflow: 'hidden' },
-    lapBarMini: { height: '100%' },
-
-    // --- 공유 카드용 스타일 (화면 밖 배치) ---
-    hiddenShareContainer: {
-        position: 'absolute',
-        left: -5000, // 화면 밖
-        width: 320,
-    },
-    shareCard: {
-        padding: 30,
-        borderRadius: 32,
-        alignItems: 'center',
-    },
-    shareBrand: { color: 'white', fontSize: 14, fontWeight: '900', letterSpacing: 2, marginBottom: 20, opacity: 0.9 },
-    shareInnerCard: {
-        width: '100%',
-        backgroundColor: 'white',
+    lapList: { gap: 12 },
+    lapItem: {
+        backgroundColor: COLORS.white,
         borderRadius: 24,
-        padding: 24,
-        alignItems: 'center',
+        padding: 20,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        gap: 16,
     },
-    shareCategory: { fontSize: 12, fontWeight: '800', color: COLORS.point, marginBottom: 8 },
-    shareTitle: { fontSize: 20, fontWeight: '800', color: '#111', textAlign: 'center', marginBottom: 4 },
-    shareDate: { fontSize: 13, color: '#888', marginBottom: 20 },
-    shareDivider: { width: '100%', height: 1, backgroundColor: '#EEE', marginBottom: 20 },
-    shareStatRow: { flexDirection: 'row', width: '100%' },
-    shareStatItem: { flex: 1, alignItems: 'center' },
-    shareStatLabel: { fontSize: 10, color: '#AAA', fontWeight: '700', marginBottom: 4, textTransform: 'uppercase' },
-    shareStatValue: { fontSize: 16, fontWeight: '800', color: '#111' },
-    shareFooter: { color: 'white', fontSize: 11, fontWeight: '600', marginTop: 24, opacity: 0.8 },
+    lapMainInfo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    lapNoContainer: { flexDirection: 'row', alignItems: 'center' },
+    lapNoCircle: { backgroundColor: COLORS.primaryLight, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+    lapNoText: { fontSize: 15, fontWeight: '900', color: COLORS.primary },
+    lapTimeText: { fontSize: 18, fontWeight: '800', color: COLORS.text, fontVariant: ['tabular-nums'] },
+    lapBarContainer: { width: '100%', height: 6, backgroundColor: COLORS.surfaceVariant, borderRadius: 3, overflow: 'hidden' },
+    lapBar: { height: '100%', borderRadius: 3 },
+
+    hiddenShareContainer: { position: 'absolute', left: -5000, width: 360 },
+    shareCard: { padding: 40, borderRadius: 48, alignItems: 'center' },
+    shareBrand: { color: COLORS.white, fontSize: 16, fontWeight: '900', letterSpacing: 4, marginBottom: 32, opacity: 0.9 },
+    shareInnerCard: { width: '100%', backgroundColor: COLORS.white, borderRadius: 32, padding: 32 },
+    shareHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    shareCategory: { fontSize: 12, fontWeight: '800', color: COLORS.primary, textTransform: 'uppercase' },
+    shareDate: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted },
+    shareTitle: { fontSize: 24, fontWeight: '900', color: COLORS.text, marginBottom: 32 },
+    shareStatGrid: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: 24 },
+    shareStatItem: { alignItems: 'center', gap: 6 },
+    shareStatLabel: { fontSize: 10, color: COLORS.textMuted, fontWeight: '700', textTransform: 'uppercase' },
+    shareStatValue: { fontSize: 16, fontWeight: '800', color: COLORS.text },
+    shareFooter: { color: COLORS.white, fontSize: 12, fontWeight: '700', marginTop: 32, opacity: 0.8 },
 });

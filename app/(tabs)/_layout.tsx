@@ -35,52 +35,28 @@ export default function TabLayout() {
                 options={{
                     title: "홈",
                     tabBarIcon: ({ color, focused }) => (
-                        <Ionicons name={focused ? "home" : "home-outline"} size={24} color={color} />
-                    ),
-                }}
-            />
-            <Tabs.Screen
-                name="explore"
-                options={{
-                    title: "탐색",
-                    tabBarIcon: ({ color, focused }) => (
-                        <Ionicons name={focused ? "search" : "search-outline"} size={24} color={color} />
-                    ),
-                }}
-            />
-            <Tabs.Screen
-                name="shop"
-                options={{
-                    title: "상점",
-                    tabBarIcon: ({ color, focused }) => (
-                        <Ionicons name={focused ? "cart" : "cart-outline"} size={24} color={color} />
-                    ),
-                }}
-            />
-            <Tabs.Screen
-                name="my-rooms"
-                options={{
-                    title: "내 방",
-                    tabBarIcon: ({ color, focused }) => (
-                        <Ionicons name={focused ? "library" : "library-outline"} size={24} color={color} />
-                    ),
-                }}
-            />
-            <Tabs.Screen
-                name="my-page"
-                options={{
-                    title: "마이",
-                    tabBarIcon: ({ color, focused }) => (
-                        <Ionicons name={focused ? "person" : "person-outline"} size={24} color={color} />
+                        <Ionicons name={focused ? "home" : "home-outline"} size={22} color={color} />
                     ),
                 }}
             />
             <Tabs.Screen
                 name="stats"
                 options={{
-                    href: null, // Hide from tab bar
+                    title: "리포트",
+                    tabBarIcon: ({ color, focused }) => (
+                        <Ionicons name={focused ? "analytics" : "analytics-outline"} size={22} color={color} />
+                    ),
                 }}
             />
+            <Tabs.Screen
+                name="my-page"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen name="explore" options={{ href: null }} />
+            <Tabs.Screen name="shop" options={{ href: null }} />
+            <Tabs.Screen name="my-rooms" options={{ href: null }} />
         </Tabs>
     );
 }

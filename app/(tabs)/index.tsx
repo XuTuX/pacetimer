@@ -3,59 +3,59 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import StopwatchDisplay from '../../components/StopwatchDisplay';
+import SproutVisual from '../../components/SproutVisual';
 import { useAppStore } from '../../lib/store';
 import { COLORS } from '../../lib/theme';
 
 export default function HomeScreen() {
     const router = useRouter();
-    const { stopwatch, startStopwatch, pauseStopwatch } = useAppStore();
+    const { stopwatch } = useAppStore();
 
-    const toggleTimer = () => {
-        if (stopwatch.isRunning) {
-            pauseStopwatch();
-        } else {
-            startStopwatch();
-        }
+    // today's study time (formatted)
+    // In a real app, we'd filter sessions by today. Here we use stopwatch.accumulatedMs as a proxy for today's session.
+    const totalMs = stopwatch.accumulatedMs + (stopwatch.isRunning && stopwatch.startedAt ? Date.now() - stopwatch.startedAt : 0);
+    const totalMinutes = Math.floor(totalMs / 60000);
+
+    const formatTime = (ms: number) => {
+        const hours = Math.floor(ms / 3600000);
+        const minutes = Math.floor((ms % 3600000) / 60000);
+        return `${hours}시간 ${minutes}분`;
     };
 
     return (
         <SafeAreaView style={styles.container}>
-            {/* Header */}
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>Pacetime</Text>
+                <View>
+                    <Text style={styles.eyebrow}>Today's Growth</Text>
+                    <Text style={styles.headerTitle}>오늘의 공부 기록</Text>
+                </View>
+                <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/(tabs)/stats')}>
+                    <Ionicons name="person-outline" size={24} color={COLORS.text} />
+                </TouchableOpacity>
             </View>
 
-            {/* Main Stopwatch Section */}
-            <View style={styles.timerSection}>
-                <Text style={styles.timerLabel}>Total Study Time</Text>
-                <StopwatchDisplay textStyle={styles.timerText} />
+            <View style={styles.content}>
+                <View style={styles.sproutContainer}>
+                    <SproutVisual totalMinutes={totalMinutes} />
+                    <Text style={styles.studyTime}>{formatTime(totalMs)}</Text>
+                    <Text style={styles.studyLabel}>오늘 이만큼 성장했어요!</Text>
+                </View>
 
                 <TouchableOpacity
-                    style={[styles.timerButton, stopwatch.isRunning ? styles.stopButton : styles.startButton]}
-                    onPress={toggleTimer}
+                    style={styles.startButton}
+                    onPress={() => router.push('/timer')}
                 >
-                    <Ionicons name={stopwatch.isRunning ? "pause" : "play"} size={32} color="#FFF" />
-                    <Text style={styles.buttonText}>{stopwatch.isRunning ? "Pause" : "Start"}</Text>
+                    <Ionicons name={stopwatch.isRunning ? "pause" : "play"} size={28} color={COLORS.white} />
+                    <Text style={styles.startButtonText}>
+                        {stopwatch.isRunning ? "집중 이어나가기" : "공부 시작하기"}
+                    </Text>
                 </TouchableOpacity>
             </View>
 
-            {/* Modes Grid */}
-            <View style={styles.modesContainer}>
-                <TouchableOpacity style={styles.modeCard} onPress={() => router.push('/modes/problem-solving')}>
-                    <View style={[styles.iconContainer, { backgroundColor: '#E3F2FD' }]}>
-                        <Ionicons name="pencil" size={32} color="#2196F3" />
-                    </View>
-                    <Text style={styles.modeTitle}>Problem Solving</Text>
-                    <Text style={styles.modeDesc}>Lap timer for questions</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.modeCard} onPress={() => router.push('/modes/mock-exam/setup')}>
-                    <View style={[styles.iconContainer, { backgroundColor: '#FFEBEE' }]}>
-                        <Ionicons name="timer" size={32} color="#F44336" />
-                    </View>
-                    <Text style={styles.modeTitle}>Mock Exam</Text>
-                    <Text style={styles.modeDesc}>Full exam simulation</Text>
+            <View style={styles.footer}>
+                <Text style={styles.footerText}>다른 모드로 공부하고 싶으신가요?</Text>
+                <TouchableOpacity onPress={() => router.push('/modes/mock-exam/setup')}>
+                    <Text style={styles.footerLink}>모의고사 보기</Text>
                 </TouchableOpacity>
             </View>
         </SafeAreaView>
@@ -66,94 +66,94 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: COLORS.bg,
+        paddingHorizontal: 24,
     },
     header: {
-        padding: 24,
-    },
-    headerTitle: {
-        fontSize: 28,
-        fontWeight: '800',
-        color: COLORS.primary,
-    },
-    timerSection: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 40,
+        marginTop: 12,
+        marginBottom: 40,
     },
-    timerLabel: {
-        fontSize: 16,
-        color: COLORS.gray,
-        marginBottom: 8,
+    eyebrow: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: COLORS.primary,
         textTransform: 'uppercase',
         letterSpacing: 1,
-    },
-    timerText: {
-        fontSize: 64,
-        fontWeight: '900',
-        color: COLORS.text,
-        includeFontPadding: false,
-    },
-    timerButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 32,
-        paddingVertical: 16,
-        borderRadius: 30,
-        marginTop: 32,
-        gap: 8,
-    },
-    startButton: {
-        backgroundColor: COLORS.primary,
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 8,
-    },
-    stopButton: {
-        backgroundColor: COLORS.gray,
-    },
-    buttonText: {
-        color: '#FFF',
-        fontSize: 20,
-        fontWeight: '700',
-    },
-    modesContainer: {
-        flexDirection: 'row',
-        padding: 16,
-        gap: 16,
-    },
-    modeCard: {
-        flex: 1,
-        backgroundColor: '#FFF',
-        borderRadius: 20,
-        padding: 20,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        // Shadow
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    iconContainer: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 16,
-    },
-    modeTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: COLORS.text,
         marginBottom: 4,
     },
-    modeDesc: {
-        fontSize: 13,
-        color: COLORS.gray,
-        textAlign: 'center',
+    headerTitle: {
+        fontSize: 24,
+        fontWeight: '800',
+        color: COLORS.text,
+    },
+    iconBtn: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: COLORS.white,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    content: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 40,
+        marginBottom: 80,
+    },
+    sproutContainer: {
+        alignItems: 'center',
+        gap: 12,
+    },
+    studyTime: {
+        fontSize: 42,
+        fontWeight: '900',
+        color: COLORS.text,
+        letterSpacing: -1,
+    },
+    studyLabel: {
+        fontSize: 16,
+        color: COLORS.textMuted,
+        fontWeight: '500',
+    },
+    startButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: COLORS.primary,
+        width: '100%',
+        paddingVertical: 18,
+        borderRadius: 32,
+        gap: 12,
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.2,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    startButtonText: {
+        fontSize: 18,
+        fontWeight: '800',
+        color: COLORS.white,
+    },
+    footer: {
+        alignItems: 'center',
+        paddingBottom: 24,
+        gap: 8,
+    },
+    footerText: {
+        fontSize: 14,
+        color: COLORS.textMuted,
+    },
+    footerLink: {
+        fontSize: 14,
+        color: COLORS.primary,
+        fontWeight: '700',
+        textDecorationLine: 'underline',
     },
 });
+

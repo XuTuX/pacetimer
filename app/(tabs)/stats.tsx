@@ -1,6 +1,7 @@
+import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     BackHandler,
@@ -12,34 +13,32 @@ import {
     View
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import AppHeader from '../../components/AppHeader';
+import { DailyAnalysis } from '../../components/DailyAnalysis';
 import HistoryTab from '../../components/HistoryTab';
-import MonthlyStreakHeatmap from '../../components/MonthlyStreakHeatmap';
 import SessionDetail from '../../components/SessionDetail';
 import { ExamSession, getSessions } from '../../lib/storage';
+import { useAppStore } from '../../lib/store';
 import { COLORS } from '../../lib/theme';
 
 
-// --- 초록색 테마 설정 ---
-const THEME_GREEN = {
-    point: '#00D094',      // 선명한 포인트 민트 그린 (도트 및 숫자)
-    pointLight: '#E6F9F4', // 아이콘 배경용 연한 민트
-    textMain: '#222222',   // 가독성을 위한 진한 텍스트
-    textMuted: '#8E8E93',  // 부가 정보용 회색
-};
 
 type DateSection = {
     date: string;
     displayDate: string;
     sessions: ExamSession[];
+    totalSeconds: number;
+    totalQuestions: number;
 };
 
 type TabType = 'stats' | 'history';
 
 export default function StatsScreen() {
+    const { signOut, userId } = useAuth();
+    const router = useRouter();
     const [activeTab, setActiveTab] = useState<TabType>('stats');
     const [sessions, setSessions] = useState<ExamSession[]>([]);
     const [selectedSession, setSelectedSession] = useState<ExamSession | null>(null);
+    const [settingsOpen, setSettingsOpen] = useState(false);
     const insets = useSafeAreaInsets();
 
     useEffect(() => {
@@ -61,12 +60,6 @@ export default function StatsScreen() {
 
     useFocusEffect(useCallback(() => { loadSessions(); }, [loadSessions]));
 
-    const getStudyDate = (dateString: string | Date) => {
-        const d = new Date(dateString);
-        const shifted = new Date(d.getTime() - (6 * 60 * 60 * 1000));
-        return shifted.toISOString().split('T')[0];
-    };
-
     const formatDisplayDate = (dateStr: string) => {
         const today = new Date().toISOString().split('T')[0];
         const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
@@ -76,68 +69,108 @@ export default function StatsScreen() {
         return `${d.getMonth() + 1}월 ${d.getDate()}일`;
     };
 
+    const getStudyDate = (dateString: string | Date) => {
+        const d = new Date(dateString);
+        const shifted = new Date(d.getTime() - (6 * 60 * 60 * 1000));
+        return shifted.toISOString().split('T')[0];
+    };
+
+    const { questionRecords } = useAppStore();
+
     const processedData = useMemo(() => {
-        if (sessions.length === 0) return { dateSections: [], currentStreak: 0, heatmapData: [] };
-        const dateMap: Record<string, ExamSession[]> = {};
+        const dateMap: Record<string, { sessions: ExamSession[], totalSeconds: number, totalQuestions: number }> = {};
+
+        // Add ExamSessions (Mock Exams)
         sessions.forEach(s => {
             const d = getStudyDate(s.date);
-            if (!dateMap[d]) dateMap[d] = [];
-            dateMap[d].push(s);
+            if (!dateMap[d]) dateMap[d] = { sessions: [], totalSeconds: 0, totalQuestions: 0 };
+            dateMap[d].sessions.push(s);
+            // We'll skip adding to totalSeconds here to avoid double counting with QuestionRecords if they overlap
+            // Actually, let's just use QuestionRecords as the primary source for time/counts if they exist.
         });
-        const sortedDates = Object.keys(dateMap).sort((a, b) => b.localeCompare(a));
 
-        let curStrk = 0;
-        const today = getStudyDate(new Date());
-        const yesterday = getStudyDate(new Date(Date.now() - 86400000));
-        if (sortedDates.includes(today) || sortedDates.includes(yesterday)) {
-            let checkDate = sortedDates.includes(today) ? new Date(today) : new Date(yesterday);
-            while (true) {
-                const checkStr = checkDate.toISOString().split('T')[0];
-                if (dateMap[checkStr]) {
-                    curStrk++;
-                    checkDate.setDate(checkDate.getDate() - 1);
-                } else { break; }
-            }
-        }
+        // Add QuestionRecords (All modes)
+        questionRecords.forEach(r => {
+            const d = new Date(r.startedAt).toISOString().split('T')[0];
+            if (!dateMap[d]) dateMap[d] = { sessions: [], totalSeconds: 0, totalQuestions: 0 };
+            dateMap[d].totalSeconds += (r.durationMs / 1000);
+            dateMap[d].totalQuestions += 1;
+        });
+
+        const sortedDates = Object.keys(dateMap).sort((a, b) => b.localeCompare(a));
 
         const sections: DateSection[] = sortedDates.map(date => ({
             date,
             displayDate: formatDisplayDate(date),
-            sessions: dateMap[date].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            sessions: dateMap[date].sessions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+            totalSeconds: dateMap[date].totalSeconds,
+            totalQuestions: dateMap[date].totalQuestions,
         }));
 
-        const heatmap = Object.entries(dateMap).map(([date, items]) => ({
-            date,
-            count: items.reduce((sum, s) => sum + s.totalQuestions, 0)
-        }));
+        return { dateSections: sections };
+    }, [sessions, questionRecords]);
 
-        return { dateSections: sections, currentStreak: curStrk, heatmapData: heatmap };
-    }, [sessions]);
+    const [selectedAnalysisDate, setSelectedAnalysisDate] = useState<string | null>(null);
 
     const handleTabChange = (tab: TabType) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setActiveTab(tab);
     };
 
+    const onViewDailyAnalysis = (date: string) => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        setSelectedAnalysisDate(date);
+        setActiveTab('stats');
+    };
+
+    const handleSignOut = async () => {
+        try {
+            await signOut();
+            router.replace('/auth/login');
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
     return (
         <View style={styles.container}>
             <SafeAreaView style={{ flex: 1 }} edges={['top']}>
                 <StatusBar barStyle="dark-content" />
-                <AppHeader />
+                <View style={styles.header}>
+                    <View>
+                        <Text style={styles.headerTitle}>학습 리포트</Text>
+                        <Text style={styles.userLabel}>{userId || 'Guest User'}</Text>
+                    </View>
+                    <TouchableOpacity style={styles.settingsBtn} onPress={() => setSettingsOpen(v => !v)}>
+                        <Ionicons name="settings-outline" size={22} color={COLORS.text} />
+                    </TouchableOpacity>
+                    {settingsOpen && (
+                        <View style={styles.dropdown}>
+                            <TouchableOpacity style={styles.dropdownItem} onPress={() => router.push('/subjects/manage')}>
+                                <Ionicons name="book-outline" size={18} color={COLORS.text} />
+                                <Text style={styles.dropdownText}>과목 관리</Text>
+                            </TouchableOpacity>
+                            <View style={styles.divider} />
+                            <TouchableOpacity style={styles.dropdownItem} onPress={handleSignOut}>
+                                <Ionicons name="log-out-outline" size={18} color={COLORS.accent} />
+                                <Text style={[styles.dropdownText, { color: COLORS.accent }]}>로그아웃</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                </View>
 
-                {/* 탭 버튼 */}
-                <View style={styles.tabContainer}>
+                <View style={styles.tabBar}>
                     <TouchableOpacity
-                        style={[styles.tabButton, activeTab === 'stats' && styles.activeTabButton]}
+                        style={[styles.tabItem, activeTab === 'stats' && styles.activeTabItem]}
                         onPress={() => handleTabChange('stats')}
                     >
-                        <Text style={[styles.tabText, activeTab === 'stats' && styles.activeTabText]}>리포트</Text>
+                        <Text style={[styles.tabText, activeTab === 'stats' && styles.activeTabText]}>데이터 분석</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                        style={[styles.tabButton, activeTab === 'history' && styles.activeTabButton]}
+                        style={[styles.tabItem, activeTab === 'history' && styles.activeTabItem]}
                         onPress={() => handleTabChange('history')}
                     >
-                        <Text style={[styles.tabText, activeTab === 'history' && styles.activeTabText]}>학습 기록</Text>
+                        <Text style={[styles.tabText, activeTab === 'history' && styles.activeTabText]}>상세 기록</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -147,44 +180,33 @@ export default function StatsScreen() {
                     contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
                 >
                     {activeTab === 'stats' ? (
-                        /* --- 리포트 탭 --- */
-                        <View>
-                            <View style={styles.summaryCard}>
-                                <View style={styles.streakInfo}>
-                                    <Text style={styles.summaryLabel}>현재 스트릭</Text>
-                                    <Text style={styles.summaryValue}>
-                                        <Text style={styles.highlightText}>{processedData.currentStreak}일</Text> 연속 성장 중
-                                    </Text>
-                                </View>
-                                <View style={styles.streakIcon}>
-                                    <Ionicons name="flame" size={30} color={THEME_GREEN.point} />
-                                </View>
-                            </View>
-
-                            <Text style={styles.sectionTitle}>학습 활동</Text>
-                            <MonthlyStreakHeatmap
-                                data={processedData.heatmapData}
-                                currentStreak={processedData.currentStreak}
+                        <View style={styles.statsView}>
+                            <DailyAnalysis
+                                selectedDate={selectedAnalysisDate}
+                                onDateChange={setSelectedAnalysisDate}
                             />
                         </View>
                     ) : (
-                        <HistoryTab
-                            sessionsCount={sessions.length}
-                            dateSections={processedData.dateSections}
-                            onSelectSession={(s) => setSelectedSession(s)}
-                            onDeleted={() => loadSessions()}
-                        />
+                        <View style={styles.historyWrapper}>
+                            <HistoryTab
+                                sessionsCount={sessions.length}
+                                dateSections={processedData.dateSections}
+                                onSelectSession={(s) => setSelectedSession(s)}
+                                onDeleted={() => loadSessions()}
+                                onViewDailyAnalysis={onViewDailyAnalysis}
+                            />
+                        </View>
                     )}
                 </ScrollView>
             </SafeAreaView>
 
-            {/* 상세 보기 레이어 */}
             {selectedSession && (
                 <View style={[StyleSheet.absoluteFill, { backgroundColor: COLORS.bg, zIndex: 100 }]}>
                     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
                         <ScrollView
                             style={{ backgroundColor: COLORS.bg }}
                             contentContainerStyle={{ padding: 24 }}
+                            showsVerticalScrollIndicator={false}
                         >
                             <SessionDetail session={selectedSession} showDate={true} onBack={() => setSelectedSession(null)} />
                         </ScrollView>
@@ -197,84 +219,100 @@ export default function StatsScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.bg },
-    content: { flex: 1, paddingHorizontal: 20, backgroundColor: COLORS.bg },
-
-    tabContainer: {
+    header: {
         flexDirection: 'row',
-        backgroundColor: '#F1F1F5',
-        marginHorizontal: 20,
-        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 24,
+        paddingVertical: 16,
+        zIndex: 20,
+    },
+    headerTitle: {
+        fontSize: 24,
+        fontWeight: '800',
+        color: COLORS.text,
+    },
+    userLabel: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: COLORS.textMuted,
+        marginTop: 2,
+    },
+    settingsBtn: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: COLORS.white,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    dropdown: {
+        position: 'absolute',
+        top: 70,
+        right: 24,
+        backgroundColor: COLORS.white,
+        borderRadius: 20,
+        padding: 8,
+        minWidth: 160,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 10,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    dropdownItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        gap: 12,
+    },
+    dropdownText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: COLORS.text,
+    },
+    divider: {
+        height: 1,
+        backgroundColor: COLORS.border,
+        marginHorizontal: 8,
+    },
+    tabBar: {
+        flexDirection: 'row',
+        backgroundColor: COLORS.surfaceVariant,
+        marginHorizontal: 24,
+        borderRadius: 20,
         padding: 4,
-        marginTop: 12,
         marginBottom: 24,
     },
-    tabButton: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 10 },
-    activeTabButton: { backgroundColor: COLORS.surface, elevation: 3, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
-    tabText: { fontSize: 14, fontWeight: '600', color: COLORS.textMuted },
-    activeTabText: { color: COLORS.text, fontWeight: '800' },
-
-    summaryCard: {
-        backgroundColor: COLORS.surface,
-        borderRadius: 24,
-        padding: 24,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+    tabItem: {
+        flex: 1,
+        paddingVertical: 10,
         alignItems: 'center',
-        marginBottom: 32,
-        borderWidth: 1,
-        borderColor: COLORS.border,
+        borderRadius: 16,
     },
-    streakInfo: { flex: 1 },
-    summaryLabel: { fontSize: 14, color: COLORS.textMuted, fontWeight: '600', marginBottom: 6 },
-    summaryValue: { fontSize: 22, fontWeight: '800', color: COLORS.text },
-    highlightText: { color: THEME_GREEN.point, fontWeight: '900' },
-    streakIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: THEME_GREEN.pointLight, alignItems: 'center', justifyContent: 'center' },
-
-    sectionTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text, marginBottom: 16, marginLeft: 4 },
-
-    // 기록 탭 헤더
-    historyHeader: { marginBottom: 16, paddingLeft: 4 },
-    historyCount: { fontSize: 14, color: COLORS.textMuted, fontWeight: '600' },
-    dateGroup: { marginBottom: 28 },
-    dateHeader: { fontSize: 16, fontWeight: '800', color: COLORS.text, marginBottom: 14, marginLeft: 4 },
-
-    // 세션 카드 & 도트 스타일
-    sessionCard: {
-        backgroundColor: COLORS.surface,
-        borderRadius: 18,
-        padding: 18,
-        marginBottom: 12,
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: COLORS.border,
+    activeTabItem: {
+        backgroundColor: COLORS.white,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
     },
-    cardInfo: { flex: 1 },
-    tagRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-
-    // 도트(Dot) 스타일 핵심
-    categoryDot: {
-        width: 7,
-        height: 7,
-        borderRadius: 3.5,
-        backgroundColor: THEME_GREEN.point, // 초록 점
-        marginRight: 6
-    },
-    categoryNameText: {
-        fontSize: 13,
+    tabText: {
+        fontSize: 14,
         fontWeight: '700',
-        color: '#444', // 제목보다 약간 연한 다크 그레이
-        marginRight: 10
+        color: COLORS.textMuted,
     },
-    cardTime: { fontSize: 12, color: THEME_GREEN.textMuted, fontWeight: '500' },
-
-    cardTitle: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: THEME_GREEN.textMain,
-        marginBottom: 6
+    activeTabText: {
+        color: COLORS.text,
     },
-    cardSub: { fontSize: 13, color: THEME_GREEN.textMuted, fontWeight: '500' },
-
-    deleteBtn: { padding: 10, marginLeft: 10 },
+    content: { flex: 1 },
+    statsView: { paddingHorizontal: 24 },
+    historyWrapper: {
+        paddingHorizontal: 24,
+    },
 });
