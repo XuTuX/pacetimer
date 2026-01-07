@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DailyAnalysis, SubjectAnalysisData } from '../../components/DailyAnalysis';
-import { HorizontalCalendar } from '../../components/HorizontalCalendar';
 import SessionDetail from '../../components/SessionDetail';
 import { SubjectAnalysisOverlay } from '../../components/SubjectAnalysisOverlay';
 import { ExamSession } from '../../lib/storage';
@@ -69,11 +68,6 @@ export default function AnalysisScreen() {
                         </View>
                     )}
                 </View>
-
-                <HorizontalCalendar
-                    selectedDate={selectedAnalysisDate}
-                    onDateSelect={(d: string) => setSelectedAnalysisDate(d)}
-                />
 
                 <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
                     <View style={styles.statsView}>
@@ -178,5 +172,5 @@ const styles = StyleSheet.create({
         marginHorizontal: 8,
     },
     content: { flex: 1 },
-    statsView: { paddingHorizontal: 24, paddingTop: 8 },
+    statsView: { paddingHorizontal: 24, paddingTop: 16 },
 });

@@ -4,8 +4,6 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, G, Path } from 'react-native-svg';
 import { useAppStore } from '../lib/store';
 import { COLORS } from '../lib/theme';
-import { FocusInsights } from './FocusInsights';
-import { WeeklyTrend } from './WeeklyTrend';
 
 const CHART_SIZE = 160;
 const STROKE_WIDTH = 20;
@@ -87,7 +85,7 @@ export function DailyAnalysis({ selectedDate, onDateChange, onSubjectSelect }: P
         const h = Math.floor(ms / 3600000);
         const m = Math.floor((ms % 3600000) / 60000);
         const s = Math.floor((ms % 60000) / 1000);
-        if (h > 0) return `${h}시간 ${m}분`;
+        if (h > 0) return `${h}시간 ${m}분 ${s}초`;
         return m > 0 ? `${m}분 ${s}초` : `${s}초`;
     };
 
@@ -157,28 +155,22 @@ export function DailyAnalysis({ selectedDate, onDateChange, onSubjectSelect }: P
                 {/* 1. Summary Card */}
                 <View style={styles.summaryGrid}>
                     <View style={styles.summaryCard}>
-                        <View style={styles.summaryIconBox}>
-                            <Ionicons name="time" size={16} color={COLORS.primary} />
-                        </View>
                         <Text style={styles.summaryLabel}>총 학습 시간</Text>
                         <Text style={styles.summaryValue}>{formatTime(dayData.totalMs)}</Text>
                         <View style={[styles.diffBadge, timeStatus === 'increased' ? styles.upBadge : styles.downBadge]}>
                             <Ionicons name={timeStatus === 'increased' ? 'trending-up' : 'trending-down'} size={12} color={timeStatus === 'increased' ? '#059669' : '#DC2626'} />
                             <Text style={[styles.diffText, { color: timeStatus === 'increased' ? '#059669' : '#DC2626' }]}>
-                                {formatTime(Math.abs(timeDiff))} {timeStatus === 'increased' ? 'UP' : 'DOWN'}
+                                평균 대비 {formatTime(Math.abs(timeDiff))} {timeStatus === 'increased' ? '증가' : '감소'}
                             </Text>
                         </View>
                     </View>
                     <View style={styles.summaryCard}>
-                        <View style={[styles.summaryIconBox, { backgroundColor: '#E0F2FE' }]}>
-                            <Ionicons name="documents" size={16} color="#0284C7" />
-                        </View>
                         <Text style={styles.summaryLabel}>풀이 문항 수</Text>
                         <Text style={styles.summaryValue}>{dayData.count}문항</Text>
                         <View style={[styles.diffBadge, countStatus === 'increased' ? styles.upBadge : styles.downBadge]}>
                             <Ionicons name={countStatus === 'increased' ? 'trending-up' : 'trending-down'} size={12} color={countStatus === 'increased' ? '#059669' : '#DC2626'} />
                             <Text style={[styles.diffText, { color: countStatus === 'increased' ? '#059669' : '#DC2626' }]}>
-                                {Math.abs(Math.round(countDiff))}개 {countStatus === 'increased' ? 'UP' : 'DOWN'}
+                                평균 대비 {Math.abs(Math.round(countDiff))}개 {countStatus === 'increased' ? '증가' : '감소'}
                             </Text>
                         </View>
                     </View>
@@ -253,20 +245,6 @@ export function DailyAnalysis({ selectedDate, onDateChange, onSubjectSelect }: P
                         </TouchableOpacity>
                     ))}
                 </View>
-
-                {/* 4. Weekly Trend */}
-                <WeeklyTrend records={questionRecords} />
-
-                {/* 5. Deep Insights */}
-                <FocusInsights
-                    records={useMemo(() => {
-                        return questionRecords.filter(r => {
-                            const d = new Date(r.startedAt);
-                            const shifted = new Date(d.getTime() - 21600000);
-                            return shifted.toISOString().split('T')[0] === selectedDate;
-                        });
-                    }, [questionRecords, selectedDate])}
-                />
             </View>
         </View>
     );
@@ -330,15 +308,6 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.03,
         shadowRadius: 12,
         elevation: 3,
-    },
-    summaryIconBox: {
-        width: 32,
-        height: 32,
-        borderRadius: 10,
-        backgroundColor: COLORS.primaryLight,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 12,
     },
     summaryLabel: {
         fontSize: 12,

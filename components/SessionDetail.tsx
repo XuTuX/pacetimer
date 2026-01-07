@@ -18,9 +18,11 @@ type Props = {
 };
 
 const formatTime = (sec: number) => {
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m}분 ${s}초`;
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = Math.floor(sec % 60);
+    if (h > 0) return `${h}시간 ${m}분 ${s}초`;
+    return m > 0 ? `${m}분 ${s}초` : `${s}초`;
 };
 
 const formatDate = (dateString: string) => {

@@ -34,8 +34,8 @@ type Props = {
 const formatDuration = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    if (h > 0) return `${h}시간 ${m}분`;
+    const s = Math.floor(seconds % 60);
+    if (h > 0) return `${h}시간 ${m}분 ${s}초`;
     return m > 0 ? `${m}분 ${s}초` : `${s}초`;
 };
 

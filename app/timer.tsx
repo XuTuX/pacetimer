@@ -3,7 +3,7 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { AppState, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppStore } from '../lib/store';
@@ -27,7 +27,7 @@ export default function TimerScreen() {
     const [lapStatus, setLapStatus] = useState<'IDLE' | 'RUNNING'>('IDLE');
     const [lapStartAt, setLapStartAt] = useState<number | null>(null);
     const [lapElapsed, setLapElapsed] = useState(0);
-    const [isAddModalVisible, setIsAddModalVisible] = useState(false);
+    const [isAddingSubject, setIsAddingSubject] = useState(false);
     const [newSubjectName, setNewSubjectName] = useState('');
 
     const isSubjectSelected = !!selectedSubjectId;
@@ -195,14 +195,15 @@ export default function TimerScreen() {
     };
 
     const handleQuickAddSubject = () => {
-        setIsAddModalVisible(true);
+        setIsAddingSubject(true);
     };
 
     const confirmAddSubject = () => {
         if (newSubjectName.trim()) {
             addSubject(newSubjectName.trim());
             setNewSubjectName('');
-            setIsAddModalVisible(false);
+            setIsAddingSubject(false);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
     };
 
@@ -272,16 +273,39 @@ export default function TimerScreen() {
                                     </TouchableOpacity>
                                 ))}
 
-                                <TouchableOpacity
-                                    style={styles.addSubjectCard}
-                                    onPress={handleQuickAddSubject}
-                                    activeOpacity={0.6}
-                                >
-                                    <View style={styles.addIconCircle}>
-                                        <Ionicons name="add" size={32} color={COLORS.primary} />
+                                {isAddingSubject && (
+                                    <View style={[styles.subjectCard, styles.activeSubjectCard]}>
+                                        <View style={styles.subjectCardPadding}>
+                                            <TextInput
+                                                style={styles.subjectInputInline}
+                                                placeholder="과목명"
+                                                value={newSubjectName}
+                                                onChangeText={setNewSubjectName}
+                                                autoFocus
+                                                returnKeyType="done"
+                                                onSubmitEditing={confirmAddSubject}
+                                                onBlur={() => {
+                                                    if (!newSubjectName.trim()) setIsAddingSubject(false);
+                                                }}
+                                            />
+                                            <TouchableOpacity onPress={confirmAddSubject} style={styles.confirmInlineBtn}>
+                                                <Ionicons name="checkmark" size={20} color={COLORS.white} />
+                                            </TouchableOpacity>
+                                        </View>
                                     </View>
-                                    <Text style={styles.addText}>새 과목 추가</Text>
-                                </TouchableOpacity>
+                                )}
+                                {!isAddingSubject && (
+                                    <TouchableOpacity
+                                        style={styles.addSubjectCard}
+                                        onPress={handleQuickAddSubject}
+                                        activeOpacity={0.6}
+                                    >
+                                        <View style={styles.addIconCircle}>
+                                            <Ionicons name="add" size={32} color={COLORS.primary} />
+                                        </View>
+                                        <Text style={styles.addText}>새 과목 추가</Text>
+                                    </TouchableOpacity>
+                                )}
                             </View>
                         </ScrollView>
 
@@ -416,34 +440,6 @@ export default function TimerScreen() {
                     </View>
                 </View>
             </PagerView>
-
-            <Modal
-                visible={isAddModalVisible}
-                transparent={true}
-                animationType="slide"
-                onRequestClose={() => setIsAddModalVisible(false)}
-            >
-                <TouchableOpacity
-                    style={styles.modalOverlay}
-                    activeOpacity={1}
-                    onPress={() => setIsAddModalVisible(false)}
-                >
-                    <View style={styles.sheetContainer}>
-                        <View style={styles.sheetHandle} />
-                        <Text style={styles.sheetTitle}>새 과목 추가</Text>
-                        <TextInput
-                            style={styles.sheetInput}
-                            placeholder="과목 이름을 입력하세요"
-                            value={newSubjectName}
-                            onChangeText={setNewSubjectName}
-                            autoFocus={true}
-                        />
-                        <TouchableOpacity style={styles.sheetSubmit} onPress={confirmAddSubject}>
-                            <Text style={styles.sheetSubmitText}>추가하기</Text>
-                        </TouchableOpacity>
-                    </View>
-                </TouchableOpacity>
-            </Modal>
         </SafeAreaView>
     );
 }
@@ -538,6 +534,28 @@ const styles = StyleSheet.create({
     subjectCardGradient: {
         padding: 24,
         alignItems: 'center',
+    },
+    subjectCardPadding: {
+        padding: 24,
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: 140,
+    },
+    subjectInputInline: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: COLORS.text,
+        textAlign: 'center',
+        width: '100%',
+        marginBottom: 16,
+    },
+    confirmInlineBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: COLORS.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     activeSubjectCard: {
         borderColor: COLORS.primary,
