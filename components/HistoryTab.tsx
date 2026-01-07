@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars'; // 라이브러리 import
-import { ExamSession, deleteSession } from '../lib/storage';
+import { ExamSession } from '../lib/storage';
 import { COLORS } from '../lib/theme';
 
 // --- 달력 한글 설정 ---
@@ -26,7 +26,6 @@ type DateSection = {
 type Props = {
     sessionsCount: number;
     dateSections: DateSection[];
-    onSelectSession: (session: ExamSession) => void;
     onDeleted: () => void;
     onViewDailyAnalysis: (date: string) => void;
 };
@@ -43,7 +42,6 @@ const formatDuration = (seconds: number) => {
 export default function HistoryTab({
     sessionsCount,
     dateSections,
-    onSelectSession,
     onDeleted,
     onViewDailyAnalysis,
 }: Props) {
@@ -123,7 +121,7 @@ export default function HistoryTab({
     }, [dateSections, selectedDate]);
 
     return (
-        <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+        <View style={styles.container}>
             {/* 상단 통계 헤더 */}
             <View style={styles.historyHeader}>
                 <View>
@@ -193,65 +191,7 @@ export default function HistoryTab({
                     </View>
                 )}
             </View>
-
-            {/* 개별 세션 리스트 (기존 기능 유지하되 하단으로 배치하거나 선택사항으로) */}
-            {selectedDateSummary && selectedDateSummary.sessions.length > 0 && (
-                <View style={styles.sessionListContainer}>
-                    <Text style={styles.sessionListTitle}>개별 기록</Text>
-                    {selectedDateSummary.sessions.map((session) => (
-                        <TouchableOpacity
-                            key={session.id}
-                            style={styles.sessionCard}
-                            onPress={() => onSelectSession(session)}
-                            activeOpacity={0.7}
-                        >
-                            <View style={styles.cardHeader}>
-                                <View style={styles.badgeContainer}>
-                                    <Text style={styles.badgeText}>{session.categoryName}</Text>
-                                </View>
-                                <View style={styles.headerRight}>
-                                    <Text style={styles.timeText}>
-                                        {new Date(session.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </Text>
-                                    <TouchableOpacity
-                                        style={styles.deleteBtn}
-                                        onPress={() => {
-                                            Alert.alert('삭제', '기록을 삭제하시겠습니까?', [
-                                                { text: '취소', style: 'cancel' },
-                                                {
-                                                    text: '삭제',
-                                                    style: 'destructive',
-                                                    onPress: async () => {
-                                                        await deleteSession(session.id);
-                                                        onDeleted();
-                                                    }
-                                                }
-                                            ]);
-                                        }}
-                                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                    >
-                                        <Ionicons name="close" size={16} color={COLORS.textMuted} />
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-
-                            <Text style={styles.cardTitle} numberOfLines={1}>{session.title}</Text>
-
-                            <View style={styles.cardFooter}>
-                                <View style={styles.metaInfoRow}>
-                                    <Ionicons name="time-outline" size={13} color={COLORS.textMuted} />
-                                    <Text style={styles.metaText}>{formatDuration(session.totalSeconds)}</Text>
-                                    <View style={styles.divider} />
-                                    <Ionicons name="list-outline" size={13} color={COLORS.textMuted} />
-                                    <Text style={styles.metaText}>{session.totalQuestions}문항</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-                            </View>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-            )}
-        </ScrollView>
+        </View>
     );
 }
 
@@ -259,42 +199,42 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.bg },
 
     // 헤더
-    historyHeader: { paddingHorizontal: 20, marginBottom: 20, marginTop: 10 },
-    headerTitle: { fontSize: 24, fontWeight: '900', color: COLORS.text, marginBottom: 4 },
+    historyHeader: { paddingHorizontal: 20, marginBottom: 12, marginTop: 8 },
+    headerTitle: { fontSize: 22, fontWeight: '900', color: COLORS.text, marginBottom: 2 },
     headerSub: { fontSize: 13, color: COLORS.textMuted, fontWeight: '600' },
 
     // 캘린더 영역
     calendarWrapper: {
-        marginBottom: 24,
-        borderRadius: 32,
+        marginBottom: 16,
+        borderRadius: 24,
         overflow: 'hidden',
         marginHorizontal: 16,
         backgroundColor: COLORS.white,
         borderWidth: 1,
         borderColor: COLORS.border,
-        padding: 8,
+        padding: 4,
     },
 
     // 요약 영역
     summaryContainer: {
         paddingHorizontal: 20,
-        marginBottom: 24,
+        marginBottom: 16,
     },
     listHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 12,
+        marginBottom: 8,
     },
     listHeaderTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text },
 
     summaryCard: {
         backgroundColor: COLORS.white,
         borderRadius: 24,
-        padding: 20,
+        padding: 16,
         borderWidth: 1,
         borderColor: COLORS.border,
-        gap: 20,
+        gap: 16,
     },
     summaryRow: {
         flexDirection: 'row',
@@ -304,7 +244,7 @@ const styles = StyleSheet.create({
     summaryItem: {
         flex: 1,
         alignItems: 'center',
-        gap: 4,
+        gap: 2,
     },
     summaryLabel: {
         fontSize: 12,
@@ -318,7 +258,7 @@ const styles = StyleSheet.create({
     },
     verticalDivider: {
         width: 1,
-        height: 30,
+        height: 24,
         backgroundColor: COLORS.border,
     },
     detailLinkBtn: {
@@ -340,52 +280,17 @@ const styles = StyleSheet.create({
     emptyCard: {
         backgroundColor: COLORS.white,
         borderRadius: 24,
-        padding: 40,
+        padding: 30,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
         borderColor: COLORS.border,
         borderStyle: 'dashed',
-        gap: 12,
+        gap: 10,
     },
     emptyText: {
         color: COLORS.textMuted,
         fontSize: 14,
         fontWeight: '600',
     },
-
-    // 개별 리스트
-    sessionListContainer: {
-        paddingHorizontal: 20,
-    },
-    sessionListTitle: {
-        fontSize: 16,
-        fontWeight: '800',
-        color: COLORS.text,
-        marginBottom: 12,
-    },
-    sessionCard: {
-        backgroundColor: COLORS.white,
-        borderRadius: 20,
-        padding: 16,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-    },
-    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-    badgeContainer: {
-        backgroundColor: COLORS.primaryLight,
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: 6,
-    },
-    badgeText: { color: COLORS.primary, fontSize: 11, fontWeight: '700' },
-    headerRight: { flexDirection: 'row', alignItems: 'center' },
-    timeText: { fontSize: 12, color: COLORS.textMuted, marginRight: 8 },
-    deleteBtn: { padding: 2 },
-    cardTitle: { fontSize: 16, fontWeight: '800', color: COLORS.text, marginBottom: 14 },
-    cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
-    metaInfoRow: { flexDirection: 'row', alignItems: 'center' },
-    metaText: { fontSize: 13, color: COLORS.textMuted, fontWeight: '600', marginLeft: 4, marginRight: 2 },
-    divider: { width: 1, height: 10, backgroundColor: COLORS.border, marginHorizontal: 8 },
 });

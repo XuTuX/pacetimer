@@ -147,9 +147,19 @@ export default function TimerScreen() {
                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
                     <Ionicons name="close" size={24} color={COLORS.text} />
                 </TouchableOpacity>
-                <View style={styles.tabIndicator}>
-                    <View style={[styles.dot, currentPage === 0 && styles.activeDot]} />
-                    <View style={[styles.dot, currentPage === 1 && styles.activeDot]} />
+                <View style={styles.tabHeader}>
+                    <TouchableOpacity
+                        style={[styles.tabItem, currentPage === 0 && styles.activeTabItem]}
+                        onPress={() => pagerRef.current?.setPage(0)}
+                    >
+                        <Text style={[styles.tabText, currentPage === 0 && styles.activeTabText]}>전체 타이머</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.tabItem, currentPage === 1 && styles.activeTabItem]}
+                        onPress={() => pagerRef.current?.setPage(1)}
+                    >
+                        <Text style={[styles.tabText, currentPage === 1 && styles.activeTabText]}>과목별 기록</Text>
+                    </TouchableOpacity>
                 </View>
                 <View style={{ width: 44 }} />
             </View>
@@ -338,19 +348,25 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: COLORS.border,
     },
-    tabIndicator: {
+    tabHeader: {
         flexDirection: 'row',
-        gap: 6,
+        gap: 20,
     },
-    dot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: COLORS.border,
+    tabItem: {
+        paddingVertical: 8,
+        borderBottomWidth: 2,
+        borderBottomColor: 'transparent',
     },
-    activeDot: {
-        width: 16,
-        backgroundColor: COLORS.primary,
+    activeTabItem: {
+        borderBottomColor: COLORS.primary,
+    },
+    tabText: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: COLORS.textMuted,
+    },
+    activeTabText: {
+        color: COLORS.primary,
     },
     pager: {
         flex: 1,

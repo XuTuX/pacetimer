@@ -9,13 +9,14 @@ interface SproutVisualProps {
 }
 
 export default function SproutVisual({ totalMinutes }: SproutVisualProps) {
-    // 0-60 min: Seed (0)
-    // 60-180 min: Shoot (1)
-    // 180-360 min: Sprout (2)
-    // 360+ min: Plant (3)
+    // Growth by study time (milestones: 1h, 3h, 5h, 9h+):
+    // < 1h: first sprout (0)
+    // 1h-<5h: second sprout (1) - includes the 3h mark
+    // 5h-<9h: third sprout (2)
+    // 9h+: flower (3)
     let stage = 0;
-    if (totalMinutes >= 360) stage = 3;
-    else if (totalMinutes >= 180) stage = 2;
+    if (totalMinutes >= 540) stage = 3;
+    else if (totalMinutes >= 300) stage = 2;
     else if (totalMinutes >= 60) stage = 1;
 
     const animatedStyle = useAnimatedStyle(() => {
@@ -64,4 +65,3 @@ const styles = StyleSheet.create({
         height: '80%',
     },
 });
-

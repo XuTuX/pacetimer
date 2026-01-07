@@ -29,9 +29,9 @@ export default function HomeScreen() {
                     <Text style={styles.eyebrow}>Today's Growth</Text>
                     <Text style={styles.headerTitle}>오늘의 공부 기록</Text>
                 </View>
-                <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/(tabs)/stats')}>
-                    <Ionicons name="person-outline" size={24} color={COLORS.text} />
-                </TouchableOpacity>
+                <View>
+                    <Ionicons name="flash" size={24} color={COLORS.primary} />
+                </View>
             </View>
 
             <View style={styles.content}>
@@ -87,16 +87,6 @@ const styles = StyleSheet.create({
         fontSize: 24,
         fontWeight: '800',
         color: COLORS.text,
-    },
-    iconBtn: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: COLORS.white,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: COLORS.border,
     },
     content: {
         flex: 1,

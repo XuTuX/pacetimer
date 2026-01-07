@@ -30,16 +30,39 @@ type DateSection = {
     totalQuestions: number;
 };
 
-type TabType = 'stats' | 'history';
+type TabType = 'analysis' | 'detail' | 'history';
+
+import PagerView from 'react-native-pager-view';
 
 export default function StatsScreen() {
     const { signOut, userId } = useAuth();
     const router = useRouter();
-    const [activeTab, setActiveTab] = useState<TabType>('stats');
+    const [activeTab, setActiveTab] = useState<TabType>('analysis');
     const [sessions, setSessions] = useState<ExamSession[]>([]);
     const [selectedSession, setSelectedSession] = useState<ExamSession | null>(null);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const insets = useSafeAreaInsets();
+    const pagerRef = React.useRef<PagerView>(null);
+
+    const getStudyDate = (timestamp: number | string | Date) => {
+        const d = new Date(timestamp);
+        // Subtract 6 hours (21600000 ms) to shift the "day" boundary to 6 AM
+        const shifted = new Date(d.getTime() - 21600000);
+        return shifted.toISOString().split('T')[0];
+    };
+
+    const formatDisplayDateLocal = (dateStr: string) => {
+        const today = getStudyDate(Date.now());
+        const yesterday = getStudyDate(Date.now() - 86400000);
+        if (dateStr === today) return '오늘';
+        if (dateStr === yesterday) return '어제';
+        const [y, m, d] = dateStr.split('-');
+        return `${parseInt(m)}월 ${parseInt(d)}일`;
+    };
+
+    const { questionRecords } = useAppStore();
+
+    const [selectedAnalysisDate, setSelectedAnalysisDate] = useState<string>(getStudyDate(Date.now()));
 
     useEffect(() => {
         const backAction = () => {
@@ -60,23 +83,6 @@ export default function StatsScreen() {
 
     useFocusEffect(useCallback(() => { loadSessions(); }, [loadSessions]));
 
-    const formatDisplayDate = (dateStr: string) => {
-        const today = new Date().toISOString().split('T')[0];
-        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-        if (dateStr === today) return '오늘';
-        if (dateStr === yesterday) return '어제';
-        const d = new Date(dateStr);
-        return `${d.getMonth() + 1}월 ${d.getDate()}일`;
-    };
-
-    const getStudyDate = (dateString: string | Date) => {
-        const d = new Date(dateString);
-        const shifted = new Date(d.getTime() - (6 * 60 * 60 * 1000));
-        return shifted.toISOString().split('T')[0];
-    };
-
-    const { questionRecords } = useAppStore();
-
     const processedData = useMemo(() => {
         const dateMap: Record<string, { sessions: ExamSession[], totalSeconds: number, totalQuestions: number }> = {};
 
@@ -85,13 +91,11 @@ export default function StatsScreen() {
             const d = getStudyDate(s.date);
             if (!dateMap[d]) dateMap[d] = { sessions: [], totalSeconds: 0, totalQuestions: 0 };
             dateMap[d].sessions.push(s);
-            // We'll skip adding to totalSeconds here to avoid double counting with QuestionRecords if they overlap
-            // Actually, let's just use QuestionRecords as the primary source for time/counts if they exist.
         });
 
         // Add QuestionRecords (All modes)
         questionRecords.forEach(r => {
-            const d = new Date(r.startedAt).toISOString().split('T')[0];
+            const d = getStudyDate(r.startedAt);
             if (!dateMap[d]) dateMap[d] = { sessions: [], totalSeconds: 0, totalQuestions: 0 };
             dateMap[d].totalSeconds += (r.durationMs / 1000);
             dateMap[d].totalQuestions += 1;
@@ -101,7 +105,7 @@ export default function StatsScreen() {
 
         const sections: DateSection[] = sortedDates.map(date => ({
             date,
-            displayDate: formatDisplayDate(date),
+            displayDate: formatDisplayDateLocal(date),
             sessions: dateMap[date].sessions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
             totalSeconds: dateMap[date].totalSeconds,
             totalQuestions: dateMap[date].totalQuestions,
@@ -110,17 +114,17 @@ export default function StatsScreen() {
         return { dateSections: sections };
     }, [sessions, questionRecords]);
 
-    const [selectedAnalysisDate, setSelectedAnalysisDate] = useState<string | null>(null);
-
     const handleTabChange = (tab: TabType) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setActiveTab(tab);
+        const index = tab === 'analysis' ? 0 : tab === 'detail' ? 1 : 2;
+        pagerRef.current?.setPage(index);
     };
 
     const onViewDailyAnalysis = (date: string) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         setSelectedAnalysisDate(date);
-        setActiveTab('stats');
+        handleTabChange('analysis');
     };
 
     const handleSignOut = async () => {
@@ -159,45 +163,81 @@ export default function StatsScreen() {
                     )}
                 </View>
 
-                <View style={styles.tabBar}>
-                    <TouchableOpacity
-                        style={[styles.tabItem, activeTab === 'stats' && styles.activeTabItem]}
-                        onPress={() => handleTabChange('stats')}
-                    >
-                        <Text style={[styles.tabText, activeTab === 'stats' && styles.activeTabText]}>데이터 분석</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.tabItem, activeTab === 'history' && styles.activeTabItem]}
-                        onPress={() => handleTabChange('history')}
-                    >
-                        <Text style={[styles.tabText, activeTab === 'history' && styles.activeTabText]}>상세 기록</Text>
-                    </TouchableOpacity>
+                <View style={styles.tabContainer}>
+                    <View style={styles.tabHeader}>
+                        <TouchableOpacity
+                            style={[styles.tabItem, activeTab === 'analysis' && styles.activeTabItem]}
+                            onPress={() => handleTabChange('analysis')}
+                        >
+                            <Text style={[styles.tabText, activeTab === 'analysis' && styles.activeTabText]}>분석</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.tabItem, activeTab === 'detail' && styles.activeTabItem]}
+                            onPress={() => handleTabChange('detail')}
+                        >
+                            <Text style={[styles.tabText, activeTab === 'detail' && styles.activeTabText]}>내역</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.tabItem, activeTab === 'history' && styles.activeTabItem]}
+                            onPress={() => handleTabChange('history')}
+                        >
+                            <Text style={[styles.tabText, activeTab === 'history' && styles.activeTabText]}>전체</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
-                <ScrollView
-                    style={styles.content}
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
+                <PagerView
+                    ref={pagerRef}
+                    style={{ flex: 1 }}
+                    initialPage={0}
+                    onPageSelected={(e) => {
+                        const pos = e.nativeEvent.position;
+                        const tab: TabType = pos === 0 ? 'analysis' : pos === 1 ? 'detail' : 'history';
+                        setActiveTab(tab);
+                        Haptics.selectionAsync();
+                    }}
                 >
-                    {activeTab === 'stats' ? (
+                    <ScrollView key="1" style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
                         <View style={styles.statsView}>
                             <DailyAnalysis
                                 selectedDate={selectedAnalysisDate}
-                                onDateChange={setSelectedAnalysisDate}
+                                viewMode="analysis"
+                                onDateChange={(d) => {
+                                    if (d) setSelectedAnalysisDate(d);
+                                    else handleTabChange('history');
+                                }}
                             />
                         </View>
-                    ) : (
+                    </ScrollView>
+                    <ScrollView key="2" style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
+                        <View style={styles.statsView}>
+                            <DailyAnalysis
+                                selectedDate={selectedAnalysisDate}
+                                viewMode="detail"
+                                onDateChange={(d) => {
+                                    if (d) setSelectedAnalysisDate(d);
+                                    else handleTabChange('history');
+                                }}
+                            />
+                        </View>
+                    </ScrollView>
+                    <ScrollView key="3" style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
                         <View style={styles.historyWrapper}>
                             <HistoryTab
                                 sessionsCount={sessions.length}
                                 dateSections={processedData.dateSections}
-                                onSelectSession={(s) => setSelectedSession(s)}
                                 onDeleted={() => loadSessions()}
                                 onViewDailyAnalysis={onViewDailyAnalysis}
                             />
                         </View>
-                    )}
-                </ScrollView>
+                    </ScrollView>
+                </PagerView>
+
+                <View style={styles.indicatorContainer}>
+                    <View style={[styles.dot, activeTab === 'analysis' && styles.activeDot]} />
+                    <View style={[styles.dot, activeTab === 'detail' && styles.activeDot]} />
+                    <View style={[styles.dot, activeTab === 'history' && styles.activeDot]} />
+                </View>
             </SafeAreaView>
 
             {selectedSession && (
@@ -280,13 +320,35 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.border,
         marginHorizontal: 8,
     },
-    tabBar: {
+    indicatorContainer: {
         flexDirection: 'row',
-        backgroundColor: COLORS.surfaceVariant,
-        marginHorizontal: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 8,
+        paddingVertical: 16,
+    },
+    dot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: COLORS.border,
+    },
+    activeDot: {
+        width: 12,
+        backgroundColor: COLORS.primary,
+    },
+    content: { flex: 1 },
+    tabContainer: {
+        paddingHorizontal: 24,
+        marginBottom: 8,
+    },
+    tabHeader: {
+        flexDirection: 'row',
+        backgroundColor: COLORS.white,
         borderRadius: 20,
         padding: 4,
-        marginBottom: 24,
+        borderWidth: 1,
+        borderColor: COLORS.border,
     },
     tabItem: {
         flex: 1,
@@ -295,12 +357,7 @@ const styles = StyleSheet.create({
         borderRadius: 16,
     },
     activeTabItem: {
-        backgroundColor: COLORS.white,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
+        backgroundColor: COLORS.primaryLight,
     },
     tabText: {
         fontSize: 14,
@@ -308,11 +365,11 @@ const styles = StyleSheet.create({
         color: COLORS.textMuted,
     },
     activeTabText: {
-        color: COLORS.text,
+        color: COLORS.primary,
     },
-    content: { flex: 1 },
-    statsView: { paddingHorizontal: 24 },
+    statsView: { paddingHorizontal: 24, paddingTop: 16 },
     historyWrapper: {
         paddingHorizontal: 24,
+        paddingTop: 16,
     },
 });
