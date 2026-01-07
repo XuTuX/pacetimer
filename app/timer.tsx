@@ -11,7 +11,7 @@ import { QuestionRecord } from '../lib/types';
 export default function TimerScreen() {
     const router = useRouter();
     const {
-        stopwatch, startStopwatch, pauseStopwatch, resetStopwatch,
+        stopwatch, startStopwatch, pauseStopwatch,
         subjects, addSubject, addQuestionRecord
     } = useAppStore();
 
@@ -537,4 +537,3 @@ const styles = StyleSheet.create({
         textDecorationLine: 'underline',
     },
 });
-

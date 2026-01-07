@@ -32,20 +32,20 @@ export default function HistoryScreen() {
     const insets = useSafeAreaInsets();
     const { questionRecords } = useAppStore();
 
-    const getStudyDate = (timestamp: number | string | Date) => {
+    const getStudyDate = useCallback((timestamp: number | string | Date) => {
         const d = new Date(timestamp);
         const shifted = new Date(d.getTime() - 21600000);
         return shifted.toISOString().split('T')[0];
-    };
+    }, []);
 
-    const formatDisplayDateLocal = (dateStr: string) => {
+    const formatDisplayDateLocal = useCallback((dateStr: string) => {
         const today = getStudyDate(Date.now());
         const yesterday = getStudyDate(Date.now() - 86400000);
         if (dateStr === today) return '오늘';
         if (dateStr === yesterday) return '어제';
-        const [y, m, d] = dateStr.split('-');
+        const [, m, d] = dateStr.split('-');
         return `${parseInt(m)}월 ${parseInt(d)}일`;
-    };
+    }, [getStudyDate]);
 
     const loadSessions = useCallback(async () => {
         const data = await getSessions();
@@ -80,7 +80,7 @@ export default function HistoryScreen() {
         }));
 
         return sections;
-    }, [sessions, questionRecords]);
+    }, [sessions, questionRecords, formatDisplayDateLocal, getStudyDate]);
 
     const handleSignOut = async () => {
         try {

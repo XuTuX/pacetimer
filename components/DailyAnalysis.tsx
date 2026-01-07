@@ -1,16 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo } from 'react';
-import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, G, Path } from 'react-native-svg';
 import { useAppStore } from '../lib/store';
 import { COLORS } from '../lib/theme';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
 const CHART_SIZE = 160;
 const STROKE_WIDTH = 20;
 const RADIUS = (CHART_SIZE - STROKE_WIDTH) / 2;
 const CENTER = CHART_SIZE / 2;
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 type Props = {
     selectedDate: string | null;

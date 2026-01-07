@@ -16,14 +16,14 @@ const tokenCache = {
   async getToken(key: string) {
     try {
       return await SecureStore.getItemAsync(key);
-    } catch (err) {
+    } catch {
       return null;
     }
   },
   async saveToken(key: string, value: string) {
     try {
       return await SecureStore.setItemAsync(key, value);
-    } catch (err) {
+    } catch {
       return;
     }
   },
@@ -44,7 +44,7 @@ function InitialLayout() {
     } else if (!isSignedIn && !inAuthGroup) {
       router.replace("/auth/login");
     }
-  }, [isSignedIn, isLoaded, segments]);
+  }, [isSignedIn, isLoaded, segments, router]);
 
   if (!isLoaded) {
     return (

@@ -26,7 +26,7 @@ export default function HomeScreen() {
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
                 <View>
-                    <Text style={styles.eyebrow}>Today's Growth</Text>
+                    <Text style={styles.eyebrow}>Today&apos;s Growth</Text>
                     <Text style={styles.headerTitle}>오늘의 공부 기록</Text>
                 </View>
                 <View>
@@ -146,4 +146,3 @@ const styles = StyleSheet.create({
         textDecorationLine: 'underline',
     },
 });
-

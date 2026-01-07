@@ -22,14 +22,7 @@ export default function MockExamRunScreen() {
     const [examStartedAt] = useState(Date.now());
     const [remainingSec, setRemainingSec] = useState(limitMin * 60);
 
-    // Question State
-    const [questionNo, setQuestionNo] = useState(1); // Per subject? Requirement says "Question # automatically +1", usually exam has 1..40.
-    // Actually, usually mocks track question per subject.
-    // Let's keep one generic counter per subject?
-    // Simpler: Just one counter, user can change subject tab, but question number might need to be reset or tracked per subject?
-    // Requirement 2-2: "Store after save, auto +1".
-    // Requirement 5-2: "Switch Subject UI".
-    // I'll track questionNo map: { [subjectId]: number }
+    // Question State (per subject)
     const [qMap, setQMap] = useState<Record<string, number>>(
         Object.fromEntries(subjectIds.map(id => [id, 1]))
     );
@@ -57,7 +50,7 @@ export default function MockExamRunScreen() {
             endSession(); // End session on unmount? Or strictly on "End" button?
             // Usually better on End button, but safe cleanup here.
         };
-    }, []);
+    }, [endSession, examStartedAt, limitMin, startSession, startStopwatch, stopwatch.isRunning]);
 
     useEffect(() => {
         let interval: ReturnType<typeof setInterval>;
