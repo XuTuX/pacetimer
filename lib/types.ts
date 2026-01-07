@@ -34,7 +34,7 @@ export type QuestionRecord = {
     durationMs: number;
     startedAt: number;
     endedAt: number;
-    source: 'tap';
+    source: 'tap' | 'finish' | 'manual';
 };
 
 export type Room = {

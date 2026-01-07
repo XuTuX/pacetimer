@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -9,7 +10,8 @@ import { COLORS } from '../../lib/theme';
 
 export default function HomeScreen() {
     const router = useRouter();
-    const { stopwatch } = useAppStore();
+    const { stopwatch, subjects } = useAppStore();
+    const [selectedSubjectId, setSelectedSubjectId] = React.useState<string | null>(null);
 
     // today's study time (formatted)
     // In a real app, we'd filter sessions by today. Here we use stopwatch.accumulatedMs as a proxy for today's session.
@@ -41,13 +43,77 @@ export default function HomeScreen() {
                     <Text style={styles.studyLabel}>오늘 이만큼 성장했어요!</Text>
                 </View>
 
+                <View style={styles.subjectSelectionSection}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>어떤 과목을 공부할까요?</Text>
+                        {subjects.filter(s => !s.isArchived).length > 0 && (
+                            <TouchableOpacity onPress={() => router.push('/timer')}>
+                                <Ionicons name="add-circle-outline" size={20} color={COLORS.primary} />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                    <View style={styles.subjectList}>
+                        {subjects.filter(s => !s.isArchived).map(s => (
+                            <TouchableOpacity
+                                key={s.id}
+                                style={[
+                                    styles.subjectChip,
+                                    selectedSubjectId === s.id && styles.selectedSubjectChip
+                                ]}
+                                onPress={() => {
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                    setSelectedSubjectId(s.id === selectedSubjectId ? null : s.id);
+                                }}
+                            >
+                                <Ionicons
+                                    name="book-outline"
+                                    size={16}
+                                    color={selectedSubjectId === s.id ? COLORS.primary : COLORS.textMuted}
+                                />
+                                <Text style={[
+                                    styles.subjectChipText,
+                                    selectedSubjectId === s.id && styles.selectedSubjectChipText
+                                ]}>
+                                    {s.name}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                        {subjects.filter(s => !s.isArchived).length === 0 && (
+                            <TouchableOpacity
+                                style={styles.addSubjectCard}
+                                onPress={() => router.push('/timer')}
+                            >
+                                <Ionicons name="add" size={20} color={COLORS.primary} />
+                                <Text style={styles.addSubjectText}>과목 추가하기</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                </View>
+
                 <TouchableOpacity
-                    style={styles.startButton}
-                    onPress={() => router.push('/timer')}
+                    style={[
+                        styles.startButton,
+                        !selectedSubjectId && !stopwatch.isRunning && styles.startButtonDisabled
+                    ]}
+                    onPress={() => {
+                        if (stopwatch.isRunning) {
+                            router.push('/timer');
+                        } else if (selectedSubjectId) {
+                            router.push({
+                                pathname: '/timer',
+                                params: { subjectId: selectedSubjectId }
+                            });
+                        } else {
+                            // If no subject selected and NOT running, 
+                            // we could either go to timer/select subject or show a message.
+                            // The user wants to select on home screen.
+                            router.push('/timer');
+                        }
+                    }}
                 >
                     <Ionicons name={stopwatch.isRunning ? "pause" : "play"} size={28} color={COLORS.white} />
                     <Text style={styles.startButtonText}>
-                        {stopwatch.isRunning ? "집중 이어나가기" : "공부 시작하기"}
+                        {stopwatch.isRunning ? "집중 이어나가기" : (selectedSubjectId ? "이 과목 집중 시작" : "공부 시작하기")}
                     </Text>
                 </TouchableOpacity>
             </View>
@@ -144,5 +210,79 @@ const styles = StyleSheet.create({
         color: COLORS.primary,
         fontWeight: '700',
         textDecorationLine: 'underline',
+    },
+    subjectSelectionSection: {
+        width: '100%',
+        marginBottom: -10,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+        paddingHorizontal: 4,
+    },
+    sectionTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: COLORS.textMuted,
+    },
+    subjectList: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    subjectChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 24,
+        backgroundColor: COLORS.white,
+        borderWidth: 1.5,
+        borderColor: COLORS.border,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    selectedSubjectChip: {
+        backgroundColor: COLORS.primaryLight,
+        borderColor: COLORS.primary,
+        shadowColor: COLORS.primary,
+        shadowOpacity: 0.1,
+    },
+    subjectChipText: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: COLORS.text,
+    },
+    selectedSubjectChipText: {
+        color: COLORS.primary,
+        fontWeight: '700',
+    },
+    startButtonDisabled: {
+        opacity: 0.6,
+        backgroundColor: COLORS.textMuted,
+        shadowOpacity: 0,
+    },
+    addSubjectCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 24,
+        borderWidth: 1.5,
+        borderColor: COLORS.primary,
+        borderStyle: 'dashed',
+        backgroundColor: COLORS.primaryLight + '20',
+    },
+    addSubjectText: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: COLORS.primary,
     },
 });

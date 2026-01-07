@@ -11,16 +11,18 @@ import {
     View
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DailyAnalysis } from '../../components/DailyAnalysis';
+import { DailyAnalysis, SubjectAnalysisData } from '../../components/DailyAnalysis';
+import { HorizontalCalendar } from '../../components/HorizontalCalendar';
 import SessionDetail from '../../components/SessionDetail';
+import { SubjectAnalysisOverlay } from '../../components/SubjectAnalysisOverlay';
 import { ExamSession } from '../../lib/storage';
 import { COLORS } from '../../lib/theme';
 
 export default function AnalysisScreen() {
     const { signOut, userId } = useAuth();
     const router = useRouter();
-    const [viewMode, setViewMode] = useState<'analysis' | 'detail'>('analysis');
     const [selectedSession, setSelectedSession] = useState<ExamSession | null>(null);
+    const [selectedSubjectDetail, setSelectedSubjectDetail] = useState<SubjectAnalysisData | null>(null);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const insets = useSafeAreaInsets();
 
@@ -68,35 +70,32 @@ export default function AnalysisScreen() {
                     )}
                 </View>
 
-                <View style={styles.tabContainer}>
-                    <View style={styles.tabHeader}>
-                        <TouchableOpacity
-                            style={[styles.tabItem, viewMode === 'analysis' && styles.activeTabItem]}
-                            onPress={() => setViewMode('analysis')}
-                        >
-                            <Text style={[styles.tabText, viewMode === 'analysis' && styles.activeTabText]}>데이터 분석</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.tabItem, viewMode === 'detail' && styles.activeTabItem]}
-                            onPress={() => setViewMode('detail')}
-                        >
-                            <Text style={[styles.tabText, viewMode === 'detail' && styles.activeTabText]}>상세 내역</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
+                <HorizontalCalendar
+                    selectedDate={selectedAnalysisDate}
+                    onDateSelect={(d: string) => setSelectedAnalysisDate(d)}
+                />
 
                 <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
                     <View style={styles.statsView}>
                         <DailyAnalysis
                             selectedDate={selectedAnalysisDate}
-                            viewMode={viewMode}
                             onDateChange={(d) => {
                                 if (d) setSelectedAnalysisDate(d);
                             }}
+                            onSubjectSelect={(data) => setSelectedSubjectDetail(data)}
                         />
                     </View>
                 </ScrollView>
             </SafeAreaView>
+
+            {selectedSubjectDetail && (
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: COLORS.bg, zIndex: 110 }]}>
+                    <SubjectAnalysisOverlay
+                        data={selectedSubjectDetail}
+                        onBack={() => setSelectedSubjectDetail(null)}
+                    />
+                </View>
+            )}
 
             {selectedSession && (
                 <View style={[StyleSheet.absoluteFill, { backgroundColor: COLORS.bg, zIndex: 100 }]}>
@@ -179,34 +178,5 @@ const styles = StyleSheet.create({
         marginHorizontal: 8,
     },
     content: { flex: 1 },
-    tabContainer: {
-        paddingHorizontal: 24,
-        marginBottom: 8,
-    },
-    tabHeader: {
-        flexDirection: 'row',
-        backgroundColor: COLORS.white,
-        borderRadius: 20,
-        padding: 4,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-    },
-    tabItem: {
-        flex: 1,
-        paddingVertical: 10,
-        alignItems: 'center',
-        borderRadius: 16,
-    },
-    activeTabItem: {
-        backgroundColor: COLORS.primaryLight,
-    },
-    tabText: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: COLORS.textMuted,
-    },
-    activeTabText: {
-        color: COLORS.primary,
-    },
-    statsView: { paddingHorizontal: 24, paddingTop: 16 },
+    statsView: { paddingHorizontal: 24, paddingTop: 8 },
 });

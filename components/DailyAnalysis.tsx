@@ -4,16 +4,26 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle, G, Path } from 'react-native-svg';
 import { useAppStore } from '../lib/store';
 import { COLORS } from '../lib/theme';
+import { FocusInsights } from './FocusInsights';
+import { WeeklyTrend } from './WeeklyTrend';
 
 const CHART_SIZE = 160;
 const STROKE_WIDTH = 20;
 const RADIUS = (CHART_SIZE - STROKE_WIDTH) / 2;
 const CENTER = CHART_SIZE / 2;
 
+export interface SubjectAnalysisData {
+    name: string;
+    color: string;
+    totalMs: number;
+    count: number;
+    records: any[];
+}
+
 type Props = {
     selectedDate: string | null;
     onDateChange: (date: string | null) => void;
-    viewMode: 'analysis' | 'detail';
+    onSubjectSelect: (data: SubjectAnalysisData) => void;
 };
 
 const SUBJECT_COLORS = [
@@ -25,7 +35,7 @@ const SUBJECT_COLORS = [
     '#4ADE80', // Green
 ];
 
-export function DailyAnalysis({ selectedDate, onDateChange, viewMode }: Props) {
+export function DailyAnalysis({ selectedDate, onDateChange, onSubjectSelect }: Props) {
     const { questionRecords, subjects } = useAppStore();
 
     // 1. All-time analysis for averages
@@ -100,7 +110,8 @@ export function DailyAnalysis({ selectedDate, onDateChange, viewMode }: Props) {
                 startAngle,
                 color: SUBJECT_COLORS[index % SUBJECT_COLORS.length],
                 totalMs: data.totalMs,
-                count: data.count
+                count: data.count,
+                records: data.records
             };
         });
     }, [dayData]);
@@ -142,140 +153,121 @@ export function DailyAnalysis({ selectedDate, onDateChange, viewMode }: Props) {
 
     return (
         <View style={styles.container}>
-            <View style={styles.detailHeader}>
-                <View>
-                    <Text style={styles.detailDate}>{selectedDate === new Date().toISOString().split('T')[0] ? '오늘의 분석' : selectedDate}</Text>
-                    <Text style={styles.analysisSubtitle}>데이터 기반 학습 진단</Text>
-                </View>
-            </View>
-
-            {viewMode === 'analysis' ? (
-                <View style={styles.analysisContent}>
-                    {/* 1. Summary Card */}
-                    <View style={styles.summaryGrid}>
-                        <View style={styles.summaryCard}>
-                            <Text style={styles.summaryLabel}>총 학습 시간</Text>
-                            <Text style={styles.summaryValue}>{formatTime(dayData.totalMs)}</Text>
-                            <View style={[styles.diffBadge, timeStatus === 'increased' ? styles.upBadge : styles.downBadge]}>
-                                <Ionicons name={timeStatus === 'increased' ? 'trending-up' : 'trending-down'} size={12} color={timeStatus === 'increased' ? '#059669' : '#DC2626'} />
-                                <Text style={[styles.diffText, { color: timeStatus === 'increased' ? '#059669' : '#DC2626' }]}>
-                                    평균 대비 {formatTime(Math.abs(timeDiff))} {timeStatus === 'increased' ? '증가' : '감소'}
-                                </Text>
-                            </View>
+            <View style={styles.analysisContent}>
+                {/* 1. Summary Card */}
+                <View style={styles.summaryGrid}>
+                    <View style={styles.summaryCard}>
+                        <View style={styles.summaryIconBox}>
+                            <Ionicons name="time" size={16} color={COLORS.primary} />
                         </View>
-                        <View style={styles.summaryCard}>
-                            <Text style={styles.summaryLabel}>풀이 문항 수</Text>
-                            <Text style={styles.summaryValue}>{dayData.count}문항</Text>
-                            <View style={[styles.diffBadge, countStatus === 'increased' ? styles.upBadge : styles.downBadge]}>
-                                <Ionicons name={countStatus === 'increased' ? 'trending-up' : 'trending-down'} size={12} color={countStatus === 'increased' ? '#059669' : '#DC2626'} />
-                                <Text style={[styles.diffText, { color: countStatus === 'increased' ? '#059669' : '#DC2626' }]}>
-                                    평균 대비 {Math.abs(Math.round(countDiff))}개 {countStatus === 'increased' ? '증가' : '감소'}
-                                </Text>
-                            </View>
+                        <Text style={styles.summaryLabel}>총 학습 시간</Text>
+                        <Text style={styles.summaryValue}>{formatTime(dayData.totalMs)}</Text>
+                        <View style={[styles.diffBadge, timeStatus === 'increased' ? styles.upBadge : styles.downBadge]}>
+                            <Ionicons name={timeStatus === 'increased' ? 'trending-up' : 'trending-down'} size={12} color={timeStatus === 'increased' ? '#059669' : '#DC2626'} />
+                            <Text style={[styles.diffText, { color: timeStatus === 'increased' ? '#059669' : '#DC2626' }]}>
+                                {formatTime(Math.abs(timeDiff))} {timeStatus === 'increased' ? 'UP' : 'DOWN'}
+                            </Text>
                         </View>
                     </View>
+                    <View style={styles.summaryCard}>
+                        <View style={[styles.summaryIconBox, { backgroundColor: '#E0F2FE' }]}>
+                            <Ionicons name="documents" size={16} color="#0284C7" />
+                        </View>
+                        <Text style={styles.summaryLabel}>풀이 문항 수</Text>
+                        <Text style={styles.summaryValue}>{dayData.count}문항</Text>
+                        <View style={[styles.diffBadge, countStatus === 'increased' ? styles.upBadge : styles.downBadge]}>
+                            <Ionicons name={countStatus === 'increased' ? 'trending-up' : 'trending-down'} size={12} color={countStatus === 'increased' ? '#059669' : '#DC2626'} />
+                            <Text style={[styles.diffText, { color: countStatus === 'increased' ? '#059669' : '#DC2626' }]}>
+                                {Math.abs(Math.round(countDiff))}개 {countStatus === 'increased' ? 'UP' : 'DOWN'}
+                            </Text>
+                        </View>
+                    </View>
+                </View>
 
-                    {/* 2. Donut Chart Section */}
-                    <View style={styles.chartSection}>
-                        <View style={styles.chartWrapper}>
-                            <Svg width={CHART_SIZE} height={CHART_SIZE}>
-                                <G transform={`rotate(-90 ${CENTER} ${CENTER})`}>
-                                    <Circle
-                                        cx={CENTER}
-                                        cy={CENTER}
-                                        r={RADIUS}
-                                        stroke={COLORS.bg}
+                {/* 2. Donut Chart Section */}
+                <View style={styles.chartSection}>
+                    <View style={styles.chartWrapper}>
+                        <Svg width={CHART_SIZE} height={CHART_SIZE}>
+                            <G transform={`rotate(-90 ${CENTER} ${CENTER})`}>
+                                <Circle
+                                    cx={CENTER}
+                                    cy={CENTER}
+                                    r={RADIUS}
+                                    stroke={COLORS.bg}
+                                    strokeWidth={STROKE_WIDTH}
+                                    fill="none"
+                                />
+                                {chartData.map((d, i) => (
+                                    <Path
+                                        key={i}
+                                        d={getArcPath(d.startAngle, d.startAngle + d.angle)}
+                                        stroke={d.color}
                                         strokeWidth={STROKE_WIDTH}
                                         fill="none"
+                                        strokeLinecap="round"
                                     />
-                                    {chartData.map((d, i) => (
-                                        <Path
-                                            key={i}
-                                            d={getArcPath(d.startAngle, d.startAngle + d.angle)}
-                                            stroke={d.color}
-                                            strokeWidth={STROKE_WIDTH}
-                                            fill="none"
-                                            strokeLinecap="round"
-                                        />
-                                    ))}
-                                </G>
-                            </Svg>
-                            <View style={styles.chartCenterInfo}>
-                                <Text style={styles.centerLabel}>과목 수</Text>
-                                <Text style={styles.centerValue}>{chartData.length}</Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.legendContainer}>
-                            {chartData.map((d, i) => (
-                                <View key={i} style={styles.legendItem}>
-                                    <View style={[styles.legendDot, { backgroundColor: d.color }]} />
-                                    <View style={styles.legendContent}>
-                                        <Text style={styles.legendName} numberOfLines={1}>{d.name}</Text>
-                                        <Text style={styles.legendPercent}>{Math.round(d.percentage * 100)}% ({d.count}문항)</Text>
-                                    </View>
-                                </View>
-                            ))}
+                                ))}
+                            </G>
+                        </Svg>
+                        <View style={styles.chartCenterInfo}>
+                            <Text style={styles.centerLabel}>과목 수</Text>
+                            <Text style={styles.centerValue}>{chartData.length}</Text>
                         </View>
                     </View>
 
-                    {/* 3. Subject Quick List */}
-                    <View style={styles.subjectListOverview}>
-                        <Text style={styles.sectionTitle}>과목별 분석 결과</Text>
+                    <View style={styles.legendContainer}>
                         {chartData.map((d, i) => (
-                            <View key={i} style={styles.overviewItem}>
-                                <View style={[styles.overviewIcon, { backgroundColor: d.color + '20' }]}>
-                                    <Ionicons name="book" size={16} color={d.color} />
-                                </View>
-                                <View style={styles.overviewBody}>
-                                    <Text style={styles.overviewName}>{d.name}</Text>
-                                    <Text style={styles.overviewMeta}>{d.count}문항 · {formatTime(d.totalMs)}</Text>
-                                </View>
-                                <View style={styles.overviewProgressContainer}>
-                                    <View style={[styles.overviewProgressBar, { width: `${d.percentage * 100}%`, backgroundColor: d.color }]} />
+                            <View key={i} style={styles.legendItem}>
+                                <View style={[styles.legendDot, { backgroundColor: d.color }]} />
+                                <View style={styles.legendContent}>
+                                    <Text style={styles.legendName} numberOfLines={1}>{d.name}</Text>
+                                    <Text style={styles.legendPercent}>{Math.round(d.percentage * 100)}% ({d.count}문항)</Text>
                                 </View>
                             </View>
                         ))}
                     </View>
                 </View>
-            ) : (
-                <View style={styles.detailContent}>
-                    {Object.entries(dayData.bySubject).map(([sub, data]) => (
-                        <View key={sub} style={styles.subjectCardDetail}>
-                            <View style={styles.subjectCardHeader}>
-                                <View>
-                                    <Text style={styles.subjectNameDetail}>{sub}</Text>
-                                    <Text style={styles.subjectStatsDetail}>
-                                        {data.count}개 문항 · {formatTime(data.totalMs)}
-                                    </Text>
-                                </View>
-                                <Ionicons name="book-outline" size={24} color={COLORS.primary} />
-                            </View>
 
-                            <View style={styles.questionList}>
-                                {data.records.sort((a, b) => a.startedAt - b.startedAt).map((r) => (
-                                    <View key={r.id} style={styles.qItem}>
-                                        <View style={styles.qTimeColumn}>
-                                            <Text style={styles.qStartTime}>
-                                                {new Date(r.startedAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                                            </Text>
-                                        </View>
-                                        <View style={styles.qInfoContainer}>
-                                            <Text style={styles.qLabel}>{r.questionNo}번</Text>
-                                            <View style={styles.qBarContainer}>
-                                                <View style={[styles.qBar, {
-                                                    width: `${Math.min(100, Math.max(5, (r.durationMs / data.totalMs) * 100))}%`
-                                                }]} />
-                                            </View>
-                                            <Text style={styles.qDuration}>{formatTime(r.durationMs)}</Text>
-                                        </View>
-                                    </View>
-                                ))}
+                {/* 3. Subject List */}
+                <View style={styles.subjectListContainer}>
+                    <Text style={styles.sectionTitle}>과목별 분석 결과</Text>
+                    {chartData.map((d, i) => (
+                        <TouchableOpacity
+                            key={i}
+                            onPress={() => onSubjectSelect(d)}
+                            style={styles.overviewItem}
+                            activeOpacity={0.7}
+                        >
+                            <View style={[styles.overviewIcon, { backgroundColor: d.color + '20' }]}>
+                                <Ionicons name="book" size={16} color={d.color} />
                             </View>
-                        </View>
+                            <View style={styles.overviewBody}>
+                                <Text style={styles.overviewName}>{d.name}</Text>
+                                <Text style={styles.overviewMeta}>{d.count}문항 · {formatTime(d.totalMs)}</Text>
+                            </View>
+                            <Ionicons
+                                name="chevron-forward"
+                                size={20}
+                                color={COLORS.textMuted}
+                            />
+                        </TouchableOpacity>
                     ))}
                 </View>
-            )}
+
+                {/* 4. Weekly Trend */}
+                <WeeklyTrend records={questionRecords} />
+
+                {/* 5. Deep Insights */}
+                <FocusInsights
+                    records={useMemo(() => {
+                        return questionRecords.filter(r => {
+                            const d = new Date(r.startedAt);
+                            const shifted = new Date(d.getTime() - 21600000);
+                            return shifted.toISOString().split('T')[0] === selectedDate;
+                        });
+                    }, [questionRecords, selectedDate])}
+                />
+            </View>
         </View>
     );
 }
@@ -338,6 +330,15 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.03,
         shadowRadius: 12,
         elevation: 3,
+    },
+    summaryIconBox: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        backgroundColor: COLORS.primaryLight,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 12,
     },
     summaryLabel: {
         fontSize: 12,
@@ -436,8 +437,11 @@ const styles = StyleSheet.create({
         marginBottom: 16,
         paddingLeft: 4,
     },
-    subjectListOverview: {
+    subjectListContainer: {
         marginTop: 12,
+    },
+    subjectExpandableWrapper: {
+        marginBottom: 12,
     },
     overviewItem: {
         flexDirection: 'row',
@@ -445,10 +449,14 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.white,
         padding: 18,
         borderRadius: 24,
-        marginBottom: 12,
         borderWidth: 1,
         borderColor: COLORS.border,
         gap: 16,
+    },
+    overviewItemExpanded: {
+        borderBottomLeftRadius: 0,
+        borderBottomRightRadius: 0,
+        backgroundColor: COLORS.bg,
     },
     overviewIcon: {
         width: 44,
@@ -471,49 +479,15 @@ const styles = StyleSheet.create({
         color: COLORS.textMuted,
         marginTop: 2,
     },
-    overviewProgressContainer: {
-        width: 70,
-        height: 8,
-        backgroundColor: COLORS.bg,
-        borderRadius: 4,
-        overflow: 'hidden',
-    },
-    overviewProgressBar: {
-        height: '100%',
-        borderRadius: 4,
-    },
-    detailContent: { gap: 20 },
-    subjectCardDetail: {
+    subjectDetailSection: {
         backgroundColor: COLORS.white,
-        borderRadius: 28,
-        padding: 24,
         borderWidth: 1,
+        borderTopWidth: 0,
         borderColor: COLORS.border,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.02,
-        shadowRadius: 16,
-        elevation: 2,
-    },
-    subjectCardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.border,
-        paddingBottom: 20,
-        marginBottom: 20,
-    },
-    subjectNameDetail: {
-        fontSize: 20,
-        fontWeight: '900',
-        color: COLORS.text,
-    },
-    subjectStatsDetail: {
-        fontSize: 14,
-        color: COLORS.textMuted,
-        fontWeight: '600',
-        marginTop: 4,
+        borderBottomLeftRadius: 24,
+        borderBottomRightRadius: 24,
+        padding: 20,
+        paddingTop: 8,
     },
     questionList: { gap: 14 },
     qItem: {

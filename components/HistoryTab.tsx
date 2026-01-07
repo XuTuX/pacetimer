@@ -122,14 +122,6 @@ export default function HistoryTab({
 
     return (
         <View style={styles.container}>
-            {/* 상단 통계 헤더 */}
-            <View style={styles.historyHeader}>
-                <View>
-                    <Text style={styles.headerTitle}>학습 기록</Text>
-                    <Text style={styles.headerSub}>꾸준히 공부해온 성과를 확인해보세요.</Text>
-                </View>
-            </View>
-
             {/* 캘린더 뷰 */}
             <View style={styles.calendarWrapper}>
                 <Calendar
