@@ -31,6 +31,10 @@ interface AppState {
     // Records
     questionRecords: QuestionRecord[];
     addQuestionRecord: (record: QuestionRecord) => void;
+
+    // Active State
+    activeSubjectId: string | null;
+    setActiveSubjectId: (id: string | null) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -124,6 +128,10 @@ export const useAppStore = create<AppState>()(
                     questionRecords: [...state.questionRecords, record]
                 }));
             },
+
+            // --- Active State ---
+            activeSubjectId: null,
+            setActiveSubjectId: (id) => set({ activeSubjectId: id }),
         }),
         {
             name: 'pacetime-storage',

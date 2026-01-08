@@ -14,7 +14,8 @@ export default function TimerScreen() {
     const router = useRouter();
     const {
         stopwatch, startStopwatch, pauseStopwatch,
-        subjects, addSubject, addQuestionRecord
+        subjects, addSubject, addQuestionRecord,
+        activeSubjectId, setActiveSubjectId
     } = useAppStore();
 
     const [now, setNow] = useState(Date.now());
@@ -22,7 +23,6 @@ export default function TimerScreen() {
     const pagerRef = useRef<PagerView>(null);
 
     // Problem Solving State
-    const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
     const [questionNo, setQuestionNo] = useState(1);
     const [lapStatus, setLapStatus] = useState<'IDLE' | 'RUNNING'>('IDLE');
     const [lapStartAt, setLapStartAt] = useState<number | null>(null);
@@ -30,15 +30,7 @@ export default function TimerScreen() {
     const [isAddingSubject, setIsAddingSubject] = useState(false);
     const [newSubjectName, setNewSubjectName] = useState('');
 
-    const isSubjectSelected = !!selectedSubjectId;
-
-    // 1. Initial Redirection to Subject Selection if none selected
-    useEffect(() => {
-        if (!isSubjectSelected) {
-            setCurrentPage(0);
-            pagerRef.current?.setPage(0);
-        }
-    }, [isSubjectSelected]);
+    const isSubjectSelected = !!activeSubjectId;
 
     // 2. Auto-pause logic
     useFocusEffect(
@@ -114,14 +106,14 @@ export default function TimerScreen() {
             setLapStartAt(nowTs);
             setLapElapsed(0);
         } else {
-            if (!lapStartAt || !selectedSubjectId) return;
+            if (!lapStartAt || !activeSubjectId) return;
             const duration = nowTs - lapStartAt;
 
             const record: QuestionRecord = {
                 id: Math.random().toString(36).substr(2, 9),
                 userId: 'local-user',
                 sessionId: 'current-session',
-                subjectId: selectedSubjectId,
+                subjectId: activeSubjectId,
                 questionNo: questionNo,
                 durationMs: duration,
                 startedAt: lapStartAt,
@@ -146,7 +138,7 @@ export default function TimerScreen() {
     };
 
     const handleSubjectSelect = (id: string) => {
-        if (selectedSubjectId === id) {
+        if (activeSubjectId === id) {
             pagerRef.current?.setPage(1);
             return;
         }
@@ -156,7 +148,7 @@ export default function TimerScreen() {
         setLapStartAt(null);
         setLapElapsed(0);
         setQuestionNo(1);
-        setSelectedSubjectId(id);
+        setActiveSubjectId(id);
 
         // Move to main timer
         setTimeout(() => {
@@ -167,14 +159,14 @@ export default function TimerScreen() {
     const handleFinishStudy = () => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         // Record current lap if running
-        if (lapStatus === 'RUNNING' && lapStartAt && selectedSubjectId) {
+        if (lapStatus === 'RUNNING' && lapStartAt && activeSubjectId) {
             const nowTs = Date.now();
             const duration = nowTs - lapStartAt;
             const record: QuestionRecord = {
                 id: Math.random().toString(36).substr(2, 9),
                 userId: 'local-user',
                 sessionId: 'current-session',
-                subjectId: selectedSubjectId,
+                subjectId: activeSubjectId,
                 questionNo: questionNo,
                 durationMs: duration,
                 startedAt: lapStartAt,
@@ -190,7 +182,7 @@ export default function TimerScreen() {
         setLapStartAt(null);
         setLapElapsed(0);
         setQuestionNo(1);
-        setSelectedSubjectId(null);
+        setActiveSubjectId(null);
         router.replace('/(tabs)/analysis');
     };
 
@@ -207,7 +199,7 @@ export default function TimerScreen() {
         }
     };
 
-    const selectedSubjectName = subjects.find(s => s.id === selectedSubjectId)?.name || "과목 선택 필요";
+    const selectedSubjectName = subjects.find(s => s.id === activeSubjectId)?.name || "과목 선택 필요";
 
     return (
         <SafeAreaView style={styles.container}>
@@ -246,25 +238,25 @@ export default function TimerScreen() {
                                 {subjects.filter(s => !s.isArchived).map(s => (
                                     <TouchableOpacity
                                         key={s.id}
-                                        style={[styles.subjectCard, selectedSubjectId === s.id && styles.activeSubjectCard]}
+                                        style={[styles.subjectCard, activeSubjectId === s.id && styles.activeSubjectCard]}
                                         onPress={() => handleSubjectSelect(s.id)}
                                         activeOpacity={0.7}
                                     >
                                         <LinearGradient
-                                            colors={selectedSubjectId === s.id ? [COLORS.primaryLight, COLORS.white] : [COLORS.white, COLORS.white]}
+                                            colors={activeSubjectId === s.id ? [COLORS.primaryLight, COLORS.white] : [COLORS.white, COLORS.white]}
                                             style={styles.subjectCardGradient}
                                         >
-                                            <View style={[styles.subjectIcon, selectedSubjectId === s.id && styles.activeSubjectIcon]}>
+                                            <View style={[styles.subjectIcon, activeSubjectId === s.id && styles.activeSubjectIcon]}>
                                                 <Ionicons
                                                     name="book"
                                                     size={24}
-                                                    color={selectedSubjectId === s.id ? COLORS.primary : COLORS.textMuted}
+                                                    color={activeSubjectId === s.id ? COLORS.primary : COLORS.textMuted}
                                                 />
                                             </View>
-                                            <Text style={[styles.subjectName, selectedSubjectId === s.id && styles.activeSubjectName]}>
+                                            <Text style={[styles.subjectName, activeSubjectId === s.id && styles.activeSubjectName]}>
                                                 {s.name}
                                             </Text>
-                                            {selectedSubjectId === s.id && (
+                                            {activeSubjectId === s.id && (
                                                 <View style={styles.checkIcon}>
                                                     <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />
                                                 </View>
@@ -392,7 +384,7 @@ export default function TimerScreen() {
                             style={styles.lapCenterContent}
                             activeOpacity={0.8}
                             onPress={handleLapTap}
-                            disabled={!selectedSubjectId}
+                            disabled={!activeSubjectId}
                         >
                             <View style={styles.lapInfoMini}>
                                 <Text style={styles.lapQMini}>{questionNo}번 문항</Text>

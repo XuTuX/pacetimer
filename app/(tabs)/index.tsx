@@ -12,8 +12,7 @@ const { height } = Dimensions.get('window');
 
 export default function HomeScreen() {
     const router = useRouter();
-    const { stopwatch, subjects, addSubject } = useAppStore();
-    const [selectedSubjectId, setSelectedSubjectId] = React.useState<string | null>(null);
+    const { stopwatch, subjects, addSubject, activeSubjectId, setActiveSubjectId } = useAppStore();
     const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
     const [newSubjectName, setNewSubjectName] = React.useState('');
     const [isAdding, setIsAdding] = React.useState(false);
@@ -37,7 +36,7 @@ export default function HomeScreen() {
         }
     };
 
-    const selectedSubject = subjects.find(s => s.id === selectedSubjectId);
+    const selectedSubject = subjects.find(s => s.id === activeSubjectId);
 
     return (
         <SafeAreaView style={styles.container}>
@@ -88,12 +87,12 @@ export default function HomeScreen() {
                                         key={s.id}
                                         style={styles.dropdownItem}
                                         onPress={() => {
-                                            setSelectedSubjectId(s.id);
+                                            setActiveSubjectId(s.id);
                                             setIsDropdownOpen(false);
                                         }}
                                     >
-                                        <Text style={[styles.dropdownItemText, selectedSubjectId === s.id && styles.activeItemText]}>{s.name}</Text>
-                                        {selectedSubjectId === s.id && <Ionicons name="checkmark" size={16} color={COLORS.primary} />}
+                                        <Text style={[styles.dropdownItemText, activeSubjectId === s.id && styles.activeItemText]}>{s.name}</Text>
+                                        {activeSubjectId === s.id && <Ionicons name="checkmark" size={16} color={COLORS.primary} />}
                                     </TouchableOpacity>
                                 ))}
 
@@ -125,10 +124,10 @@ export default function HomeScreen() {
 
             <View style={styles.bottomActions}>
                 <TouchableOpacity
-                    style={[styles.startBtn, !selectedSubjectId && !stopwatch.isRunning && styles.disabledBtn]}
+                    style={[styles.startBtn, !activeSubjectId && !stopwatch.isRunning && styles.disabledBtn]}
                     onPress={() => {
                         if (stopwatch.isRunning) router.push('/timer');
-                        else if (selectedSubjectId) router.push({ pathname: '/timer', params: { subjectId: selectedSubjectId } });
+                        else if (activeSubjectId) router.push('/timer');
                         else {
                             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
                             setIsDropdownOpen(true);
