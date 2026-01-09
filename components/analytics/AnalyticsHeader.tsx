@@ -22,20 +22,25 @@ export const AnalyticsHeader: React.FC<Props> = ({
 }) => {
     return (
         <View style={styles.container}>
-            <View style={styles.rangeRow}>
-                {(['today', '7days', '30days'] as DateRange[]).map((r) => (
-                    <TouchableOpacity
-                        key={r}
-                        style={[styles.rangeBtn, selectedRange === r && styles.rangeBtnActive]}
-                        onPress={() => onRangeChange(r)}
-                    >
-                        <Text style={[styles.rangeText, selectedRange === r && styles.rangeTextActive]}>
-                            {r === 'today' ? '오늘' : r === '7days' ? '최근 7일' : '최근 30일'}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
+            {/* 기간 선택 세그먼트 */}
+            <View style={styles.rangeContainer}>
+                <View style={styles.segmentedControl}>
+                    {(['today', '7days', '30days'] as DateRange[]).map((r) => (
+                        <TouchableOpacity
+                            key={r}
+                            style={[styles.segmentBtn, selectedRange === r && styles.segmentBtnActive]}
+                            onPress={() => onRangeChange(r)}
+                            activeOpacity={0.7}
+                        >
+                            <Text style={[styles.segmentText, selectedRange === r && styles.segmentTextActive]}>
+                                {r === 'today' ? '오늘' : r === '7days' ? '7일' : '30일'}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
             </View>
 
+            {/* 과목 필터 칩 */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
                 <TouchableOpacity
                     style={[styles.filterChip, selectedFilter === 'all' && styles.filterChipActive]}
@@ -49,9 +54,9 @@ export const AnalyticsHeader: React.FC<Props> = ({
                     onPress={() => onFilterChange('mock')}
                 >
                     <Ionicons
-                        name="school-outline"
-                        size={14}
-                        color={selectedFilter === 'mock' ? COLORS.white : COLORS.textMuted}
+                        name="medal"
+                        size={12}
+                        color={selectedFilter === 'mock' ? COLORS.white : COLORS.primary}
                         style={{ marginRight: 4 }}
                     />
                     <Text style={[styles.filterText, selectedFilter === 'mock' && styles.filterTextActive]}>모의고사</Text>
@@ -75,45 +80,52 @@ export const AnalyticsHeader: React.FC<Props> = ({
 
 const styles = StyleSheet.create({
     container: {
-        paddingVertical: 12,
-        backgroundColor: COLORS.bg,
-        gap: 12,
-    },
-    rangeRow: {
-        flexDirection: 'row',
-        paddingHorizontal: 24,
-        gap: 8,
-    },
-    rangeBtn: {
-        paddingHorizontal: 16,
         paddingVertical: 8,
-        borderRadius: 20,
+        backgroundColor: COLORS.bg,
+    },
+    rangeContainer: {
+        paddingHorizontal: 24,
+        marginBottom: 12,
+    },
+    segmentedControl: {
+        flexDirection: 'row',
         backgroundColor: COLORS.surfaceVariant,
-        borderWidth: 1,
-        borderColor: COLORS.border,
+        borderRadius: 14,
+        padding: 4,
     },
-    rangeBtnActive: {
-        backgroundColor: COLORS.text,
-        borderColor: COLORS.text,
+    segmentBtn: {
+        flex: 1,
+        paddingVertical: 8,
+        alignItems: 'center',
+        borderRadius: 10,
     },
-    rangeText: {
+    segmentBtnActive: {
+        backgroundColor: COLORS.white,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    segmentText: {
         fontSize: 13,
         fontWeight: '700',
         color: COLORS.textMuted,
     },
-    rangeTextActive: {
-        color: COLORS.white,
+    segmentTextActive: {
+        color: COLORS.text,
     },
     filterScroll: {
         paddingHorizontal: 24,
+        paddingBottom: 4,
         gap: 8,
     },
     filterChip: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        borderRadius: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 99,
         backgroundColor: COLORS.white,
         borderWidth: 1,
         borderColor: COLORS.border,
@@ -123,8 +135,8 @@ const styles = StyleSheet.create({
         borderColor: COLORS.primary,
     },
     filterText: {
-        fontSize: 13,
-        fontWeight: '700',
+        fontSize: 12,
+        fontWeight: '800',
         color: COLORS.textMuted,
     },
     filterTextActive: {
