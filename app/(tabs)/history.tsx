@@ -1,6 +1,6 @@
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
     ScrollView,
@@ -10,14 +10,14 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import DayDetail from '../../components/history/DayDetail';
 import SessionDetail from '../../components/history/SessionDetail';
-import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { buildRecordsIndex } from '../../lib/recordsIndex';
 import { useAppStore } from '../../lib/store';
-import { COLORS } from '../../lib/theme';
 import { formatDisplayDate, getStudyDateKey } from '../../lib/studyDate';
+import { COLORS } from '../../lib/theme';
 
 LocaleConfig.locales['kr'] = {
     monthNames: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'],
@@ -35,7 +35,16 @@ export default function HistoryScreen() {
     const insets = useSafeAreaInsets();
     const { subjects, sessions, segments, questionRecords } = useAppStore();
     const [nowMs, setNowMs] = useState(Date.now());
-    const [selectedDate, setSelectedDate] = useState(() => getStudyDateKey(Date.now()));
+    const params = useLocalSearchParams<{ date?: string }>();
+    const [selectedDate, setSelectedDate] = useState(() => params.date || getStudyDateKey(Date.now()));
+
+    // Update selected date if params.date changes
+    React.useEffect(() => {
+        if (params.date) {
+            setSelectedDate(params.date);
+        }
+    }, [params.date]);
+
     const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
     useFocusEffect(useCallback(() => {
