@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Database } from '../../lib/db-types';
+import type { Database } from '../../lib/db-types';
 import { COLORS } from '../../lib/theme';
 
 type Room = Database['public']['Tables']['rooms']['Row'];
@@ -12,6 +12,8 @@ interface RoomCardProps {
 }
 
 export function RoomCard({ room, isHost, onPress }: RoomCardProps) {
+    const shortId = room.id.slice(0, 6);
+
     return (
         <Pressable
             onPress={onPress}
@@ -49,7 +51,7 @@ export function RoomCard({ room, isHost, onPress }: RoomCardProps) {
                 <View style={styles.footer}>
                     <View style={styles.codeBadge}>
                         <Ionicons name="key-outline" size={12} color={COLORS.textMuted} />
-                        <Text style={styles.codeText}>{room.code}</Text>
+                        <Text style={styles.codeText}>ID {shortId}</Text>
                     </View>
                     <View style={styles.memberSmall}>
                         <Ionicons name="person-outline" size={12} color={COLORS.textMuted} />

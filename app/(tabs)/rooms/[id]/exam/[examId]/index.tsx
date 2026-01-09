@@ -29,9 +29,10 @@ export default function ExamDetailScreen() {
     const currentExamId = Array.isArray(examId) ? examId[0] : examId;
 
     const [exam, setExam] = useState<RoomExamRow | null>(null);
-    const [myAttempts, setMyAttempts] = useState<ExamAttemptRow[]>([]);
+    const [allAttempts, setAllAttempts] = useState<ExamAttemptRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [viewMode, setViewMode] = useState<'leaderboard' | 'comparison'>('leaderboard');
 
     const loadData = useCallback(async () => {
         if (!roomId || !currentExamId) return;
@@ -47,16 +48,16 @@ export default function ExamDetailScreen() {
             if (eError) throw eError;
             setExam(eData);
 
-            // 2. My Attempts
+            // 2. All Attempts
             const { data: aData, error: aError } = await supabase
                 .from("attempts")
                 .select("*")
                 .eq("exam_id", currentExamId)
-                .eq("user_id", userId ?? "")
-                .order("created_at", { ascending: false });
+                .order("duration_ms", { ascending: true });
 
             if (aError) throw aError;
-            setMyAttempts(aData ?? []);
+            const attempts = aData ?? [];
+            setAllAttempts(attempts);
 
         } catch (err: any) {
             setError(formatSupabaseError(err));
@@ -118,37 +119,66 @@ export default function ExamDetailScreen() {
                     </Pressable>
                 </View>
 
-                {/* My History */}
+                {/* View Switcher Container */}
                 <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>My Attempts</Text>
+                    <Text style={styles.sectionTitle}>Room Analysis</Text>
+                    <View style={styles.tabContainer}>
+                        <Pressable
+                            style={[styles.tab, viewMode === 'leaderboard' && styles.tabActive]}
+                            onPress={() => setViewMode('leaderboard')}
+                        >
+                            <Text style={[styles.tabText, viewMode === 'leaderboard' && styles.tabTextActive]}>Ranking</Text>
+                        </Pressable>
+                        <Pressable
+                            style={[styles.tab, viewMode === 'comparison' && styles.tabActive]}
+                            onPress={() => setViewMode('comparison')}
+                        >
+                            <Text style={[styles.tabText, viewMode === 'comparison' && styles.tabTextActive]}>Detailed</Text>
+                        </Pressable>
+                    </View>
                 </View>
 
-                {myAttempts.length === 0 ? (
-                    <Text style={styles.emptyText}>You haven't attempted this exam yet.</Text>
-                ) : (
+                {viewMode === 'leaderboard' ? (
                     <View style={styles.list}>
-                        {myAttempts.map((attempt) => (
-                            <View key={attempt.id} style={styles.attemptCard}>
-                                <View style={styles.attemptTop}>
-                                    <Text style={styles.date}>
-                                        {new Date(attempt.started_at).toLocaleDateString()} {new Date(attempt.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </Text>
-                                    <View style={[styles.badge, attempt.is_completed ? styles.badgeSuccess : styles.badgeWarn]}>
-                                        <Text style={[styles.badgeText, attempt.is_completed ? styles.textSuccess : styles.textWarn]}>
-                                            {attempt.is_completed ? "Finished" : "In Progress"}
-                                        </Text>
+                        {allAttempts.length === 0 ? (
+                            <Text style={styles.emptyText}>No attempts yet.</Text>
+                        ) : (
+                            allAttempts.map((attempt, index) => {
+                                const isCompleted = Boolean(attempt.ended_at);
+                                return (
+                                    <View key={attempt.id} style={styles.attemptCard}>
+                                        <View style={styles.attemptTop}>
+                                            <View style={styles.rankBadge}>
+                                                <Text style={styles.rankText}>#{index + 1}</Text>
+                                            </View>
+                                            <Text style={styles.userIdText}>
+                                                {attempt.user_id === userId ? 'You (Me)' : `User ${attempt.user_id.slice(0, 6)}`}
+                                            </Text>
+                                            <View style={[styles.badge, isCompleted ? styles.badgeSuccess : styles.badgeWarn]}>
+                                                <Text style={[styles.badgeText, isCompleted ? styles.textSuccess : styles.textWarn]}>
+                                                    {isCompleted ? "Completed" : "In Progress"}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                        <View style={styles.attemptStats}>
+                                            <Text style={styles.statText}>
+                                                Duration: <Text style={styles.bold}>{formatDuration(Math.floor(attempt.duration_ms / 1000))}</Text>
+                                            </Text>
+                                            <Text style={styles.statText}>
+                                                Finished: <Text style={styles.bold}>{isCompleted ? "Yes" : "No"}</Text>
+                                            </Text>
+                                        </View>
                                     </View>
-                                </View>
-                                <View style={styles.attemptStats}>
-                                    <Text style={styles.statText}>
-                                        Solved: <Text style={styles.bold}>{attempt.total_solved}</Text>
-                                    </Text>
-                                    <Text style={styles.statText}>
-                                        Time: <Text style={styles.bold}>{formatDuration(attempt.total_elapsed_seconds)}</Text>
-                                    </Text>
-                                </View>
-                            </View>
-                        ))}
+                                );
+                            })
+                        )}
+                    </View>
+                ) : (
+                    <View style={styles.comparisonPlaceholder}>
+                        <Ionicons name="information-circle-outline" size={24} color={COLORS.textMuted} />
+                        <Text style={styles.comparisonText}>
+                            Detailed question breakdown isn't available with the current database schema.
+                        </Text>
                     </View>
                 )}
 
@@ -185,12 +215,16 @@ const styles = StyleSheet.create({
     },
     card: {
         backgroundColor: COLORS.surface,
-        borderRadius: 20,
+        borderRadius: 24,
         padding: 24,
         gap: 24,
         borderWidth: 1,
         borderColor: COLORS.border,
         alignItems: 'center',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
     },
     metaRow: {
         flexDirection: 'row',
@@ -209,7 +243,7 @@ const styles = StyleSheet.create({
     },
     metaLabel: {
         fontSize: 24,
-        fontWeight: '800',
+        fontWeight: '900',
         color: COLORS.text,
     },
     metaSub: {
@@ -228,10 +262,6 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         width: '100%',
         justifyContent: 'center',
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
     },
     startBtnText: {
         color: COLORS.white,
@@ -240,37 +270,80 @@ const styles = StyleSheet.create({
     },
     sectionHeader: {
         marginTop: 10,
+        gap: 12,
     },
     sectionTitle: {
         fontSize: 18,
+        fontWeight: '800',
+        color: COLORS.text,
+    },
+    tabContainer: {
+        flexDirection: 'row',
+        backgroundColor: COLORS.surfaceVariant,
+        borderRadius: 14,
+        padding: 4,
+    },
+    tab: {
+        flex: 1,
+        paddingVertical: 8,
+        alignItems: 'center',
+        borderRadius: 10,
+    },
+    tabActive: {
+        backgroundColor: COLORS.white,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    tabText: {
+        fontSize: 13,
         fontWeight: '700',
+        color: COLORS.textMuted,
+    },
+    tabTextActive: {
         color: COLORS.text,
     },
     list: {
         gap: 12,
     },
     attemptCard: {
-        backgroundColor: COLORS.bg,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        borderRadius: 14,
+        backgroundColor: COLORS.surface,
+        borderRadius: 16,
         padding: 16,
         gap: 12,
+        borderWidth: 1,
+        borderColor: COLORS.border,
     },
     attemptTop: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
+        gap: 10,
     },
-    date: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: COLORS.textMuted,
+    rankBadge: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: COLORS.primaryLight,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    rankText: {
+        fontSize: 12,
+        fontWeight: '900',
+        color: COLORS.primary,
+    },
+    userIdText: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: COLORS.text,
+        flex: 1,
     },
     badge: {
         paddingHorizontal: 8,
         paddingVertical: 4,
-        borderRadius: 6,
+        borderRadius: 8,
     },
     badgeSuccess: {
         backgroundColor: '#d1fae5',
@@ -278,39 +351,51 @@ const styles = StyleSheet.create({
     badgeWarn: {
         backgroundColor: '#fef3c7',
     },
-    textSuccess: {
-        color: '#059669',
-        fontSize: 11,
-        fontWeight: '700',
-    },
-    textWarn: {
-        color: '#d97706',
-        fontSize: 11,
-        fontWeight: '700',
-    },
     badgeText: {
         fontSize: 11,
-        fontWeight: '700'
+        fontWeight: '800',
     },
+    textSuccess: { color: '#059669' },
+    textWarn: { color: '#d97706' },
     attemptStats: {
         flexDirection: 'row',
-        gap: 16,
+        gap: 20,
+        paddingLeft: 38,
     },
     statText: {
         fontSize: 14,
-        color: COLORS.text,
+        color: COLORS.textMuted,
     },
     bold: {
-        fontWeight: '700',
+        fontWeight: '800',
+        color: COLORS.text,
     },
     emptyText: {
         fontSize: 14,
         color: COLORS.textMuted,
-        fontStyle: 'italic',
+        textAlign: 'center',
+        marginTop: 20,
+    },
+    comparisonPlaceholder: {
+        marginTop: 4,
+        padding: 16,
+        borderRadius: 16,
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        alignItems: 'center',
+        gap: 8,
+    },
+    comparisonText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: COLORS.textMuted,
+        textAlign: 'center',
     },
     errorText: {
         color: COLORS.error,
-        fontSize: 12,
+        fontSize: 13,
         fontWeight: '600',
+        textAlign: 'center',
     },
 });

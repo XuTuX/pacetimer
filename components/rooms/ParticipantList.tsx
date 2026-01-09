@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { Database } from '../../lib/db-types';
+import type { Database } from '../../lib/db-types';
 import { COLORS } from '../../lib/theme';
 
 type Participant = Database['public']['Tables']['room_members']['Row'];

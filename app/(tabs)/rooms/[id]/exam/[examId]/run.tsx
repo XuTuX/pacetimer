@@ -82,6 +82,7 @@ export default function ExamRunScreen() {
                     .from("attempts")
                     .insert({
                         exam_id: currentExamId,
+                        room_id: roomId ?? null,
                         user_id: (await supabase.auth.getUser()).data.user?.id!,
                         started_at: startTime.toISOString(),
                     })
@@ -114,22 +115,7 @@ export default function ExamRunScreen() {
             return;
         }
 
-        const elapsedSinceLast = Math.floor((nowMs - lastLapTime) / 1000);
-        const currentIndex = questionIndex;
-
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-        // Save Attempt Record
-        try {
-            supabase.from("exam_attempt_records").insert({
-                attempt_id: attemptId,
-                question_index: currentIndex,
-                elapsed_seconds: elapsedSinceLast,
-                timestamp_at: new Date(nowMs).toISOString(),
-            }).then();
-        } catch (e) {
-            console.error(e);
-        }
 
         // 2. Last question?
         if (questionIndex >= exam.total_questions) {
@@ -153,13 +139,11 @@ export default function ExamRunScreen() {
                     setLoading(true);
                     try {
                         const endedAt = new Date();
-                        const totalSeconds = Math.floor((endedAt.getTime() - startedAtTime) / 1000);
+                        const durationMs = endedAt.getTime() - startedAtTime;
 
                         await supabase.from("attempts").update({
                             ended_at: endedAt.toISOString(),
-                            total_solved: isCompleted ? questionIndex : questionIndex - 1,
-                            total_elapsed_seconds: totalSeconds,
-                            is_completed: true
+                            duration_ms: durationMs,
                         }).eq("id", attemptId);
 
                         router.replace(`/(tabs)/rooms/${roomId}/exam/${currentExamId}`);
@@ -308,4 +292,3 @@ const styles = StyleSheet.create({
     exitBtn: { alignSelf: 'center', marginBottom: 20, padding: 10 },
     exitBtnText: { color: COLORS.textMuted, fontWeight: '600', textDecorationLine: 'underline' }
 });
-

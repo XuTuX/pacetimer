@@ -19,7 +19,7 @@ export default function RoomsIndexScreen() {
     const { userId } = useAuth();
 
     const [rooms, setRooms] = useState<RoomRow[]>([]);
-    const [joinCode, setJoinCode] = useState("");
+    const [roomIdInput, setRoomIdInput] = useState("");
     const [loading, setLoading] = useState(false);
     const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
     const [joining, setJoining] = useState(false);
@@ -73,8 +73,8 @@ export default function RoomsIndexScreen() {
     }, [userId]);
 
     const handleJoin = async () => {
-        const code = joinCode.trim().toUpperCase();
-        if (!code) return;
+        const roomId = roomIdInput.trim();
+        if (!roomId) return;
 
         setJoining(true);
         setError(null);
@@ -82,10 +82,10 @@ export default function RoomsIndexScreen() {
             const { data: roomData, error: roomMatchError } = await supabase
                 .from("rooms")
                 .select("id")
-                .eq("code", code)
+                .eq("id", roomId)
                 .single();
 
-            if (roomMatchError || !roomData) throw new Error("Room not found with this code.");
+            if (roomMatchError || !roomData) throw new Error("Room not found with this ID.");
 
             const { error: joinError } = await supabase
                 .from("room_members")
@@ -93,7 +93,7 @@ export default function RoomsIndexScreen() {
 
             if (joinError && !joinError.message.includes("unique")) throw joinError;
 
-            setJoinCode("");
+            setRoomIdInput("");
             await refresh();
             router.push({ pathname: "/(tabs)/rooms/[id]", params: { id: roomData.id } });
         } catch (err: any) {
@@ -129,21 +129,20 @@ export default function RoomsIndexScreen() {
                     <Text style={styles.sectionLabel}>JOIN A ROOM</Text>
                     <View style={styles.joinInputRow}>
                         <TextInput
-                            value={joinCode}
-                            onChangeText={(t) => setJoinCode(t.toUpperCase())}
-                            placeholder="Enter 6-digit room code"
+                            value={roomIdInput}
+                            onChangeText={setRoomIdInput}
+                            placeholder="Paste room ID"
                             placeholderTextColor={COLORS.textMuted}
-                            autoCapitalize="characters"
+                            autoCapitalize="none"
                             autoCorrect={false}
                             style={styles.joinInput}
-                            maxLength={6}
                         />
                         <Pressable
                             onPress={handleJoin}
-                            disabled={joining || joinCode.trim().length < 3}
+                            disabled={joining || roomIdInput.trim().length === 0}
                             style={({ pressed }) => [
                                 styles.joinPressable,
-                                (joining || joinCode.trim().length < 3) && { opacity: 0.5 },
+                                (joining || roomIdInput.trim().length === 0) && { opacity: 0.5 },
                                 pressed && { opacity: 0.8 },
                             ]}
                         >

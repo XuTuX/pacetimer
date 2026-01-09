@@ -99,7 +99,7 @@ export default function RoomHomeScreen() {
         if (!room) return;
         try {
             await Share.share({
-                message: `Join my study room "${room.name}" on Pacetime! Code: ${room.code}`,
+                message: `Join my study room "${room.name}" on Pacetime! Room ID: ${room.id}`,
             });
         } catch (error) {
             // ignore
@@ -138,8 +138,10 @@ export default function RoomHomeScreen() {
                     </View>
                     <Text style={styles.roomNameMain}>{room?.name}</Text>
                     <View style={styles.codeContainer}>
-                        <Text style={styles.codeLabel}>ENTRY CODE</Text>
-                        <Text style={styles.codeValue}>{room?.code}</Text>
+                        <Text style={styles.codeLabel}>ROOM ID</Text>
+                        <Text style={styles.codeValue} numberOfLines={1} ellipsizeMode="middle">
+                            {room?.id}
+                        </Text>
                     </View>
                     {room?.description ? (
                         <Text style={styles.roomDescription}>{room.description}</Text>
@@ -322,6 +324,7 @@ const styles = StyleSheet.create({
         fontWeight: '900',
         color: COLORS.primary,
         fontFamily: 'monospace',
+        flexShrink: 1,
     },
     roomDescription: {
         fontSize: 15,

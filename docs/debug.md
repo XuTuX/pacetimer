@@ -33,7 +33,7 @@ Open the **Debug** tab → **Supabase RLS Test** (`app/(tabs)/debug/supabase-rls
 4) **Fetch My Rooms**
    - Returns rooms you own or rooms you’re a member of (RLS enforced).
 5) **Fetch Attempts (Current Room)**
-   - Returns attempts for the selected room if you’re a member/owner.
+   - Returns attempts for the selected room if you’re a member/owner. (Note: These are high-level sessions, individual question records are in `attempt_records` table).
 
 ### Expected RLS denial signal
 - **Fetch Attempts (Random RoomId)** should return `rows: []` (or a permission error depending on your exact RLS),
@@ -43,5 +43,4 @@ Open the **Debug** tab → **Supabase RLS Test** (`app/(tabs)/debug/supabase-rls
 - **Room creation fails with FK error**: your `profiles` row wasn’t created yet.
   - Confirm `AuthBootstrap` ran (check Metro logs) and your JWT template is correct.
 - **401 / invalid signature**: Clerk JWT template signing secret doesn’t match the Supabase JWT secret.
-- **RLS “permission denied”**: the JWT is missing `role=authenticated` or `aud=authenticated`, or grants/policies are incomplete.
 

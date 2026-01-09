@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Database } from '../../lib/db-types';
+import type { Database } from '../../lib/db-types';
 import { COLORS } from '../../lib/theme';
 
 type RoomExam = Database['public']['Tables']['room_exams']['Row'];
