@@ -18,6 +18,7 @@ type ActionName =
     | "createRoom"
     | "joinRoom"
     | "insertAttempt"
+    | "checkJwt"
     | "fetchRooms"
     | "fetchAttemptsCurrent"
     | "fetchAttemptsRandom";
@@ -164,6 +165,18 @@ export default function SupabaseRlsTestScreen() {
                                     })
                                     .select("*")
                                     .single();
+                                if (error) throw error;
+                                setResult(data);
+                            })
+                        }
+                    />
+
+                    <ActionButton
+                        label="JWT 확인"
+                        loading={busy === "checkJwt"}
+                        onPress={() =>
+                            run("checkJwt", async () => {
+                                const { data, error } = await supabase.rpc("debug_jwt");
                                 if (error) throw error;
                                 setResult(data);
                             })
