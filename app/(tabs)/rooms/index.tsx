@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@clerk/clerk-expo";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -21,6 +21,7 @@ export default function RoomsIndexScreen() {
     const [memberships, setMemberships] = useState<RoomMemberRow[]>([]);
     const [joinRoomId, setJoinRoomId] = useState("");
     const [loading, setLoading] = useState(false);
+    const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
     const [joining, setJoining] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -52,14 +53,9 @@ export default function RoomsIndexScreen() {
             setError(formatSupabaseError(err));
         } finally {
             setLoading(false);
+            setHasLoadedOnce(true);
         }
     }, [supabase]);
-
-    useFocusEffect(
-        useCallback(() => {
-            refresh();
-        }, [refresh]),
-    );
 
     const handleJoin = async () => {
         const id = joinRoomId.trim();
@@ -139,40 +135,51 @@ export default function RoomsIndexScreen() {
                         </Pressable>
                     </View>
                     {error ? <Text style={styles.errorText}>{error}</Text> : null}
-                    {loading ? <Text style={styles.cardHint}>Loading…</Text> : null}
+                    {!hasLoadedOnce && loading ? <Text style={styles.cardHint}>Loading…</Text> : null}
+                    {!hasLoadedOnce && !loading ? (
+                        <Text style={styles.cardHint}>Tap refresh to load rooms.</Text>
+                    ) : null}
 
-                    {!loading && rooms.length === 0 ? (
+                    {hasLoadedOnce && !loading && rooms.length === 0 ? (
                         <Text style={styles.cardHint}>No rooms yet. Create one, or join by ID.</Text>
                     ) : (
-                        <View style={{ gap: 10 }}>
-                            {rooms.map((room) => {
-                                const membership = membershipByRoomId.get(room.id);
-                                const role =
-                                    room.owner_id === userId ? "owner" : membership?.role ?? "member";
+                        hasLoadedOnce && (
+                            <View style={{ gap: 10 }}>
+                                {rooms.map((room) => {
+                                    const membership = membershipByRoomId.get(room.id);
+                                    const role =
+                                        room.owner_id === userId
+                                            ? "owner"
+                                            : membership?.role ?? "member";
 
-                                return (
-                                    <Pressable
-                                        key={room.id}
-                                        onPress={() => openRoom(room.id)}
-                                        style={({ pressed }) => [
-                                            styles.roomRow,
-                                            pressed && { opacity: 0.9 },
-                                        ]}
-                                    >
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={styles.roomName}>{room.name}</Text>
-                                            <Text style={styles.roomMeta} numberOfLines={1}>
-                                                {room.id}
-                                            </Text>
-                                        </View>
-                                        <View style={styles.rolePill}>
-                                            <Text style={styles.roleText}>{role}</Text>
-                                        </View>
-                                        <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
-                                    </Pressable>
-                                );
-                            })}
-                        </View>
+                                    return (
+                                        <Pressable
+                                            key={room.id}
+                                            onPress={() => openRoom(room.id)}
+                                            style={({ pressed }) => [
+                                                styles.roomRow,
+                                                pressed && { opacity: 0.9 },
+                                            ]}
+                                        >
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.roomName}>{room.name}</Text>
+                                                <Text style={styles.roomMeta} numberOfLines={1}>
+                                                    {room.id}
+                                                </Text>
+                                            </View>
+                                            <View style={styles.rolePill}>
+                                                <Text style={styles.roleText}>{role}</Text>
+                                            </View>
+                                            <Ionicons
+                                                name="chevron-forward"
+                                                size={18}
+                                                color={COLORS.textMuted}
+                                            />
+                                        </Pressable>
+                                    );
+                                })}
+                            </View>
+                        )
                     )}
                 </View>
             </ScrollView>

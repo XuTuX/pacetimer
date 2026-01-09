@@ -93,7 +93,13 @@ export type Database = {
             };
         };
         Views: { [_ in never]: never };
-        Functions: { [_ in never]: never };
+        Functions: {
+            debug_jwt: {
+                Args: Record<string, never>;
+                Returns: unknown;
+            };
+        };
+
         Enums: { [_ in never]: never };
         CompositeTypes: { [_ in never]: never };
     };
