@@ -4,6 +4,7 @@ import * as SecureStore from "expo-secure-store";
 import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import AuthBootstrap from "../components/AuthBootstrap";
 import { COLORS } from "../lib/theme";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
@@ -75,6 +76,7 @@ export default function RootLayout() {
     <ClerkProvider tokenCache={tokenCache} publishableKey={publishableKey}>
       <ClerkLoaded>
         <SafeAreaProvider>
+          <AuthBootstrap />
           <InitialLayout />
         </SafeAreaProvider>
       </ClerkLoaded>
