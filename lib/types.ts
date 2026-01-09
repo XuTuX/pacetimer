@@ -15,22 +15,48 @@ export type StudyStopwatch = {
     accumulatedMs: number; // time stored before current start
 };
 
+export type SessionMode = 'problem-solving' | 'mock-exam';
+
 export type Session = {
     id: string;
     userId: string;
-    type: 'study' | 'exam';
+    mode: SessionMode;
+    studyDate: string; // YYYY-MM-DD (uses Pacetime "study day" boundary)
+    title?: string;
     startedAt: number;
     endedAt?: number;
-    examId?: string; // If part of a mock exam
-    roomId?: string; // If part of a room
+    createdAt: number;
+    updatedAt: number;
+    metadata?: {
+        mockExam?: {
+            subjectIds: string[];
+            timeLimitSec: number;
+            targetQuestions: number;
+        };
+    };
+};
+
+export type SegmentKind = 'study' | 'solve' | 'review';
+
+export type Segment = {
+    id: string;
+    userId: string;
+    sessionId: string;
+    subjectId: string; // can be a real Subject id, or a special pseudo id like "__review__"
+    kind: SegmentKind;
+    startedAt: number;
+    endedAt?: number;
+    createdAt: number;
+    updatedAt: number;
 };
 
 export type QuestionRecord = {
     id: string;
     userId: string;
     sessionId: string;
+    segmentId: string;
     subjectId: string;
-    questionNo: number;
+    questionNo: number; // resets per Segment (1..N)
     durationMs: number;
     startedAt: number;
     endedAt: number;

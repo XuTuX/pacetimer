@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppStore } from '../../../lib/store';
@@ -10,27 +10,51 @@ import { COLORS } from '../../../lib/theme';
 export default function MockExamRunScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
-    const subjectIds = (params.subjectIds as string).split(',');
-    const limitMin = parseInt(params.limitMin as string);
-    const totalQuestions = parseInt(params.totalQuestions as string);
+    const subjectIdsParam = useMemo(() => String(params.subjectIds ?? ''), [params.subjectIds]);
+    const subjectIds = useMemo(() => subjectIdsParam.split(',').filter(Boolean), [subjectIdsParam]);
+    const limitMin = useMemo(() => parseInt(String(params.limitMin ?? '0'), 10) || 0, [params.limitMin]);
+    const totalQuestions = useMemo(() => parseInt(String(params.totalQuestions ?? '0'), 10) || 0, [params.totalQuestions]);
 
-    const { subjects, addQuestionRecord, startSession, endSession, startStopwatch, stopwatch } = useAppStore();
+    const { subjects, pauseStopwatch, setActiveSubjectId, addQuestionRecord, startSession, startSegment, endSegment, endSession } = useAppStore();
     const activeSubjects = subjects.filter(s => subjectIds.includes(s.id));
 
+    const examStartedAt = useRef(Date.now()).current;
     const [currentSubjectId, setCurrentSubjectId] = useState(subjectIds[0]);
-    const [examStartedAt] = useState(Date.now());
     const [remainingSec, setRemainingSec] = useState(limitMin * 60);
     const [answeredCount, setAnsweredCount] = useState(0);
     const [isReviewMode, setIsReviewMode] = useState(false); // 검토 모드 여부 추가
 
     // 문항별/검토용 타이머
-    const [lapStartAt, setLapStartAt] = useState(Date.now());
+    const [lapStartAt, setLapStartAt] = useState(examStartedAt);
     const [lapElapsed, setLapElapsed] = useState(0);
+    const [sessionId, setSessionId] = useState<string | null>(null);
+    const [segmentId, setSegmentId] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!stopwatch.isRunning) startStopwatch();
-        startSession('exam');
+        // Ensure study timer isn't running while in mock-exam mode.
+        pauseStopwatch();
+        setActiveSubjectId(null);
 
+        // Close any dangling session, then open a fresh mock-exam session.
+        endSession();
+        const id = startSession('mock-exam', {
+            title: '모의고사',
+            mockExam: {
+                subjectIds,
+                timeLimitSec: limitMin * 60,
+                targetQuestions: totalQuestions,
+            },
+        });
+        setSessionId(id);
+        const segId = startSegment({ sessionId: id, subjectId: subjectIds[0], kind: 'solve', startedAt: examStartedAt });
+        setSegmentId(segId);
+
+        return () => {
+            endSession();
+        };
+    }, [pauseStopwatch, setActiveSubjectId, endSession, startSession, startSegment, subjectIds, limitMin, totalQuestions, examStartedAt]);
+
+    useEffect(() => {
         const interval = setInterval(() => {
             const elapsedSec = Math.floor((Date.now() - examStartedAt) / 1000);
             const remain = (limitMin * 60) - elapsedSec;
@@ -38,11 +62,8 @@ export default function MockExamRunScreen() {
             setLapElapsed(Date.now() - lapStartAt);
         }, 16);
 
-        return () => {
-            clearInterval(interval);
-            endSession();
-        };
-    }, [lapStartAt]);
+        return () => clearInterval(interval);
+    }, [examStartedAt, limitMin, lapStartAt]);
 
     const handleNextQuestion = useCallback(() => {
         const now = Date.now();
@@ -53,18 +74,25 @@ export default function MockExamRunScreen() {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             Alert.alert("시험 종료", "모든 과정을 마치고 종료하시겠습니까?", [
                 { text: "취소", style: "cancel" },
-                { text: "종료", onPress: () => router.back() }
+                {
+                    text: "종료",
+                    onPress: () => {
+                        if (segmentId) endSegment(segmentId, Date.now());
+                        endSession();
+                        router.back();
+                    }
+                }
             ]);
             return;
         }
 
+        if (!sessionId || !segmentId) return;
+
         // 2. 문항 기록 저장
         addQuestionRecord({
-            id: Math.random().toString(36).substr(2, 9),
-            userId: 'local-user',
-            sessionId: 'exam-session',
+            sessionId,
+            segmentId,
             subjectId: currentSubjectId,
-            questionNo: answeredCount + 1,
             durationMs: duration,
             startedAt: lapStartAt,
             endedAt: now,
@@ -75,6 +103,10 @@ export default function MockExamRunScreen() {
 
         // 3. 마지막 문제였는지 확인
         if (answeredCount + 1 >= totalQuestions) {
+            // End solving segment and enter review segment
+            endSegment(segmentId, now);
+            const reviewSegId = startSegment({ sessionId, subjectId: '__review__', kind: 'review', startedAt: now });
+            setSegmentId(reviewSegId);
             setIsReviewMode(true); // 검토 모드 진입
             setLapStartAt(now); // 검토 타이머 시작
             setLapElapsed(0);
@@ -83,7 +115,7 @@ export default function MockExamRunScreen() {
             setLapStartAt(now);
             setLapElapsed(0);
         }
-    }, [lapStartAt, answeredCount, currentSubjectId, totalQuestions, isReviewMode]);
+    }, [lapStartAt, answeredCount, currentSubjectId, totalQuestions, isReviewMode, sessionId, segmentId, addQuestionRecord, endSegment, startSegment, endSession, router]);
 
     const formatTime = (ms: number) => {
         const s = Math.floor(ms / 1000);
@@ -122,7 +154,16 @@ export default function MockExamRunScreen() {
                         key={sub.id}
                         disabled={isReviewMode}
                         style={[styles.tab, currentSubjectId === sub.id && styles.activeTab, isReviewMode && { opacity: 0.5 }]}
-                        onPress={() => setCurrentSubjectId(sub.id)}
+                        onPress={() => {
+                            if (isReviewMode || !sessionId) return;
+                            const now = Date.now();
+                            if (segmentId) endSegment(segmentId, now);
+                            const nextSegId = startSegment({ sessionId, subjectId: sub.id, kind: 'solve', startedAt: now });
+                            setSegmentId(nextSegId);
+                            setCurrentSubjectId(sub.id);
+                            setLapStartAt(now);
+                            setLapElapsed(0);
+                        }}
                     >
                         <Text style={[styles.tabText, currentSubjectId === sub.id && styles.activeTabText]}>{sub.name}</Text>
                     </TouchableOpacity>
@@ -161,7 +202,7 @@ export default function MockExamRunScreen() {
                 </View>
             </Pressable>
 
-            <TouchableOpacity onPress={() => router.back()} style={styles.exitBtn}>
+            <TouchableOpacity onPress={() => { endSession(); router.back(); }} style={styles.exitBtn}>
                 <Text style={styles.exitBtnText}>시험 중단하기</Text>
             </TouchableOpacity>
         </SafeAreaView>

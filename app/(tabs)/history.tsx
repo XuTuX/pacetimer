@@ -11,76 +11,88 @@ import {
     View
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import HistoryTab from '../../components/HistoryTab';
-import { ExamSession, getSessions } from '../../lib/storage';
+import DayDetail from '../../components/history/DayDetail';
+import SessionDetail from '../../components/history/SessionDetail';
+import { Calendar, LocaleConfig } from 'react-native-calendars';
+import { buildRecordsIndex } from '../../lib/recordsIndex';
 import { useAppStore } from '../../lib/store';
 import { COLORS } from '../../lib/theme';
+import { formatDisplayDate, getStudyDateKey } from '../../lib/studyDate';
 
-type DateSection = {
-    date: string;
-    displayDate: string;
-    sessions: ExamSession[];
-    totalSeconds: number;
-    totalQuestions: number;
+LocaleConfig.locales['kr'] = {
+    monthNames: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'],
+    monthNamesShort: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'],
+    dayNames: ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'],
+    dayNamesShort: ['일', '월', '화', '수', '목', '금', '토'],
+    today: '오늘',
 };
+LocaleConfig.defaultLocale = 'kr';
 
 export default function HistoryScreen() {
     const { signOut, userId } = useAuth();
     const router = useRouter();
-    const [sessions, setSessions] = useState<ExamSession[]>([]);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const insets = useSafeAreaInsets();
-    const { questionRecords } = useAppStore();
+    const { subjects, sessions, segments, questionRecords } = useAppStore();
+    const [nowMs, setNowMs] = useState(Date.now());
+    const [selectedDate, setSelectedDate] = useState(() => getStudyDateKey(Date.now()));
+    const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
-    const getStudyDate = useCallback((timestamp: number | string | Date) => {
-        const d = new Date(timestamp);
-        const shifted = new Date(d.getTime() - 21600000);
-        return shifted.toISOString().split('T')[0];
-    }, []);
+    useFocusEffect(useCallback(() => {
+        const id = setInterval(() => setNowMs(Date.now()), 30000);
+        return () => clearInterval(id);
+    }, []));
 
-    const formatDisplayDateLocal = useCallback((dateStr: string) => {
-        const today = getStudyDate(Date.now());
-        const yesterday = getStudyDate(Date.now() - 86400000);
-        if (dateStr === today) return '오늘';
-        if (dateStr === yesterday) return '어제';
-        const [, m, d] = dateStr.split('-');
-        return `${parseInt(m)}월 ${parseInt(d)}일`;
-    }, [getStudyDate]);
+    const subjectsById = useMemo(() => Object.fromEntries(subjects.map((s) => [s.id, s])), [subjects]);
 
-    const loadSessions = useCallback(async () => {
-        const data = await getSessions();
-        setSessions(data);
-    }, []);
+    const index = useMemo(() => buildRecordsIndex({ sessions, segments, questionRecords, nowMs }), [sessions, segments, questionRecords, nowMs]);
 
-    useFocusEffect(useCallback(() => { loadSessions(); }, [loadSessions]));
+    const dayList = useMemo(() => {
+        return Object.values(index.dayStatsByDate).sort((a, b) => b.date.localeCompare(a.date));
+    }, [index.dayStatsByDate]);
 
-    const processedData = useMemo(() => {
-        const dateMap: Record<string, { sessions: ExamSession[], totalSeconds: number, totalQuestions: number }> = {};
+    const markedDates = useMemo(() => {
+        const marks: any = {};
+        for (const day of dayList) {
+            const totalSeconds = day.durationMs / 1000;
+            if (totalSeconds <= 0) continue;
 
-        sessions.forEach(s => {
-            const d = getStudyDate(s.date);
-            if (!dateMap[d]) dateMap[d] = { sessions: [], totalSeconds: 0, totalQuestions: 0 };
-            dateMap[d].sessions.push(s);
-        });
+            let color = COLORS.primaryLight;
+            if (totalSeconds > 10800) color = COLORS.primary; // 3h+
+            else if (totalSeconds > 3600) color = '#70E8C1'; // medium mint
+            else color = '#B2F2DE'; // light mint
 
-        questionRecords.forEach(r => {
-            const d = getStudyDate(r.startedAt);
-            if (!dateMap[d]) dateMap[d] = { sessions: [], totalSeconds: 0, totalQuestions: 0 };
-            dateMap[d].totalSeconds += (r.durationMs / 1000);
-            dateMap[d].totalQuestions += 1;
-        });
+            marks[day.date] = {
+                customStyles: {
+                    container: {
+                        backgroundColor: color,
+                        borderRadius: 8,
+                    },
+                    text: {
+                        color: totalSeconds > 3600 ? COLORS.white : COLORS.text,
+                        fontWeight: '700',
+                    },
+                },
+            };
+        }
 
-        const sortedDates = Object.keys(dateMap).sort((a, b) => b.localeCompare(a));
-        const sections: DateSection[] = sortedDates.map(date => ({
-            date,
-            displayDate: formatDisplayDateLocal(date),
-            sessions: dateMap[date].sessions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-            totalSeconds: dateMap[date].totalSeconds,
-            totalQuestions: dateMap[date].totalQuestions,
-        }));
+        if (marks[selectedDate]) {
+            marks[selectedDate].customStyles.container = {
+                ...marks[selectedDate].customStyles.container,
+                borderWidth: 2,
+                borderColor: COLORS.text,
+            };
+        } else {
+            marks[selectedDate] = {
+                customStyles: {
+                    container: { borderWidth: 2, borderColor: COLORS.text, borderRadius: 8 },
+                    text: { color: COLORS.text, fontWeight: '700' },
+                },
+            };
+        }
 
-        return sections;
-    }, [sessions, questionRecords, formatDisplayDateLocal, getStudyDate]);
+        return marks;
+    }, [dayList, selectedDate]);
 
     const handleSignOut = async () => {
         try {
@@ -118,20 +130,87 @@ export default function HistoryScreen() {
                     )}
                 </View>
 
-                <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
+                <ScrollView
+                    style={styles.content}
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
+                >
                     <View style={styles.historyWrapper}>
-                        <HistoryTab
-                            sessionsCount={sessions.length}
-                            dateSections={processedData}
-                            onDeleted={() => loadSessions()}
-                            onViewDailyAnalysis={(date) => {
-                                // Navigate to Analysis tab with date would be nice, but for now just console log
-                                // router.push({ pathname: '/analysis', params: { date } });
-                            }}
+                        <View style={styles.calendarWrapper}>
+                            <Calendar
+                                current={selectedDate}
+                                onDayPress={(day: { dateString: string }) => {
+                                    setSettingsOpen(false);
+                                    setSelectedDate(day.dateString);
+                                }}
+                                monthFormat={'yyyy년 MM월'}
+                                markingType={'custom'}
+                                markedDates={markedDates}
+                                theme={{
+                                    todayTextColor: COLORS.primary,
+                                    arrowColor: COLORS.text,
+                                    textDayFontWeight: '600',
+                                    textMonthFontWeight: 'bold',
+                                    textDayHeaderFontWeight: 'bold',
+                                    textDayFontSize: 14,
+                                    textMonthFontSize: 16,
+                                    calendarBackground: 'transparent',
+                                }}
+                                enableSwipeMonths={true}
+                            />
+                        </View>
+
+                        <View style={styles.selectedDateHeader}>
+                            <Text style={styles.selectedDateTitle}>{formatDisplayDate(selectedDate, nowMs)}</Text>
+                            <Text style={styles.selectedDateSub}>{selectedDate}</Text>
+                        </View>
+
+                        <DayDetail
+                            sessions={index.sessionsByDate[selectedDate] ?? []}
+                            sessionStatsById={index.sessionStatsById}
+                            subjectsById={subjectsById}
+                            onOpenSession={(sessionId) => setSelectedSessionId(sessionId)}
                         />
                     </View>
                 </ScrollView>
             </SafeAreaView>
+
+            {selectedSessionId && (() => {
+                const session = index.sessionsById[selectedSessionId];
+                const sessionStats = index.sessionStatsById[selectedSessionId];
+                if (!session || !sessionStats) return null;
+                return (
+                    <View style={[StyleSheet.absoluteFill, { backgroundColor: COLORS.bg, zIndex: 100 }]}>
+                        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={['top', 'bottom']}>
+                            <View style={styles.overlayHeader}>
+                                <TouchableOpacity style={styles.backBtn} onPress={() => setSelectedSessionId(null)}>
+                                    <Ionicons name="chevron-back" size={22} color={COLORS.text} />
+                                </TouchableOpacity>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.overlayTitle}>세션 상세</Text>
+                                    <Text style={styles.overlaySub}>{formatDisplayDate(session.studyDate, nowMs)} · {session.studyDate}</Text>
+                                </View>
+                                <View style={{ width: 44 }} />
+                            </View>
+
+                            <ScrollView
+                                style={{ flex: 1, backgroundColor: COLORS.bg }}
+                                contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}
+                                showsVerticalScrollIndicator={false}
+                            >
+                                <SessionDetail
+                                    nowMs={nowMs}
+                                    session={session}
+                                    sessionStats={sessionStats}
+                                    segments={index.segmentsBySessionId[session.id] ?? []}
+                                    questionsBySegmentId={index.questionsBySegmentId}
+                                    subjectsById={subjectsById}
+                                />
+                            </ScrollView>
+                        </SafeAreaView>
+                    </View>
+                );
+            })()}
         </View>
     );
 }
@@ -203,5 +282,39 @@ const styles = StyleSheet.create({
     historyWrapper: {
         paddingHorizontal: 24,
         paddingTop: 16,
+        gap: 18,
     },
+
+    calendarWrapper: {
+        borderRadius: 24,
+        overflow: 'hidden',
+        backgroundColor: COLORS.white,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        padding: 4,
+    },
+
+    selectedDateHeader: { paddingHorizontal: 4, gap: 2 },
+    selectedDateTitle: { fontSize: 18, fontWeight: '900', color: COLORS.text },
+    selectedDateSub: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
+
+    overlayHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+    },
+    backBtn: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: COLORS.white,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    overlayTitle: { fontSize: 18, fontWeight: '900', color: COLORS.text },
+    overlaySub: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginTop: 2 },
 });

@@ -3,26 +3,27 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Dimensions, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { AppState, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppStore } from '../lib/store';
 import { COLORS } from '../lib/theme';
-import { QuestionRecord } from '../lib/types';
-
-const { width } = Dimensions.get('window');
 
 export default function TimerScreen() {
     const router = useRouter();
     const {
         stopwatch, startStopwatch, pauseStopwatch,
-        subjects, addSubject, addQuestionRecord,
-        activeSubjectId, setActiveSubjectId
+        subjects, addSubject,
+        activeSubjectId, activeSegmentId,
+        addQuestionRecordForActiveSegment, undoLastQuestionInSegment,
+        endSession,
+        setActiveSubjectId
     } = useAppStore();
 
     const [now, setNow] = useState(Date.now());
     const [currentPage, setCurrentPage] = useState(1);
     const pagerRef = useRef<PagerView>(null);
+    const ignoreNextSegmentResetRef = useRef(false);
 
     // 문제별 기록 상태
     const [questionNo, setQuestionNo] = useState(1);
@@ -41,15 +42,43 @@ export default function TimerScreen() {
         useCallback(() => {
             if (isSubjectSelected) startStopwatch();
             return () => pauseStopwatch();
-        }, [isSubjectSelected])
+        }, [isSubjectSelected, startStopwatch, pauseStopwatch])
     );
 
     useEffect(() => {
         const subscription = AppState.addEventListener('change', nextAppState => {
-            if (nextAppState !== 'active') pauseStopwatch();
+            if (nextAppState !== 'active') {
+                // If we were mid-question, finalize it before pausing so paused time never inflates a question.
+                if (lapStatus === 'RUNNING' && lapStartAt) {
+                    const nowTs = Date.now();
+                    addQuestionRecordForActiveSegment({
+                        durationMs: nowTs - lapStartAt,
+                        startedAt: lapStartAt,
+                        endedAt: nowTs,
+                        source: 'finish',
+                    });
+                    setLapStatus('IDLE');
+                    setLapStartAt(null);
+                    setLapElapsed(0);
+                }
+                pauseStopwatch();
+            }
         });
         return () => subscription.remove();
-    }, [pauseStopwatch]);
+    }, [pauseStopwatch, lapStatus, lapStartAt, addQuestionRecordForActiveSegment]);
+
+    // Segment changed => question numbering resets (1..N per segment).
+    // Note: we intentionally *don't* show segments in the UI; they exist to fix numbering + make logs reliable.
+    useEffect(() => {
+        setQuestionNo(1);
+        if (ignoreNextSegmentResetRef.current) {
+            ignoreNextSegmentResetRef.current = false;
+            return;
+        }
+        setLapStatus('IDLE');
+        setLapStartAt(null);
+        setLapElapsed(0);
+    }, [activeSegmentId]);
 
     // 2. 타이머 업데이트 루프
     useEffect(() => {
@@ -84,6 +113,21 @@ export default function TimerScreen() {
         return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     };
 
+    const finalizeRunningLap = useCallback((source: 'finish' | 'manual' = 'finish') => {
+        if (lapStatus !== 'RUNNING' || !lapStartAt) return;
+        const nowTs = Date.now();
+        const saved = addQuestionRecordForActiveSegment({
+            durationMs: nowTs - lapStartAt,
+            startedAt: lapStartAt,
+            endedAt: nowTs,
+            source,
+        });
+        if (saved) setQuestionNo(saved.questionNo + 1);
+        setLapStatus('IDLE');
+        setLapStartAt(null);
+        setLapElapsed(0);
+    }, [addQuestionRecordForActiveSegment, lapStartAt, lapStatus]);
+
     // 문제 기록 로직 (탭 2에서 사용)
     const handleLapTap = () => {
         if (!isSubjectSelected) {
@@ -92,7 +136,10 @@ export default function TimerScreen() {
         }
 
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        if (!stopwatch.isRunning) startStopwatch();
+        if (!stopwatch.isRunning) {
+            ignoreNextSegmentResetRef.current = true;
+            startStopwatch();
+        }
 
         const nowTs = Date.now();
         if (lapStatus === 'IDLE') {
@@ -100,21 +147,14 @@ export default function TimerScreen() {
             setLapStartAt(nowTs);
             setLapElapsed(0);
         } else {
-            if (!lapStartAt || !activeSubjectId) return;
-            const duration = nowTs - lapStartAt;
-            const record: QuestionRecord = {
-                id: Math.random().toString(36).substr(2, 9),
-                userId: 'local-user',
-                sessionId: 'current-session',
-                subjectId: activeSubjectId,
-                questionNo: questionNo,
-                durationMs: duration,
+            if (!lapStartAt) return;
+            const saved = addQuestionRecordForActiveSegment({
+                durationMs: nowTs - lapStartAt,
                 startedAt: lapStartAt,
                 endedAt: nowTs,
                 source: 'tap',
-            };
-            addQuestionRecord(record);
-            setQuestionNo(q => q + 1);
+            });
+            if (saved) setQuestionNo(saved.questionNo + 1);
             setLapStartAt(nowTs);
             setLapElapsed(0);
         }
@@ -123,44 +163,27 @@ export default function TimerScreen() {
     // 문제 기록만 중단하고 메인 타이머로 돌아가기
     const handleStopQuestionTracking = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        if (lapStatus === 'RUNNING' && lapStartAt && activeSubjectId) {
-            const duration = Date.now() - lapStartAt;
-            addQuestionRecord({
-                id: Math.random().toString(36).substr(2, 9),
-                userId: 'local-user',
-                sessionId: 'current-session',
-                subjectId: activeSubjectId,
-                questionNo: questionNo,
-                durationMs: duration,
-                startedAt: lapStartAt,
-                endedAt: Date.now(),
-                source: 'finish',
-            });
-        }
-        setLapStatus('IDLE');
-        setLapStartAt(null);
-        setLapElapsed(0);
-        setQuestionNo(1);
+        finalizeRunningLap('finish');
         pagerRef.current?.setPage(1);
+    };
+
+    const handleUndoLast = () => {
+        if (!activeSegmentId) return;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        const removed = undoLastQuestionInSegment(activeSegmentId);
+        if (!removed) return;
+        setQuestionNo(removed.questionNo);
+        setLapStatus('RUNNING');
+        setLapStartAt(removed.startedAt);
+        setLapElapsed(Date.now() - removed.startedAt);
     };
 
     // 오늘 공부 완료
     const handleFinishStudy = () => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        if (lapStatus === 'RUNNING' && lapStartAt && activeSubjectId) {
-            addQuestionRecord({
-                id: Math.random().toString(36).substr(2, 9),
-                userId: 'local-user',
-                sessionId: 'current-session',
-                subjectId: activeSubjectId,
-                questionNo: questionNo,
-                durationMs: Date.now() - lapStartAt,
-                startedAt: lapStartAt,
-                endedAt: Date.now(),
-                source: 'finish',
-            });
-        }
+        finalizeRunningLap('finish');
         pauseStopwatch();
+        endSession();
         setLapStatus('IDLE');
         setActiveSubjectId(null);
         router.replace('/(tabs)/analysis');
@@ -280,7 +303,12 @@ export default function TimerScreen() {
 
                         <TouchableOpacity style={styles.bigCircleWrapper} onPress={() => {
                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            stopwatch.isRunning ? pauseStopwatch() : startStopwatch();
+                            if (stopwatch.isRunning) {
+                                finalizeRunningLap('finish');
+                                pauseStopwatch();
+                            } else {
+                                startStopwatch();
+                            }
                         }}>
                             <LinearGradient colors={stopwatch.isRunning ? ['#444', '#222'] : [COLORS.primary, '#00E6A5']} style={styles.bigCircle}>
                                 <Ionicons name={stopwatch.isRunning ? "pause" : "play"} size={52} color={COLORS.white} />
@@ -325,11 +353,23 @@ export default function TimerScreen() {
                             <View style={styles.tapTip}><Text style={styles.tapTipText}>화면을 탭하면 다음 문제로</Text></View>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.stopTrackingBtn} onPress={handleStopQuestionTracking}>
-                            <LinearGradient colors={['#F8F9FA', '#E9ECEF']} style={styles.stopTrackingGradient}>
-                                <Text style={styles.stopTrackingBtnText}>문제 기록 그만하기</Text>
-                            </LinearGradient>
-                        </TouchableOpacity>
+                        <View style={styles.trackerActionRow}>
+                            <TouchableOpacity
+                                style={[styles.undoBtn, (!activeSegmentId || questionNo <= 1) && { opacity: 0.4 }]}
+                                onPress={handleUndoLast}
+                                disabled={!activeSegmentId || questionNo <= 1}
+                            >
+                                <Ionicons name="arrow-undo" size={16} color={COLORS.text} />
+                                <Text style={styles.undoBtnText}>방금 기록 취소</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.stopTrackingBtn} onPress={handleStopQuestionTracking}>
+                                <LinearGradient colors={['#F8F9FA', '#E9ECEF']} style={styles.stopTrackingGradient}>
+                                    <Text style={styles.stopTrackingBtnText}>문제 기록 그만하기</Text>
+                                </LinearGradient>
+                            </TouchableOpacity>
+                        </View>
+
                     </View>
                 </View>
             </PagerView>
@@ -389,7 +429,20 @@ const styles = StyleSheet.create({
     lapTimeHuge: { fontSize: 90, fontWeight: '900', color: COLORS.text, fontVariant: ['tabular-nums'] },
     tapTip: { marginTop: 30, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, backgroundColor: COLORS.bg },
     tapTipText: { fontSize: 14, color: COLORS.textMuted, fontWeight: '600' },
-    stopTrackingBtn: { marginBottom: 30 },
+    trackerActionRow: { marginBottom: 30, gap: 10 },
+    undoBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        paddingVertical: 14,
+        borderRadius: 18,
+        backgroundColor: COLORS.white,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    undoBtnText: { fontSize: 14, fontWeight: '800', color: COLORS.text },
+    stopTrackingBtn: {},
     stopTrackingGradient: { paddingVertical: 20, borderRadius: 24, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
     stopTrackingBtnText: { fontSize: 16, fontWeight: '700', color: COLORS.text },
 });
