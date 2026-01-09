@@ -2,7 +2,7 @@ import "react-native-url-polyfill/auto";
 
 import { useAuth } from "@clerk/clerk-expo";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { Database } from "./db-types";
 import { requireEnv } from "./env";
 
@@ -64,8 +64,13 @@ export function createClerkSupabaseClient(getToken: ClerkGetTokenFn): SupabaseCl
 
 export function useSupabase(): SupabaseClient<Database> {
     const { getToken } = useAuth();
+    const getTokenRef = useRef(getToken);
+
+    useEffect(() => {
+        getTokenRef.current = getToken;
+    }, [getToken]);
 
     return useMemo(() => {
-        return createClerkSupabaseClient(() => getToken({ template: "supabase" }));
-    }, [getToken]);
+        return createClerkSupabaseClient(() => getTokenRef.current({ template: "supabase" }));
+    }, []);
 }

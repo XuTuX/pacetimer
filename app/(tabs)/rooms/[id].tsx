@@ -1,8 +1,8 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@clerk/clerk-expo";
+import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Database } from "../../../lib/db-types";
 import { useSupabase } from "../../../lib/supabase";
@@ -39,12 +39,14 @@ export default function RoomDetailScreen() {
     const [joining, setJoining] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // 진행 중인 시도 상태
     const [activeAttemptId, setActiveAttemptId] = useState<string | null>(null);
     const [activeAttemptStartedAtMs, setActiveAttemptStartedAtMs] = useState<number | null>(null);
     const [nowMs, setNowMs] = useState(Date.now());
 
     const isRunning = activeAttemptId !== null && activeAttemptStartedAtMs !== null;
 
+    // 타이머 효과
     useEffect(() => {
         if (!isRunning) return;
         const id = setInterval(() => setNowMs(Date.now()), 1000);
@@ -57,6 +59,7 @@ export default function RoomDetailScreen() {
         setError(null);
 
         try {
+            // 1. 방 정보 가져오기
             const { data: roomData, error: roomError } = await supabase
                 .from("rooms")
                 .select("*")
@@ -65,6 +68,7 @@ export default function RoomDetailScreen() {
             if (roomError) throw roomError;
             setRoom(roomData ?? null);
 
+            // 2. 멤버 목록 가져오기
             const { data: membersData, error: membersError } = await supabase
                 .from("room_members")
                 .select("*")
@@ -73,6 +77,7 @@ export default function RoomDetailScreen() {
             if (membersError) throw membersError;
             setMembers(membersData ?? []);
 
+            // 3. 전체 시도 기록 가져오기
             const { data: attemptsData, error: attemptsError } = await supabase
                 .from("attempts")
                 .select("*")
@@ -80,12 +85,23 @@ export default function RoomDetailScreen() {
                 .order("created_at", { ascending: false });
             if (attemptsError) throw attemptsError;
             setAttempts(attemptsData ?? []);
+
+            // 4. ⭐ 진행 중인 시도(끝나지 않은 것)가 있는지 확인하여 타이머 복구
+            const active = (attemptsData ?? []).find(a => a.user_id === userId && a.ended_at === null);
+            if (active) {
+                setActiveAttemptId(active.id);
+                setActiveAttemptStartedAtMs(new Date(active.started_at!).getTime());
+            } else {
+                setActiveAttemptId(null);
+                setActiveAttemptStartedAtMs(null);
+            }
+
         } catch (err) {
             setError(formatSupabaseError(err));
         } finally {
             setLoading(false);
         }
-    }, [roomId, supabase]);
+    }, [roomId, supabase, userId]);
 
     useFocusEffect(
         useCallback(() => {
@@ -103,10 +119,9 @@ export default function RoomDetailScreen() {
                 .insert({ room_id: roomId });
 
             if (error) {
-                const code = typeof (error as { code?: unknown }).code === "string" ? (error as { code: string }).code : null;
-                if (code !== "23505") throw error;
+                const code = typeof (error as any).code === "string" ? (error as any).code : null;
+                if (code !== "23505") throw error; // 이미 멤버인 경우 제외
             }
-
             await refresh();
         } catch (err) {
             setError(formatSupabaseError(err));
@@ -116,43 +131,44 @@ export default function RoomDetailScreen() {
     };
 
     const handleToggleAttempt = async () => {
-        if (!roomId) return;
-        if (!room) return;
-
+        if (!roomId || !room) return;
         setError(null);
 
         try {
             if (!isRunning) {
+                // 시도 시작
                 const startedAtIso = new Date().toISOString();
-                const startedAtMs = Date.now();
-
                 const { data, error } = await supabase
                     .from("attempts")
-                    .insert({ room_id: roomId, duration_ms: 0, started_at: startedAtIso })
+                    .insert({
+                        room_id: roomId,
+                        started_at: startedAtIso,
+                        duration_ms: 0
+                    })
                     .select("*")
                     .single();
+
                 if (error) throw error;
 
                 setActiveAttemptId(data.id);
-                setActiveAttemptStartedAtMs(startedAtMs);
-                setNowMs(startedAtMs);
-                await refresh();
-                return;
+                setActiveAttemptStartedAtMs(new Date(data.started_at!).getTime());
+            } else {
+                // 시도 종료
+                const endedAtIso = new Date().toISOString();
+                const durationMs = Math.max(0, Date.now() - (activeAttemptStartedAtMs ?? Date.now()));
+
+                const { error } = await supabase
+                    .from("attempts")
+                    .update({ ended_at: endedAtIso, duration_ms: durationMs })
+                    .eq("id", activeAttemptId!)
+                    .select("*")
+                    .single();
+
+                if (error) throw error;
+
+                setActiveAttemptId(null);
+                setActiveAttemptStartedAtMs(null);
             }
-
-            const endedAtIso = new Date().toISOString();
-            const durationMs = Math.max(0, Date.now() - (activeAttemptStartedAtMs ?? Date.now()));
-
-            const { error } = await supabase
-                .from("attempts")
-                .update({ ended_at: endedAtIso, duration_ms: durationMs })
-                .eq("id", activeAttemptId!)
-                .select("*")
-                .single();
-            if (error) throw error;
-
-            setActiveAttemptId(null);
-            setActiveAttemptStartedAtMs(null);
             await refresh();
         } catch (err) {
             setError(formatSupabaseError(err));
@@ -160,111 +176,92 @@ export default function RoomDetailScreen() {
     };
 
     const isOwner = room?.owner_id === userId;
-    const memberCountLabel = members.length === 0 ? "—" : String(members.length);
-    const attemptsCountLabel = attempts.length === 0 ? "—" : String(attempts.length);
     const runningLabel = isRunning ? formatDurationMs(nowMs - (activeAttemptStartedAtMs ?? nowMs)) : null;
 
     return (
         <SafeAreaView style={styles.container} edges={["bottom"]}>
-            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+            <ScrollView contentContainerStyle={styles.content}>
                 <View style={styles.card}>
-                    <Text style={styles.title}>{room?.name ?? "Room"}</Text>
+                    <Text style={styles.title}>{room?.name ?? "Room Detail"}</Text>
                     <Text style={styles.meta}>{roomId}</Text>
+
                     <View style={styles.pillsRow}>
                         <View style={styles.pill}>
                             <Ionicons name="people-outline" size={14} color={COLORS.textMuted} />
-                            <Text style={styles.pillText}>{memberCountLabel} members</Text>
+                            <Text style={styles.pillText}>{members.length} members</Text>
                         </View>
                         <View style={styles.pill}>
                             <Ionicons name="time-outline" size={14} color={COLORS.textMuted} />
-                            <Text style={styles.pillText}>{attemptsCountLabel} attempts</Text>
+                            <Text style={styles.pillText}>{attempts.length} attempts</Text>
                         </View>
-                        {isOwner ? (
+                        {isOwner && (
                             <View style={[styles.pill, { backgroundColor: COLORS.primaryLight }]}>
                                 <Ionicons name="star-outline" size={14} color={COLORS.primary} />
-                                <Text style={[styles.pillText, { color: COLORS.primary }]}>owner</Text>
+                                <Text style={[styles.pillText, { color: COLORS.primary }]}>Owner</Text>
                             </View>
-                        ) : null}
+                        )}
                     </View>
 
-                    {error ? <Text style={styles.errorText}>{error}</Text> : null}
-                    {loading ? <Text style={styles.hint}>Loading…</Text> : null}
+                    {error && <Text style={styles.errorText}>{error}</Text>}
 
-                    {!room ? (
+                    {!room && !loading ? (
                         <View style={styles.notice}>
-                            <Text style={styles.noticeTitle}>No access (or room not found)</Text>
-                            <Text style={styles.noticeBody}>
-                                If you have a room ID, try joining. RLS will keep you locked out unless you’re a member/owner.
-                            </Text>
+                            <Text style={styles.noticeTitle}>Not a member yet</Text>
                             <Pressable
                                 onPress={handleJoin}
                                 disabled={joining}
-                                style={({ pressed }) => [
-                                    styles.primaryBtn,
-                                    joining && { opacity: 0.6 },
-                                    pressed && !joining && { opacity: 0.9 },
-                                ]}
+                                style={styles.primaryBtn}
                             >
-                                <Text style={styles.primaryBtnText}>{joining ? "Joining…" : "Join Room"}</Text>
+                                <Text style={styles.primaryBtnText}>{joining ? "Joining..." : "Join Room"}</Text>
                             </Pressable>
                         </View>
                     ) : (
                         <Pressable
                             onPress={handleToggleAttempt}
-                            style={({ pressed }) => [
-                                styles.primaryBtn,
-                                pressed && { opacity: 0.9 },
-                            ]}
+                            disabled={loading}
+                            style={[styles.primaryBtn, isRunning && { backgroundColor: COLORS.error }]}
                         >
-                            <Text style={styles.primaryBtnText}>
-                                {isRunning ? `End attempt (${runningLabel})` : "Start attempt"}
-                            </Text>
+                            {loading ? (
+                                <ActivityIndicator color="#fff" />
+                            ) : (
+                                <Text style={styles.primaryBtnText}>
+                                    {isRunning ? `End attempt (${runningLabel})` : "Start attempt"}
+                                </Text>
+                            )}
                         </Pressable>
                     )}
                 </View>
 
+                {/* 멤버 목록 */}
                 <View style={styles.card}>
                     <Text style={styles.sectionTitle}>Members</Text>
-                    {members.length === 0 ? (
-                        <Text style={styles.hint}>
-                            No members visible. If your RLS policy on `room_members` only allows “self”, you’ll only ever see your own row.
-                        </Text>
-                    ) : (
-                        <View style={{ gap: 10 }}>
-                            {members.map((m) => (
-                                <View key={`${m.room_id}:${m.user_id}`} style={styles.row}>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.rowTitle} numberOfLines={1}>
-                                            {m.user_id}
-                                        </Text>
-                                        <Text style={styles.rowMeta}>{m.role}</Text>
-                                    </View>
-                                </View>
-                            ))}
+                    {members.map((m) => (
+                        <View key={m.user_id} style={styles.row}>
+                            <Text style={styles.rowTitle}>{m.user_id === userId ? "Me" : m.user_id.split('_')[0]}</Text>
+                            <Text style={styles.rowMeta}>{m.role}</Text>
                         </View>
-                    )}
+                    ))}
                 </View>
 
+                {/* 시도 기록 */}
                 <View style={styles.card}>
-                    <Text style={styles.sectionTitle}>Attempts</Text>
+                    <Text style={styles.sectionTitle}>Recent Attempts</Text>
                     {attempts.length === 0 ? (
                         <Text style={styles.hint}>No attempts yet.</Text>
                     ) : (
-                        <View style={{ gap: 10 }}>
-                            {attempts.map((a) => (
-                                <View key={a.id} style={styles.row}>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.rowTitle}>{formatDurationMs(a.duration_ms)}</Text>
-                                        <Text style={styles.rowMeta} numberOfLines={1}>
-                                            {a.started_at ?? "—"} → {a.ended_at ?? "—"}
-                                        </Text>
-                                    </View>
-                                    <Text style={styles.rowMeta} numberOfLines={1}>
-                                        {a.user_id === userId ? "me" : a.user_id}
-                                    </Text>
+                        attempts.map((a) => (
+                            <View key={a.id} style={styles.row}>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.rowTitle}>{formatDurationMs(a.duration_ms)}</Text>
+                                    <Text style={styles.rowMeta}>{new Date(a.created_at).toLocaleDateString()}</Text>
                                 </View>
-                            ))}
-                        </View>
+                                {a.ended_at === null && (
+                                    <View style={styles.liveBadge}>
+                                        <Text style={styles.liveBadgeText}>LIVE</Text>
+                                    </View>
+                                )}
+                            </View>
+                        ))
                     )}
                 </View>
             </ScrollView>
@@ -273,123 +270,24 @@ export default function RoomDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: COLORS.bg,
-    },
-    content: {
-        padding: 16,
-        paddingBottom: 40,
-        gap: 14,
-    },
-    card: {
-        backgroundColor: COLORS.surface,
-        borderColor: COLORS.border,
-        borderWidth: 1,
-        borderRadius: 16,
-        padding: 14,
-        gap: 10,
-    },
-    title: {
-        fontSize: 18,
-        fontWeight: "800",
-        color: COLORS.text,
-    },
-    meta: {
-        fontSize: 12,
-        fontWeight: "600",
-        color: COLORS.textMuted,
-    },
-    pillsRow: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 8,
-        marginTop: 8,
-    },
-    pill: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        backgroundColor: COLORS.bg,
-        borderColor: COLORS.border,
-        borderWidth: 1,
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 999,
-    },
-    pillText: {
-        fontSize: 11,
-        fontWeight: "800",
-        color: COLORS.textMuted,
-        textTransform: "uppercase",
-    },
-    errorText: {
-        color: COLORS.error,
-        fontSize: 12,
-        fontWeight: "700",
-    },
-    hint: {
-        fontSize: 12,
-        fontWeight: "600",
-        color: COLORS.textMuted,
-    },
-    primaryBtn: {
-        marginTop: 8,
-        backgroundColor: COLORS.primary,
-        borderRadius: 14,
-        paddingVertical: 14,
-        alignItems: "center",
-    },
-    primaryBtnText: {
-        color: COLORS.white,
-        fontWeight: "800",
-        fontSize: 14,
-    },
-    notice: {
-        marginTop: 6,
-        backgroundColor: COLORS.bg,
-        borderColor: COLORS.border,
-        borderWidth: 1,
-        borderRadius: 14,
-        padding: 12,
-        gap: 8,
-    },
-    noticeTitle: {
-        fontSize: 13,
-        fontWeight: "900",
-        color: COLORS.text,
-    },
-    noticeBody: {
-        fontSize: 12,
-        fontWeight: "600",
-        color: COLORS.textMuted,
-        lineHeight: 16,
-    },
-    sectionTitle: {
-        fontSize: 14,
-        fontWeight: "900",
-        color: COLORS.text,
-    },
-    row: {
-        flexDirection: "row",
-        gap: 10,
-        alignItems: "center",
-        backgroundColor: COLORS.bg,
-        borderColor: COLORS.border,
-        borderWidth: 1,
-        borderRadius: 14,
-        padding: 12,
-    },
-    rowTitle: {
-        fontSize: 13,
-        fontWeight: "900",
-        color: COLORS.text,
-    },
-    rowMeta: {
-        marginTop: 4,
-        fontSize: 11,
-        fontWeight: "700",
-        color: COLORS.textMuted,
-    },
+    container: { flex: 1, backgroundColor: COLORS.bg },
+    content: { padding: 16, gap: 14 },
+    card: { backgroundColor: COLORS.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: COLORS.border, gap: 12 },
+    title: { fontSize: 20, fontWeight: "800", color: COLORS.text },
+    meta: { fontSize: 12, color: COLORS.textMuted },
+    pillsRow: { flexDirection: "row", gap: 8 },
+    pill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: COLORS.bg, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border },
+    pillText: { fontSize: 11, fontWeight: "700", color: COLORS.textMuted, textTransform: "uppercase" },
+    sectionTitle: { fontSize: 16, fontWeight: "800", color: COLORS.text, marginBottom: 4 },
+    primaryBtn: { backgroundColor: COLORS.primary, paddingVertical: 14, borderRadius: 12, alignItems: "center", justifyContent: "center", minHeight: 50 },
+    primaryBtnText: { color: "#fff", fontWeight: "800", fontSize: 15 },
+    row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+    rowTitle: { fontSize: 14, fontWeight: "700", color: COLORS.text },
+    rowMeta: { fontSize: 12, color: COLORS.textMuted },
+    errorText: { color: COLORS.error, fontSize: 12, fontWeight: "600" },
+    hint: { fontSize: 13, color: COLORS.textMuted, textAlign: "center", marginTop: 10 },
+    notice: { gap: 10 },
+    noticeTitle: { fontSize: 14, fontWeight: "700", color: COLORS.text, textAlign: "center" },
+    liveBadge: { backgroundColor: COLORS.primary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
+    liveBadgeText: { color: "#fff", fontSize: 10, fontWeight: "900" }
 });
-
