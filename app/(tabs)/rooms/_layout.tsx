@@ -13,7 +13,7 @@ export default function RoomsLayout() {
         >
             <Stack.Screen name="index" options={{ headerShown: false }} />
             <Stack.Screen name="create" options={{ title: "Create Room" }} />
-            <Stack.Screen name="[id]" options={{ title: "Room" }} />
+            <Stack.Screen name="[id]" options={{ headerShown: false }} />
         </Stack>
     );
 }

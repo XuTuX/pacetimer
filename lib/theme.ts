@@ -19,6 +19,8 @@ export const COLORS = {
     error: '#FF3B30',      // 에러 (레드)
     errorLight: '#FFE9E8', // 연한 에러 (핑크)
     success: '#34C759',    // 완료
+    warning: '#FFCC00',    // 주의 (오렌지/옐로우)
+    warningLight: '#FFF9E5', // 연한 주의
 
     // 추가 호환성용
     gray: "#8E8E93",

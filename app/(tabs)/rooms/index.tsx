@@ -1,9 +1,10 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@clerk/clerk-expo";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import React, { useCallback, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { RoomCard } from "../../../components/rooms/RoomCard";
 import type { Database } from "../../../lib/db-types";
 import { useSupabase } from "../../../lib/supabase";
 import { formatSupabaseError } from "../../../lib/supabaseError";
@@ -18,61 +19,84 @@ export default function RoomsIndexScreen() {
     const { userId } = useAuth();
 
     const [rooms, setRooms] = useState<RoomRow[]>([]);
-    const [memberships, setMemberships] = useState<RoomMemberRow[]>([]);
-    const [joinRoomId, setJoinRoomId] = useState("");
+    const [joinCode, setJoinCode] = useState("");
     const [loading, setLoading] = useState(false);
     const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
     const [joining, setJoining] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const membershipByRoomId = useMemo(() => {
-        const map = new Map<string, RoomMemberRow>();
-        for (const row of memberships) map.set(row.room_id, row);
-        return map;
-    }, [memberships]);
-
     const refresh = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
+            const { data: myParticipation, error: partError } = await supabase
+                .from("room_members")
+                .select("room_id")
+                .eq("user_id", userId ?? "");
+
+            if (partError) throw partError;
+
+            const myRoomIds = myParticipation?.map(p => p.room_id) || [];
+            const { data: hostedRooms, error: hostError } = await supabase
+                .from("rooms")
+                .select("id")
+                .eq("owner_id", userId ?? "");
+
+            if (hostError) throw hostError;
+
+            const hostedRoomIds = hostedRooms?.map(r => r.id) || [];
+            const allRoomIds = Array.from(new Set([...myRoomIds, ...hostedRoomIds]));
+
+            if (allRoomIds.length === 0) {
+                setRooms([]);
+                return;
+            }
+
             const { data: roomsData, error: roomsError } = await supabase
                 .from("rooms")
                 .select("*")
+                .in("id", allRoomIds)
                 .order("created_at", { ascending: false });
             if (roomsError) throw roomsError;
 
-            const { data: membershipData, error: membershipError } = await supabase
-                .from("room_members")
-                .select("*")
-                .order("created_at", { ascending: false });
-            if (membershipError) throw membershipError;
-
             setRooms(roomsData ?? []);
-            setMemberships(membershipData ?? []);
         } catch (err) {
             setError(formatSupabaseError(err));
         } finally {
             setLoading(false);
             setHasLoadedOnce(true);
         }
-    }, [supabase]);
+    }, [supabase, userId]);
+
+    React.useEffect(() => {
+        if (userId) refresh();
+    }, [userId]);
 
     const handleJoin = async () => {
-        const id = joinRoomId.trim();
-        if (!id) return;
+        const code = joinCode.trim().toUpperCase();
+        if (!code) return;
 
         setJoining(true);
         setError(null);
         try {
+            const { data: roomData, error: roomMatchError } = await supabase
+                .from("rooms")
+                .select("id")
+                .eq("code", code)
+                .single();
+
+            if (roomMatchError || !roomData) throw new Error("Room not found with this code.");
+
             const { error: joinError } = await supabase
                 .from("room_members")
-                .insert({ room_id: id });
-            if (joinError) throw joinError;
+                .insert({ room_id: roomData.id, user_id: userId ?? "" });
 
-            setJoinRoomId("");
+            if (joinError && !joinError.message.includes("unique")) throw joinError;
+
+            setJoinCode("");
             await refresh();
-            router.push({ pathname: "/(tabs)/rooms/[id]", params: { id } });
-        } catch (err) {
+            router.push({ pathname: "/(tabs)/rooms/[id]", params: { id: roomData.id } });
+        } catch (err: any) {
             setError(formatSupabaseError(err));
         } finally {
             setJoining(false);
@@ -86,100 +110,87 @@ export default function RoomsIndexScreen() {
     return (
         <SafeAreaView style={styles.container} edges={["top"]}>
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-                <View style={styles.headerRow}>
+                {/* Header Section */}
+                <View style={styles.header}>
                     <View>
-                        <Text style={styles.title}>Rooms</Text>
-                        <Text style={styles.subtitle}>{userId ?? "—"}</Text>
+                        <Text style={styles.title}>Study Rooms</Text>
+                        <Text style={styles.subtitle}>Collaborative Focus Sessions</Text>
                     </View>
                     <Pressable
                         onPress={() => router.push("/(tabs)/rooms/create")}
-                        style={({ pressed }) => [styles.createBtn, pressed && { opacity: 0.9 }]}
+                        style={({ pressed }) => [styles.createBtn, pressed && { transform: [{ scale: 0.95 }] }]}
                     >
-                        <Ionicons name="add" size={18} color={COLORS.white} />
-                        <Text style={styles.createBtnText}>Create</Text>
+                        <Ionicons name="add" size={24} color={COLORS.white} />
                     </Pressable>
                 </View>
 
-                <View style={styles.card}>
-                    <Text style={styles.cardTitle}>Join a room</Text>
-                    <Text style={styles.cardHint}>Paste a room UUID and join as a member.</Text>
-                    <View style={styles.joinRow}>
+                {/* Join Section - Integrated Look */}
+                <View style={styles.joinContainer}>
+                    <Text style={styles.sectionLabel}>JOIN A ROOM</Text>
+                    <View style={styles.joinInputRow}>
                         <TextInput
-                            value={joinRoomId}
-                            onChangeText={setJoinRoomId}
-                            placeholder="room_id (uuid)"
+                            value={joinCode}
+                            onChangeText={(t) => setJoinCode(t.toUpperCase())}
+                            placeholder="Enter 6-digit room code"
                             placeholderTextColor={COLORS.textMuted}
-                            autoCapitalize="none"
+                            autoCapitalize="characters"
                             autoCorrect={false}
-                            style={styles.input}
+                            style={styles.joinInput}
+                            maxLength={6}
                         />
                         <Pressable
                             onPress={handleJoin}
-                            disabled={joining || joinRoomId.trim().length === 0}
+                            disabled={joining || joinCode.trim().length < 3}
                             style={({ pressed }) => [
-                                styles.joinBtn,
-                                (joining || joinRoomId.trim().length === 0) && { opacity: 0.5 },
-                                pressed && !joining && joinRoomId.trim().length > 0 && { opacity: 0.9 },
+                                styles.joinPressable,
+                                (joining || joinCode.trim().length < 3) && { opacity: 0.5 },
+                                pressed && { opacity: 0.8 },
                             ]}
                         >
-                            <Text style={styles.joinBtnText}>{joining ? "..." : "Join"}</Text>
-                        </Pressable>
-                    </View>
-                </View>
-
-                <View style={styles.card}>
-                    <View style={styles.cardTitleRow}>
-                        <Text style={styles.cardTitle}>My rooms</Text>
-                        <Pressable onPress={refresh} disabled={loading} style={({ pressed }) => pressed && { opacity: 0.8 }}>
-                            <Ionicons name="refresh" size={18} color={COLORS.textMuted} />
+                            {joining ? (
+                                <ActivityIndicator color={COLORS.primary} size="small" />
+                            ) : (
+                                <Ionicons name="arrow-forward" size={24} color={COLORS.primary} />
+                            )}
                         </Pressable>
                     </View>
                     {error ? <Text style={styles.errorText}>{error}</Text> : null}
-                    {!hasLoadedOnce && loading ? <Text style={styles.cardHint}>Loading…</Text> : null}
-                    {!hasLoadedOnce && !loading ? (
-                        <Text style={styles.cardHint}>Tap refresh to load rooms.</Text>
-                    ) : null}
+                </View>
 
-                    {hasLoadedOnce && !loading && rooms.length === 0 ? (
-                        <Text style={styles.cardHint}>No rooms yet. Create one, or join by ID.</Text>
-                    ) : (
-                        hasLoadedOnce && (
-                            <View style={{ gap: 10 }}>
-                                {rooms.map((room) => {
-                                    const membership = membershipByRoomId.get(room.id);
-                                    const role =
-                                        room.owner_id === userId
-                                            ? "owner"
-                                            : membership?.role ?? "member";
+                {/* Rooms List */}
+                <View style={styles.listSection}>
+                    <View style={styles.listHeader}>
+                        <Text style={styles.sectionLabel}>MY ACTIVE ROOMS</Text>
+                        {loading && <ActivityIndicator size="small" color={COLORS.primary} />}
+                    </View>
 
-                                    return (
-                                        <Pressable
-                                            key={room.id}
-                                            onPress={() => openRoom(room.id)}
-                                            style={({ pressed }) => [
-                                                styles.roomRow,
-                                                pressed && { opacity: 0.9 },
-                                            ]}
-                                        >
-                                            <View style={{ flex: 1 }}>
-                                                <Text style={styles.roomName}>{room.name}</Text>
-                                                <Text style={styles.roomMeta} numberOfLines={1}>
-                                                    {room.id}
-                                                </Text>
-                                            </View>
-                                            <View style={styles.rolePill}>
-                                                <Text style={styles.roleText}>{role}</Text>
-                                            </View>
-                                            <Ionicons
-                                                name="chevron-forward"
-                                                size={18}
-                                                color={COLORS.textMuted}
-                                            />
-                                        </Pressable>
-                                    );
-                                })}
+                    {hasLoadedOnce && rooms.length === 0 ? (
+                        <View style={styles.emptyCard}>
+                            <View style={styles.emptyIconCircle}>
+                                <Ionicons name="school-outline" size={32} color={COLORS.primary} />
                             </View>
-                        )
+                            <Text style={styles.emptyTitle}>Join your first room</Text>
+                            <Text style={styles.emptySubtitle}>
+                                Study together with friends or classmates by joining a room or creating your own.
+                            </Text>
+                            <Pressable
+                                style={styles.emptyAction}
+                                onPress={() => router.push("/(tabs)/rooms/create")}
+                            >
+                                <Text style={styles.emptyActionText}>Create a new room</Text>
+                            </Pressable>
+                        </View>
+                    ) : (
+                        <View style={styles.roomList}>
+                            {rooms.map((room) => (
+                                <RoomCard
+                                    key={room.id}
+                                    room={room}
+                                    isHost={room.owner_id === userId}
+                                    onPress={() => openRoom(room.id)}
+                                />
+                            ))}
+                        </View>
                     )}
                 </View>
             </ScrollView>
@@ -193,129 +204,140 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.bg,
     },
     content: {
-        padding: 16,
+        padding: 20,
         paddingBottom: 40,
-        gap: 14,
+        gap: 32,
     },
-    headerRow: {
+    header: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        gap: 12,
+        marginTop: 10,
     },
     title: {
-        fontSize: 22,
-        fontWeight: "800",
+        fontSize: 32,
+        fontWeight: "900",
         color: COLORS.text,
+        letterSpacing: -1,
     },
     subtitle: {
-        marginTop: 4,
-        fontSize: 12,
+        fontSize: 16,
         fontWeight: "600",
         color: COLORS.textMuted,
+        marginTop: -4,
     },
     createBtn: {
+        width: 48,
+        height: 48,
+        backgroundColor: COLORS.text,
+        borderRadius: 24,
+        alignItems: "center",
+        justifyContent: "center",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        elevation: 4,
+    },
+    joinContainer: {
+        gap: 12,
+    },
+    sectionLabel: {
+        fontSize: 12,
+        fontWeight: "800",
+        color: COLORS.textMuted,
+        letterSpacing: 1.5,
+        marginLeft: 4,
+    },
+    joinInputRow: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 8,
-        backgroundColor: COLORS.primary,
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        borderRadius: 14,
-    },
-    createBtnText: {
-        color: COLORS.white,
-        fontWeight: "800",
-        fontSize: 13,
-    },
-    card: {
         backgroundColor: COLORS.surface,
-        borderColor: COLORS.border,
+        borderRadius: 20,
+        paddingLeft: 20,
+        paddingRight: 8,
+        height: 64,
         borderWidth: 1,
-        borderRadius: 16,
-        padding: 14,
-        gap: 10,
+        borderColor: COLORS.border,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.02,
+        shadowRadius: 8,
     },
-    cardTitleRow: {
+    joinInput: {
+        flex: 1,
+        fontSize: 18,
+        color: COLORS.text,
+        fontWeight: "700",
+        fontFamily: "monospace",
+    },
+    joinPressable: {
+        width: 48,
+        height: 48,
+        borderRadius: 16,
+        backgroundColor: COLORS.primaryLight,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    errorText: {
+        color: COLORS.accent,
+        fontSize: 14,
+        fontWeight: "600",
+        marginLeft: 4,
+    },
+    listSection: {
+        gap: 16,
+    },
+    listHeader: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
+        paddingRight: 4,
     },
-    cardTitle: {
-        fontSize: 14,
+    roomList: {
+        gap: 16,
+    },
+    emptyCard: {
+        backgroundColor: COLORS.surface,
+        borderRadius: 24,
+        padding: 32,
+        alignItems: "center",
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderStyle: 'dashed',
+    },
+    emptyIconCircle: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: COLORS.primaryLight,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: 16,
+    },
+    emptyTitle: {
+        fontSize: 20,
         fontWeight: "800",
         color: COLORS.text,
+        marginBottom: 8,
     },
-    cardHint: {
-        fontSize: 12,
-        fontWeight: "600",
-        color: COLORS.textMuted,
-    },
-    errorText: {
-        color: COLORS.error,
-        fontSize: 12,
-        fontWeight: "700",
-    },
-    joinRow: {
-        flexDirection: "row",
-        gap: 10,
-        alignItems: "center",
-    },
-    input: {
-        flex: 1,
-        backgroundColor: COLORS.bg,
-        borderColor: COLORS.border,
-        borderWidth: 1,
-        borderRadius: 12,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        color: COLORS.text,
+    emptySubtitle: {
         fontSize: 14,
+        color: COLORS.textMuted,
+        textAlign: "center",
+        lineHeight: 22,
+        fontWeight: "500",
+        marginBottom: 24,
     },
-    joinBtn: {
-        backgroundColor: COLORS.primary,
-        paddingHorizontal: 14,
+    emptyAction: {
+        backgroundColor: COLORS.primaryLight,
+        paddingHorizontal: 20,
         paddingVertical: 12,
         borderRadius: 12,
     },
-    joinBtnText: {
-        color: COLORS.white,
-        fontWeight: "800",
-        fontSize: 13,
-    },
-    roomRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 10,
-        backgroundColor: COLORS.bg,
-        borderColor: COLORS.border,
-        borderWidth: 1,
-        borderRadius: 14,
-        padding: 12,
-    },
-    roomName: {
-        fontSize: 14,
-        fontWeight: "800",
-        color: COLORS.text,
-    },
-    roomMeta: {
-        marginTop: 4,
-        fontSize: 11,
-        fontWeight: "600",
-        color: COLORS.textMuted,
-    },
-    rolePill: {
-        backgroundColor: COLORS.primaryLight,
-        borderColor: COLORS.border,
-        borderWidth: 1,
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 999,
-    },
-    roleText: {
-        fontSize: 11,
-        fontWeight: "800",
+    emptyActionText: {
         color: COLORS.primary,
-        textTransform: "uppercase",
+        fontWeight: "800",
+        fontSize: 14,
     },
 });
