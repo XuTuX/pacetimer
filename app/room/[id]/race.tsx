@@ -2,17 +2,17 @@ import { useAuth } from "@clerk/clerk-expo";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
-import { CompareRow } from "../../../../../../components/ui/CompareRow";
-import { ParticipantRow } from "../../../../../../components/ui/ParticipantRow";
-import { PrimaryButton } from "../../../../../../components/ui/PrimaryButton";
-import { ProgressBar } from "../../../../../../components/ui/ProgressBar";
-import { ScreenHeader } from "../../../../../../components/ui/ScreenHeader";
-import { SegmentedTabs } from "../../../../../../components/ui/SegmentedTabs";
-import { StatCard } from "../../../../../../components/ui/StatCard";
-import type { Database } from "../../../../../../lib/db-types";
-import { useSupabase } from "../../../../../../lib/supabase";
-import { formatSupabaseError } from "../../../../../../lib/supabaseError";
-import { COLORS } from "../../../../../../lib/theme";
+import { CompareRow } from "../../../components/ui/CompareRow";
+import { ParticipantRow } from "../../../components/ui/ParticipantRow";
+import { PrimaryButton } from "../../../components/ui/PrimaryButton";
+import { ProgressBar } from "../../../components/ui/ProgressBar";
+import { ScreenHeader } from "../../../components/ui/ScreenHeader";
+import { SegmentedTabs } from "../../../components/ui/SegmentedTabs";
+import { StatCard } from "../../../components/ui/StatCard";
+import type { Database } from "../../../lib/db-types";
+import { useSupabase } from "../../../lib/supabase";
+import { formatSupabaseError } from "../../../lib/supabaseError";
+import { COLORS } from "../../../lib/theme";
 
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
 type RecordRow = Database["public"]["Tables"]["attempt_records"]["Row"];
@@ -35,35 +35,43 @@ function formatDuration(ms: number) {
     return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
-export default function ExamDetailScreen() {
+export default function RaceScreen() {
     const supabase = useSupabase();
     const router = useRouter();
     const { userId } = useAuth();
-    const { id, examId } = useLocalSearchParams<{ id: string; examId: string }>();
-
+    const { id } = useLocalSearchParams<{ id: string }>();
     const roomId = Array.isArray(id) ? id[0] : id;
-    const currentExamId = Array.isArray(examId) ? examId[0] : examId;
 
     const [exam, setExam] = useState<RoomExamRow | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState(0);
-
     const [participants, setParticipants] = useState<ParticipantResult[]>([]);
+    const [error, setError] = useState<string | null>(null);
 
     const loadData = useCallback(async () => {
-        if (!roomId || !currentExamId) return;
+        if (!roomId) return;
         setLoading(true);
         setError(null);
         try {
-            // 1. Exam Info
-            const { data: eData, error: eError } = await supabase
+            // 1. Fetch Latest Exam
+            const { data: exams, error: exError } = await supabase
                 .from("room_exams")
                 .select("*")
-                .eq("id", currentExamId)
-                .single();
-            if (eError) throw eError;
-            setExam(eData);
+                .eq("room_id", roomId)
+                .order("created_at", { ascending: false })
+                .limit(1);
+
+            if (exError) throw exError;
+
+            const currentExam = exams && exams.length > 0 ? exams[0] : null;
+            setExam(currentExam);
+
+            if (!currentExam) {
+                setLoading(false);
+                return;
+            }
+
+            const currentExamId = currentExam.id;
 
             // 2. Room Members & Profiles
             const { data: mData, error: mError } = await supabase
@@ -121,7 +129,7 @@ export default function ExamDetailScreen() {
         } finally {
             setLoading(false);
         }
-    }, [roomId, currentExamId, userId, supabase]);
+    }, [roomId, userId, supabase]);
 
     useFocusEffect(
         useCallback(() => {
@@ -138,10 +146,8 @@ export default function ExamDetailScreen() {
     const sortedByProgress = useMemo(() => {
         return [...participants]
             .sort((a, b) => {
-                // Sort by status priority first: COMPLETED > IN_PROGRESS > NOT_STARTED
                 const score = (status: string) => status === 'COMPLETED' ? 3 : status === 'IN_PROGRESS' ? 2 : 1;
                 if (score(a.status) !== score(b.status)) return score(b.status) - score(a.status);
-                // Then sort by progress count
                 return b.progressCount - a.progressCount;
             });
     }, [participants]);
@@ -164,7 +170,6 @@ export default function ExamDetailScreen() {
                 });
             }
         });
-
         const avgs: Record<number, number> = {};
         Object.keys(questionAvg).forEach(qNo => {
             const times = questionAvg[Number(qNo)];
@@ -175,10 +180,22 @@ export default function ExamDetailScreen() {
         return avgs;
     }, [participants]);
 
-    if (loading && !exam) {
+    if (loading) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                 <ActivityIndicator size="large" color={COLORS.primary} />
+            </View>
+        );
+    }
+
+    if (!exam) {
+        return (
+            <View style={styles.container}>
+                <ScreenHeader title="Live Race" />
+                <View style={styles.emptyContainer}>
+                    <Text style={styles.emptyText}>No active exam found.</Text>
+                    <Text style={styles.emptySub}>Wait for the host to create one!</Text>
+                </View>
             </View>
         );
     }
@@ -187,10 +204,10 @@ export default function ExamDetailScreen() {
 
     return (
         <View style={styles.container}>
-            <ScreenHeader title={exam?.title || "Exam Results"} />
+            <ScreenHeader title={exam?.title || "Live Race"} />
 
             <SegmentedTabs
-                tabs={['Live Race', 'Leaderboard', 'Pace Analysis']}
+                tabs={['Live', 'Leaderboard', 'Analysis']}
                 activeTab={activeTab}
                 onChange={setActiveTab}
             />
@@ -243,7 +260,7 @@ export default function ExamDetailScreen() {
                     <View style={styles.tabContent}>
                         {myResult?.status === 'COMPLETED' ? (
                             <View style={styles.myRankCard}>
-                                <Text style={styles.myRankTitle}>Your Rank</Text>
+                                <Text style={styles.myRankTitle}>Your Checkpoint</Text>
                                 <Text style={styles.myRankValue}>#{myRank}</Text>
                                 <Text style={styles.myRankSub}>
                                     Time: {formatDuration(myResult.durationMs)}
@@ -251,12 +268,12 @@ export default function ExamDetailScreen() {
                             </View>
                         ) : (
                             <View style={styles.infoCard}>
-                                <Text style={styles.infoText}>Complete the race to get ranked!</Text>
+                                <Text style={styles.infoText}>Finish correctly to set your rank.</Text>
                             </View>
                         )}
 
                         <View style={styles.section}>
-                            <Text style={styles.sectionLabel}>All Finishers</Text>
+                            <Text style={styles.sectionLabel}>Finishing Order</Text>
                             {sortedByTime.map((p, index) => (
                                 <ParticipantRow
                                     key={p.userId}
@@ -268,7 +285,7 @@ export default function ExamDetailScreen() {
                                 />
                             ))}
                             {sortedByTime.length === 0 && (
-                                <Text style={styles.emptyText}>No finishers yet. Be the first!</Text>
+                                <Text style={styles.emptyText}>No finishers yet.</Text>
                             )}
                         </View>
                     </View>
@@ -280,10 +297,9 @@ export default function ExamDetailScreen() {
                         {myResult?.status === 'COMPLETED' && myResult.records.length > 0 ? (
                             <>
                                 <View style={styles.infoCard}>
-                                    <Text style={styles.infoText}>Green bars mean you were faster than average. Red means slower.</Text>
+                                    <Text style={styles.infoText}>Green = Faster than Avg / Red = Slower</Text>
                                 </View>
                                 <View style={styles.section}>
-                                    <Text style={styles.sectionLabel}>Question Analysis</Text>
                                     {myResult.records.map(r => {
                                         const avg = roomAvgPerQuestion[r.question_no] || r.duration_ms;
                                         const diff = r.duration_ms - avg;
@@ -303,7 +319,7 @@ export default function ExamDetailScreen() {
                             </>
                         ) : (
                             <View style={styles.infoCard}>
-                                <Text style={styles.infoText}>Pace analysis is available after you complete the exam.</Text>
+                                <Text style={styles.infoText}>Available after finishing.</Text>
                             </View>
                         )}
                     </View>
@@ -313,8 +329,16 @@ export default function ExamDetailScreen() {
             {myResult && myResult.status !== 'COMPLETED' && (
                 <View style={styles.bottomBar}>
                     <PrimaryButton
-                        label="Join the Race"
-                        onPress={() => router.push({ pathname: "/(tabs)/rooms/[id]/exam/[examId]/run", params: { id: roomId, examId: currentExamId } })}
+                        label={myResult.status === 'IN_PROGRESS' ? "Continue Race" : "Join Race"}
+                        // Redirect to run logic. Wait, this needs 'run' path.
+                        // app/room/[id]/run is not a tab.
+                        // I need to use the old stack path for the actual running part because it shouldn't show tabs?
+                        // Or I should put 'run.tsx' inside 'app/room/[id]/run.tsx'?
+                        // The plan didn't specify 'run'.
+                        // Currently run is at `/rooms/[id]/exam/[examId]/run`.
+                        // I will keep using that for the actual test taking to avoid navigation complexity,
+                        // or better, I should link to `/(tabs)/rooms/${roomId}/exam/${exam.id}/run` to be safe.
+                        onPress={() => router.push(`/(tabs)/rooms/${roomId}/exam/${exam.id}/run`)}
                         style={{ width: '100%' }}
                     />
                 </View>
@@ -327,6 +351,16 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: COLORS.bg,
+    },
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 40,
+    },
+    emptySub: {
+        color: COLORS.textMuted,
+        marginTop: 8,
     },
     scrollContent: {
         paddingBottom: 40,

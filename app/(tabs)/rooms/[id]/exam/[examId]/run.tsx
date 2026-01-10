@@ -1,3 +1,4 @@
+import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useKeepAwake } from "expo-keep-awake";
@@ -39,6 +40,7 @@ export default function ExamRunScreen() {
     useKeepAwake();
     const supabase = useSupabase();
     const router = useRouter();
+    const { isLoaded, userId } = useAuth();
     const { id, examId } = useLocalSearchParams<{ id: string; examId: string }>();
 
     const roomId = Array.isArray(id) ? id[0] : id;
@@ -63,7 +65,12 @@ export default function ExamRunScreen() {
 
     // 2. Initialize Attempt
     useEffect(() => {
-        if (!roomId || !currentExamId) return;
+        if (!roomId || !currentExamId || !isLoaded) return;
+        if (!userId) {
+            Alert.alert("로그인이 필요합니다", "시험을 시작하려면 로그인해 주세요.");
+            router.back();
+            return;
+        }
 
         const init = async () => {
             try {
@@ -83,7 +90,7 @@ export default function ExamRunScreen() {
                     .insert({
                         exam_id: currentExamId,
                         room_id: roomId ?? null,
-                        user_id: (await supabase.auth.getUser()).data.user?.id!,
+                        user_id: userId,
                         started_at: startTime.toISOString(),
                     })
                     .select("id")
@@ -103,7 +110,7 @@ export default function ExamRunScreen() {
         };
 
         if (loading) init();
-    }, [roomId, currentExamId]);
+    }, [roomId, currentExamId, isLoaded, userId, loading, supabase, router]);
 
     const handleNext = useCallback(async () => {
         if (!attemptId || !exam) return;

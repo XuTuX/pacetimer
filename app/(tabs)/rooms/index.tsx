@@ -16,7 +16,7 @@ type RoomMemberRow = Database["public"]["Tables"]["room_members"]["Row"];
 export default function RoomsIndexScreen() {
     const supabase = useSupabase();
     const router = useRouter();
-    const { userId } = useAuth();
+    const { isLoaded, userId } = useAuth();
 
     const [rooms, setRooms] = useState<RoomRow[]>([]);
     const [roomIdInput, setRoomIdInput] = useState("");
@@ -75,6 +75,11 @@ export default function RoomsIndexScreen() {
     const handleJoin = async () => {
         const roomId = roomIdInput.trim();
         if (!roomId) return;
+        if (!isLoaded) return;
+        if (!userId) {
+            setError("Please sign in to join a room.");
+            return;
+        }
 
         setJoining(true);
         setError(null);
@@ -89,13 +94,13 @@ export default function RoomsIndexScreen() {
 
             const { error: joinError } = await supabase
                 .from("room_members")
-                .insert({ room_id: roomData.id, user_id: userId ?? "" });
+                .insert({ room_id: roomData.id, user_id: userId });
 
             if (joinError && !joinError.message.includes("unique")) throw joinError;
 
             setRoomIdInput("");
             await refresh();
-            router.push({ pathname: "/(tabs)/rooms/[id]", params: { id: roomData.id } });
+            router.push(`/room/${roomData.id}`);
         } catch (err: any) {
             setError(formatSupabaseError(err));
         } finally {
@@ -104,7 +109,7 @@ export default function RoomsIndexScreen() {
     };
 
     const openRoom = (id: string) => {
-        router.push({ pathname: "/(tabs)/rooms/[id]", params: { id } });
+        router.push(`/room/${id}`);
     };
 
     return (

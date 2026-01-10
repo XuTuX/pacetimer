@@ -7,7 +7,8 @@ export default function RoomInsideLayout() {
         <Stack
             screenOptions={{
                 headerShown: false,
-                contentStyle: { backgroundColor: COLORS.bg },
+                contentStyle: { backgroundColor: COLORS.bg || "#F8F9FA" },
+                animation: "slide_from_right",
             }}
         >
             <Stack.Screen name="index" />

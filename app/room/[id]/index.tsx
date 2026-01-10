@@ -4,15 +4,14 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ChallengeCard } from "../../../../components/ui/ChallengeCard";
-import { ParticipantRow } from "../../../../components/ui/ParticipantRow";
-import { PrimaryButton } from "../../../../components/ui/PrimaryButton";
-import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
-import type { StatusType } from "../../../../components/ui/StatusBadge";
-import type { Database } from "../../../../lib/db-types";
-import { useSupabase } from "../../../../lib/supabase";
-import { formatSupabaseError } from "../../../../lib/supabaseError";
-import { COLORS } from "../../../../lib/theme";
+import { ChallengeCard } from "../../../components/ui/ChallengeCard";
+import { ParticipantRow } from "../../../components/ui/ParticipantRow";
+import { PrimaryButton } from "../../../components/ui/PrimaryButton";
+import { ScreenHeader } from "../../../components/ui/ScreenHeader";
+import type { Database } from "../../../lib/db-types";
+import { useSupabase } from "../../../lib/supabase";
+import { formatSupabaseError } from "../../../lib/supabaseError";
+import { COLORS } from "../../../lib/theme";
 
 type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
 type RoomMemberRow = Database["public"]["Tables"]["room_members"]["Row"];
@@ -159,10 +158,13 @@ export default function RoomHomeScreen() {
         }
     };
 
-    const getStatus = (attempt?: AttemptRow): StatusType => {
-        if (!attempt) return 'NOT_STARTED';
-        if (attempt.ended_at) return 'COMPLETED';
-        return 'IN_PROGRESS';
+    // Update navigation to point to internal Room Tabs
+    const openExam = () => {
+        // Redirection logic can be handled by switching to 'race' tab, 
+        // but since 'race' tab needs auto-detection, we can also just push to the old exam screen?
+        // Wait, the plan is to have a Race Tab.
+        // If I push to router.push('/room/[id]/race'), it switches tab.
+        router.push(`/room/${roomId}/race`);
     };
 
     if (loading && !room) {
@@ -179,6 +181,8 @@ export default function RoomHomeScreen() {
         <View style={styles.container}>
             <ScreenHeader
                 title={room?.name || "Room"}
+                showBack={true}
+                onBack={() => router.replace('/(tabs)/rooms')}
                 rightElement={
                     <Pressable onPress={handleShare} style={styles.headerAction}>
                         <Ionicons name="share-outline" size={22} color={COLORS.text} />
@@ -196,14 +200,7 @@ export default function RoomHomeScreen() {
                             questionCount={selectedExam.total_questions}
                             timeMinutes={selectedExam.total_minutes}
                             participantCount={activeParticipants.length + finishedParticipants.length}
-                            description={selectedExam.description || undefined}
-                            onStart={() => {
-                                if (myAttempt?.ended_at) {
-                                    router.push(`/(tabs)/rooms/${roomId}/exam/${selectedExamId}`);
-                                } else {
-                                    router.push(`/(tabs)/rooms/${roomId}/exam/${selectedExamId}/run`);
-                                }
-                            }}
+                            onStart={openExam}
                             buttonLabel={myAttempt?.ended_at ? "View My Result" : "Join Challenge"}
                         />
                     ) : (
