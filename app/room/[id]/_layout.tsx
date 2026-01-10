@@ -47,6 +47,12 @@ export default function RoomTabsLayout() {
                 }}
             />
             <Tabs.Screen
+                name="add-exam"
+                options={{
+                    href: null,
+                }}
+            />
+            <Tabs.Screen
                 name="analysis"
                 options={{
                     title: "분석",

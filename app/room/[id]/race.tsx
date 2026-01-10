@@ -3,14 +3,21 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ExamCard } from "../../../components/rooms/ExamCard";
+import { PrimaryButton } from "../../../components/ui/PrimaryButton";
 import { ScreenHeader } from "../../../components/ui/ScreenHeader";
 import type { Database } from "../../../lib/db-types";
 import { useSupabase } from "../../../lib/supabase";
 import { formatSupabaseError } from "../../../lib/supabaseError";
 import { COLORS } from "../../../lib/theme";
 
+type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
+type RoomMemberRow = Database["public"]["Tables"]["room_members"]["Row"];
+type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type RecordRow = Database["public"]["Tables"]["attempt_records"]["Row"];
+
+type RoomMemberWithProfile = RoomMemberRow & { profile?: ProfileRow | null };
 
 interface ParticipantResult {
     userId: string;
@@ -37,57 +44,99 @@ export default function RaceScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const roomId = Array.isArray(id) ? id[0] : id;
 
+    const [room, setRoom] = useState<RoomRow | null>(null);
     const [exam, setExam] = useState<RoomExamRow | null>(null);
+    const [exams, setExams] = useState<RoomExamRow[]>([]);
+    const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState(0);
     const [participants, setParticipants] = useState<ParticipantResult[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
 
-    const loadData = useCallback(async () => {
+    const loadData = useCallback(async (options?: { examId?: string | null; skipLoading?: boolean }) => {
         if (!roomId) {
             setLoading(false);
             return;
         }
-        setLoading(true);
+        if (!options?.skipLoading) {
+            setLoading(true);
+        }
         setError(null);
         try {
-            // 1. Fetch Latest Exam
-            const { data: exams, error: exError } = await supabase
+            // 1. Fetch Room Info
+            const { data: roomData, error: roomError } = await supabase
+                .from("rooms")
+                .select("*")
+                .eq("id", roomId)
+                .single();
+
+            if (roomError) throw roomError;
+            setRoom(roomData);
+
+            // 2. Fetch Exams
+            const { data: examData, error: exError } = await supabase
                 .from("room_exams")
                 .select("*")
                 .eq("room_id", roomId)
-                .order("created_at", { ascending: false })
-                .limit(1);
+                .order("created_at", { ascending: false });
 
             if (exError) throw exError;
 
-            const currentExam = exams && exams.length > 0 ? exams[0] : null;
-            setExam(currentExam);
+            const fetchedExams = examData ?? [];
+            setExams(fetchedExams);
 
-            if (!currentExam) {
-                setLoading(false);
-                return;
+            const latestExam = fetchedExams[0] ?? null;
+            const explicitExamId = options?.examId ?? null;
+            let currentExamId = explicitExamId ?? selectedExamId;
+            const selectedExists = currentExamId && fetchedExams.some(exam => exam.id === currentExamId);
+            const shouldFallbackToLatest = !selectedExists;
+            const shouldForceLatestForOwner =
+                !explicitExamId &&
+                !!latestExam &&
+                latestExam.created_by === userId &&
+                latestExam.id !== currentExamId;
+
+            if (shouldFallbackToLatest || shouldForceLatestForOwner) {
+                currentExamId = latestExam?.id ?? null;
             }
 
-            const currentExamId = currentExam.id;
+            if (currentExamId !== selectedExamId) {
+                setSelectedExamId(currentExamId ?? null);
+            }
 
-            // 2. Room Members & Profiles
+            const currentExam = fetchedExams.find(exam => exam.id === currentExamId) ?? null;
+            setExam(currentExam);
+
+            // 3. Room Members & Profiles
             const { data: mData, error: mError } = await supabase
                 .from("room_members")
                 .select(`*, profile:profiles(*)`)
                 .eq("room_id", roomId);
             if (mError) throw mError;
-            const members = (mData as any[]) || [];
+            const members = (mData as RoomMemberWithProfile[]) || [];
+            if (userId) {
+                const currentMember = members.find(m => m.user_id === userId);
+                setCurrentUserRole(currentMember?.role ?? null);
+            } else {
+                setCurrentUserRole(null);
+            }
 
-            // 3. All Attempts
+            if (!currentExam) {
+                setParticipants([]);
+                return;
+            }
+
+            const currentExamIdValue = currentExam.id;
+
+            // 4. All Attempts
             const { data: aData, error: aError } = await supabase
                 .from("attempts")
                 .select("*")
-                .eq("exam_id", currentExamId);
+                .eq("exam_id", currentExamIdValue);
             if (aError) throw aError;
             const attempts = aData || [];
 
-            // 4. All Records
+            // 5. All Records
             const attemptIds = attempts.map(a => a.id);
             let rData: RecordRow[] = [];
             if (attemptIds.length > 0) {
@@ -127,13 +176,31 @@ export default function RaceScreen() {
         } finally {
             setLoading(false);
         }
-    }, [roomId, userId, supabase]);
+    }, [roomId, selectedExamId, supabase, userId]);
 
     useFocusEffect(
         useCallback(() => {
             loadData();
         }, [loadData])
     );
+
+    const isOwner = room?.owner_id === userId;
+    const canCreateExam = useMemo(() => {
+        if (isOwner) return true;
+        if (!currentUserRole) return false;
+        const normalizedRole = currentUserRole.toLowerCase();
+        return normalizedRole === "host" || normalizedRole === "owner";
+    }, [currentUserRole, isOwner]);
+
+    const handleCreateExam = () => {
+        if (!roomId) return;
+        router.push(`/room/${roomId}/add-exam`);
+    };
+
+    const handleSelectExam = (examId: string) => {
+        setSelectedExamId(examId);
+        loadData({ examId, skipLoading: true });
+    };
 
     const sortedByTime = useMemo(() => {
         return [...participants]
@@ -182,23 +249,10 @@ export default function RaceScreen() {
 
     // ... (hooks remain until render)
 
-    if (loading) {
+    if (loading && exams.length === 0) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                 <ActivityIndicator size="large" color={COLORS.primary} />
-            </View>
-        );
-    }
-
-    if (!exam) {
-        return (
-            <View style={styles.container}>
-                <ScreenHeader title="모의고사" showBack={false} />
-                <View style={styles.emptyContainer}>
-                    <Ionicons name="document-text-outline" size={64} color={COLORS.border} />
-                    <Text style={styles.emptyText}>진행 중인 시험이 없습니다.</Text>
-                    <Text style={styles.emptySub}>호스트가 모의고사를 생성할 때까지{"\n"}잠시만 기다려 주세요.</Text>
-                </View>
             </View>
         );
     }
@@ -210,6 +264,11 @@ export default function RaceScreen() {
                 showBack={false}
                 rightElement={
                     <View style={styles.headerActions}>
+                        {canCreateExam && (
+                            <Pressable onPress={handleCreateExam} style={styles.headerBtn}>
+                                <Ionicons name="add" size={22} color={COLORS.text} />
+                            </Pressable>
+                        )}
                         <Pressable onPress={() => router.replace('/(tabs)/rooms')} style={styles.headerBtn}>
                             <Ionicons name="close" size={24} color={COLORS.text} />
                         </Pressable>
@@ -218,105 +277,158 @@ export default function RaceScreen() {
             />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                {/* Exam Focus Section */}
-                <View style={styles.examHero}>
-                    <View style={styles.examBadge}>
-                        <Text style={styles.examBadgeText}>LIVE CHALLENGE</Text>
+                {exam ? (
+                    <View style={styles.examHero}>
+                        <View style={styles.examBadge}>
+                            <Text style={styles.examBadgeText}>LIVE CHALLENGE</Text>
+                        </View>
+                        <Text style={styles.examTitleLarge}>{exam.title}</Text>
+                        <View style={styles.examMetaRow}>
+                            <View style={styles.metaItem}>
+                                <Ionicons name="time" size={16} color={COLORS.primary} />
+                                <Text style={styles.metaText}>{exam.total_minutes}분</Text>
+                            </View>
+                            <View style={styles.metaItem}>
+                                <Ionicons name="document-text" size={16} color={COLORS.primary} />
+                                <Text style={styles.metaText}>{exam.total_questions}문제</Text>
+                            </View>
+                        </View>
+
+                        {myResult?.status !== 'COMPLETED' ? (
+                            <Pressable
+                                onPress={() => router.push(`/(tabs)/rooms/${roomId}/exam/${exam.id}/run`)}
+                                style={({ pressed }) => [
+                                    styles.mainStartBtn,
+                                    pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }
+                                ]}
+                            >
+                                <Text style={styles.mainStartBtnText}>
+                                    {myResult?.status === 'IN_PROGRESS' ? '시험 이어하기' : '지금 시작하기'}
+                                </Text>
+                                <Ionicons name="rocket" size={20} color={COLORS.white} />
+                            </Pressable>
+                        ) : (
+                            <View style={styles.completedStatus}>
+                                <View style={styles.completedIconBox}>
+                                    <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
+                                </View>
+                                <View>
+                                    <Text style={styles.completedTitle}>시험을 완료했습니다!</Text>
+                                    <Text style={styles.completedSub}>결과는 분석 탭에서 확인할 수 있습니다.</Text>
+                                </View>
+                            </View>
+                        )}
                     </View>
-                    <Text style={styles.examTitleLarge}>{exam.title}</Text>
-                    <View style={styles.examMetaRow}>
-                        <View style={styles.metaItem}>
-                            <Ionicons name="time" size={16} color={COLORS.primary} />
-                            <Text style={styles.metaText}>{exam.total_minutes}분</Text>
-                        </View>
-                        <View style={styles.metaItem}>
-                            <Ionicons name="document-text" size={16} color={COLORS.primary} />
-                            <Text style={styles.metaText}>{exam.total_questions}문제</Text>
-                        </View>
+                ) : (
+                    <View style={styles.emptyContainer}>
+                        <Ionicons name="document-text-outline" size={64} color={COLORS.border} />
+                        <Text style={styles.emptyText}>진행 중인 시험이 없습니다.</Text>
+                        <Text style={styles.emptySub}>호스트가 모의고사를 생성할 때까지{"\n"}잠시만 기다려 주세요.</Text>
+                        {canCreateExam && (
+                            <PrimaryButton
+                                label="모의고사 만들기"
+                                onPress={handleCreateExam}
+                                style={styles.emptyPrimaryBtn}
+                            />
+                        )}
+                    </View>
+                )}
+
+                <View style={styles.listSection}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionLabel}>모의고사 목록</Text>
+                        {canCreateExam && (
+                            <Pressable onPress={handleCreateExam} style={styles.inlineCreateBtn}>
+                                <Ionicons name="add" size={14} color={COLORS.primary} />
+                                <Text style={styles.inlineCreateText}>새로 만들기</Text>
+                            </Pressable>
+                        )}
                     </View>
 
-                    {myResult?.status !== 'COMPLETED' ? (
-                        <Pressable
-                            onPress={() => router.push(`/(tabs)/rooms/${roomId}/exam/${exam.id}/run`)}
-                            style={({ pressed }) => [
-                                styles.mainStartBtn,
-                                pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }
-                            ]}
-                        >
-                            <Text style={styles.mainStartBtnText}>
-                                {myResult?.status === 'IN_PROGRESS' ? '시험 이어하기' : '지금 시작하기'}
-                            </Text>
-                            <Ionicons name="rocket" size={20} color={COLORS.white} />
-                        </Pressable>
+                    {exams.length === 0 ? (
+                        <View style={styles.emptyList}>
+                            <Text style={styles.emptyListText}>아직 생성된 모의고사가 없습니다.</Text>
+                        </View>
                     ) : (
-                        <View style={styles.completedStatus}>
-                            <View style={styles.completedIconBox}>
-                                <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
-                            </View>
-                            <View>
-                                <Text style={styles.completedTitle}>시험을 완료했습니다!</Text>
-                                <Text style={styles.completedSub}>결과는 분석 탭에서 확인할 수 있습니다.</Text>
-                            </View>
+                        <View style={styles.examList}>
+                            {exams.map((item) => (
+                                <ExamCard
+                                    key={item.id}
+                                    exam={item}
+                                    onPress={() => handleSelectExam(item.id)}
+                                    attemptStatus={
+                                        item.id === exam?.id
+                                            ? (myResult?.status === 'COMPLETED'
+                                                ? 'completed'
+                                                : myResult?.status === 'IN_PROGRESS'
+                                                    ? 'in_progress'
+                                                    : 'none')
+                                            : 'none'
+                                    }
+                                    isActive={item.id === exam?.id}
+                                />
+                            ))}
                         </View>
                     )}
                 </View>
 
-                {/* Participants Progress */}
-                <View style={styles.progressSection}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionLabel}>실시간 진행 현황</Text>
-                        <View style={styles.liveIndicator}>
-                            <View style={styles.liveDot} />
-                            <Text style={styles.liveText}>LIVE</Text>
+                {exam && (
+                    <View style={styles.progressSection}>
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionLabel}>실시간 진행 현황</Text>
+                            <View style={styles.liveIndicator}>
+                                <View style={styles.liveDot} />
+                                <Text style={styles.liveText}>LIVE</Text>
+                            </View>
                         </View>
-                    </View>
 
-                    <View style={styles.participantsList}>
-                        {participants.map(p => (
-                            <View key={p.userId} style={styles.participantCard}>
-                                <View style={styles.pInfo}>
-                                    <View style={[styles.pAvatar, p.status === 'IN_PROGRESS' && styles.pActiveAvatar]}>
-                                        <Ionicons
-                                            name={p.status === 'COMPLETED' ? "checkmark-circle" : "person"}
-                                            size={20}
-                                            color={p.status === 'COMPLETED' ? COLORS.primary : COLORS.textMuted}
-                                        />
-                                    </View>
-                                    <View>
-                                        <Text style={styles.pName}>{p.name}{p.isMe ? " (나)" : ""}</Text>
-                                        <Text style={styles.pStatusText}>
-                                            {p.status === 'COMPLETED' ? '완료' : p.status === 'IN_PROGRESS' ? '진행 중' : '대기 중'}
-                                        </Text>
-                                    </View>
-                                </View>
-
-                                <View style={styles.pProgress}>
-                                    {p.status === 'IN_PROGRESS' ? (
-                                        <View style={styles.progressFillContainer}>
-                                            <View style={styles.progressBarBg}>
-                                                <View
-                                                    style={[
-                                                        styles.progressBarFill,
-                                                        { width: `${(p.progressCount / exam.total_questions) * 100}%` }
-                                                    ]}
-                                                />
-                                            </View>
-                                            <Text style={styles.progressPercentText}>
-                                                {p.progressCount}/{exam.total_questions}
+                        <View style={styles.participantsList}>
+                            {participants.map(p => (
+                                <View key={p.userId} style={styles.participantCard}>
+                                    <View style={styles.pInfo}>
+                                        <View style={[styles.pAvatar, p.status === 'IN_PROGRESS' && styles.pActiveAvatar]}>
+                                            <Ionicons
+                                                name={p.status === 'COMPLETED' ? "checkmark-circle" : "person"}
+                                                size={20}
+                                                color={p.status === 'COMPLETED' ? COLORS.primary : COLORS.textMuted}
+                                            />
+                                        </View>
+                                        <View>
+                                            <Text style={styles.pName}>{p.name}{p.isMe ? " (나)" : ""}</Text>
+                                            <Text style={styles.pStatusText}>
+                                                {p.status === 'COMPLETED' ? '완료' : p.status === 'IN_PROGRESS' ? '진행 중' : '대기 중'}
                                             </Text>
                                         </View>
-                                    ) : p.status === 'COMPLETED' ? (
-                                        <View style={styles.timeBadge}>
-                                            <Text style={styles.timeBadgeText}>{formatDuration(p.durationMs)}</Text>
-                                        </View>
-                                    ) : (
-                                        <Text style={styles.waitingText}>준비 중</Text>
-                                    )}
+                                    </View>
+
+                                    <View style={styles.pProgress}>
+                                        {p.status === 'IN_PROGRESS' ? (
+                                            <View style={styles.progressFillContainer}>
+                                                <View style={styles.progressBarBg}>
+                                                    <View
+                                                        style={[
+                                                            styles.progressBarFill,
+                                                            { width: `${(p.progressCount / exam.total_questions) * 100}%` }
+                                                        ]}
+                                                    />
+                                                </View>
+                                                <Text style={styles.progressPercentText}>
+                                                    {p.progressCount}/{exam.total_questions}
+                                                </Text>
+                                            </View>
+                                        ) : p.status === 'COMPLETED' ? (
+                                            <View style={styles.timeBadge}>
+                                                <Text style={styles.timeBadgeText}>{formatDuration(p.durationMs)}</Text>
+                                            </View>
+                                        ) : (
+                                            <Text style={styles.waitingText}>준비 중</Text>
+                                        )}
+                                    </View>
                                 </View>
-                            </View>
-                        ))}
+                            ))}
+                        </View>
                     </View>
-                </View>
+                )}
             </ScrollView>
         </View>
     );
@@ -330,6 +442,7 @@ const styles = StyleSheet.create({
     headerActions: {
         flexDirection: 'row',
         alignItems: 'center',
+        gap: 8,
     },
     headerBtn: {
         width: 36,
@@ -365,6 +478,10 @@ const styles = StyleSheet.create({
         marginTop: 8,
         textAlign: 'center',
         fontWeight: '500',
+    },
+    emptyPrimaryBtn: {
+        marginTop: 20,
+        alignSelf: 'stretch',
     },
     examHero: {
         padding: 24,
@@ -433,6 +550,41 @@ const styles = StyleSheet.create({
         color: COLORS.white,
         fontSize: 16,
         fontWeight: '800',
+    },
+    listSection: {
+        paddingHorizontal: 20,
+        marginTop: 12,
+    },
+    examList: {
+        gap: 12,
+    },
+    inlineCreateBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 999,
+        backgroundColor: COLORS.primaryLight,
+    },
+    inlineCreateText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: COLORS.primary,
+    },
+    emptyList: {
+        padding: 16,
+        alignItems: 'center',
+        backgroundColor: COLORS.surface,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderStyle: 'dashed',
+    },
+    emptyListText: {
+        color: COLORS.textMuted,
+        fontWeight: '600',
+        fontSize: 13,
     },
     completedStatus: {
         flexDirection: 'row',

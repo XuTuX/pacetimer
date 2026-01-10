@@ -9,9 +9,10 @@ interface ExamCardProps {
     exam: RoomExam;
     onPress: () => void;
     attemptStatus?: 'none' | 'in_progress' | 'completed';
+    isActive?: boolean;
 }
 
-export function ExamCard({ exam, onPress, attemptStatus = 'none' }: ExamCardProps) {
+export function ExamCard({ exam, onPress, attemptStatus = 'none', isActive = false }: ExamCardProps) {
     const isCompleted = attemptStatus === 'completed';
     const isInProgress = attemptStatus === 'in_progress';
 
@@ -21,7 +22,8 @@ export function ExamCard({ exam, onPress, attemptStatus = 'none' }: ExamCardProp
             style={({ pressed }) => [
                 styles.container,
                 pressed && { transform: [{ scale: 0.98 }], opacity: 0.9 },
-                isCompleted && styles.containerCompleted
+                isCompleted && styles.containerCompleted,
+                isActive && styles.containerActive
             ]}
         >
             <View style={styles.content}>
@@ -83,6 +85,10 @@ const styles = StyleSheet.create({
     containerCompleted: {
         backgroundColor: COLORS.bg,
         borderColor: 'transparent',
+    },
+    containerActive: {
+        borderColor: COLORS.primary,
+        backgroundColor: COLORS.primaryLight,
     },
     content: {
         flex: 1,

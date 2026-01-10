@@ -4,6 +4,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ExamCard } from "../../../../components/rooms/ExamCard";
 import { ChallengeCard } from "../../../../components/ui/ChallengeCard";
 import { ParticipantRow } from "../../../../components/ui/ParticipantRow";
 import { PrimaryButton } from "../../../../components/ui/PrimaryButton";
@@ -41,9 +42,11 @@ export default function RoomHomeScreen() {
     const [error, setError] = useState<string | null>(null);
     const [joining, setJoining] = useState(false);
 
-    const loadData = useCallback(async () => {
+    const loadData = useCallback(async (options?: { examId?: string | null; skipLoading?: boolean }) => {
         if (!roomId) return;
-        setLoading(true);
+        if (!options?.skipLoading) {
+            setLoading(true);
+        }
         setError(null);
         try {
             // 1. Fetch Room Info
@@ -65,10 +68,23 @@ export default function RoomHomeScreen() {
             const fetchedExams = examData ?? [];
             setExams(fetchedExams);
 
-            let currentExamId = selectedExamId;
-            if (fetchedExams.length > 0 && !currentExamId) {
-                currentExamId = fetchedExams[0].id;
-                setSelectedExamId(currentExamId);
+            const latestExam = fetchedExams[0] ?? null;
+            const explicitExamId = options?.examId ?? null;
+            let currentExamId = explicitExamId ?? selectedExamId;
+            const selectedExists = currentExamId && fetchedExams.some(exam => exam.id === currentExamId);
+            const shouldFallbackToLatest = !selectedExists;
+            const shouldForceLatestForOwner =
+                !explicitExamId &&
+                !!latestExam &&
+                latestExam.created_by === userId &&
+                latestExam.id !== currentExamId;
+
+            if (shouldFallbackToLatest || shouldForceLatestForOwner) {
+                currentExamId = latestExam?.id ?? null;
+            }
+
+            if (currentExamId !== selectedExamId) {
+                setSelectedExamId(currentExamId ?? null);
             }
 
             // 3. Fetch Participants with Profiles
@@ -106,13 +122,25 @@ export default function RoomHomeScreen() {
         } finally {
             setLoading(false);
         }
-    }, [roomId, selectedExamId, supabase]);
+    }, [roomId, selectedExamId, supabase, userId]);
 
     useFocusEffect(
         useCallback(() => {
             loadData();
         }, [loadData])
     );
+
+    const isOwner = room?.owner_id === userId;
+
+    const handleCreateExam = () => {
+        if (!roomId) return;
+        router.push(`/(tabs)/rooms/${roomId}/add-exam`);
+    };
+
+    const handleSelectExam = (examId: string) => {
+        setSelectedExamId(examId);
+        loadData({ examId, skipLoading: true });
+    };
 
     const isMember = useMemo(() => participants.some(p => p.user_id === userId), [participants, userId]);
     const selectedExam = useMemo(() => exams.find(e => e.id === selectedExamId), [exams, selectedExamId]);
@@ -180,9 +208,16 @@ export default function RoomHomeScreen() {
             <ScreenHeader
                 title={room?.name || "룸"}
                 rightElement={
-                    <Pressable onPress={handleShare} style={styles.headerAction}>
-                        <Ionicons name="share-outline" size={22} color={COLORS.text} />
-                    </Pressable>
+                    <View style={styles.headerActions}>
+                        {isOwner && (
+                            <Pressable onPress={handleCreateExam} style={styles.headerAction}>
+                                <Ionicons name="add" size={22} color={COLORS.text} />
+                            </Pressable>
+                        )}
+                        <Pressable onPress={handleShare} style={styles.headerAction}>
+                            <Ionicons name="share-outline" size={22} color={COLORS.text} />
+                        </Pressable>
+                    </View>
                 }
             />
 
@@ -209,6 +244,50 @@ export default function RoomHomeScreen() {
                     ) : (
                         <View style={styles.emptyCard}>
                             <Text style={styles.emptyText}>현재 진행 중인 시험이 없습니다.</Text>
+                            {isOwner && (
+                                <PrimaryButton
+                                    label="모의고사 만들기"
+                                    onPress={handleCreateExam}
+                                    style={styles.emptyPrimaryBtn}
+                                />
+                            )}
+                        </View>
+                    )}
+                </View>
+
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionLabel}>모의고사 목록</Text>
+                        {isOwner && (
+                            <Pressable onPress={handleCreateExam} style={styles.inlineCreateBtn}>
+                                <Ionicons name="add" size={14} color={COLORS.primary} />
+                                <Text style={styles.inlineCreateText}>새로 만들기</Text>
+                            </Pressable>
+                        )}
+                    </View>
+                    {exams.length === 0 ? (
+                        <View style={styles.emptyList}>
+                            <Text style={styles.emptyListText}>아직 생성된 모의고사가 없습니다.</Text>
+                        </View>
+                    ) : (
+                        <View style={styles.examList}>
+                            {exams.map((item) => (
+                                <ExamCard
+                                    key={item.id}
+                                    exam={item}
+                                    onPress={() => handleSelectExam(item.id)}
+                                    attemptStatus={
+                                        item.id === selectedExamId
+                                            ? (myAttempt?.ended_at
+                                                ? "completed"
+                                                : myAttempt
+                                                    ? "in_progress"
+                                                    : "none")
+                                            : "none"
+                                    }
+                                    isActive={item.id === selectedExamId}
+                                />
+                            ))}
                         </View>
                     )}
                 </View>
@@ -308,6 +387,11 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
     headerAction: {
         padding: 4,
     },
@@ -359,9 +443,30 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.surfaceVariant,
         borderRadius: 16,
     },
+    emptyPrimaryBtn: {
+        marginTop: 16,
+        width: '100%',
+    },
     emptyText: {
         color: COLORS.textMuted,
         fontWeight: '600',
+    },
+    examList: {
+        gap: 12,
+    },
+    inlineCreateBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 999,
+        backgroundColor: COLORS.primaryLight,
+    },
+    inlineCreateText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: COLORS.primary,
     },
     emptyList: {
         padding: 16,
