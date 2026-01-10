@@ -47,11 +47,11 @@ export default function RoomTabsLayout() {
                 }}
             />
             <Tabs.Screen
-                name="rank"
+                name="analysis"
                 options={{
-                    title: "순위",
+                    title: "분석",
                     tabBarIcon: ({ color, size, focused }) => (
-                        <Ionicons name={focused ? "trophy" : "trophy-outline"} size={26} color={color} />
+                        <Ionicons name={focused ? "analytics" : "analytics-outline"} size={26} color={color} />
                     ),
                 }}
             />

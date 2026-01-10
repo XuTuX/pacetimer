@@ -44,7 +44,10 @@ export default function RaceScreen() {
     const [error, setError] = useState<string | null>(null);
 
     const loadData = useCallback(async () => {
-        if (!roomId) return;
+        if (!roomId) {
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         setError(null);
         try {
@@ -252,7 +255,7 @@ export default function RaceScreen() {
                             </View>
                             <View>
                                 <Text style={styles.completedTitle}>시험을 완료했습니다!</Text>
-                                <Text style={styles.completedSub}>결과는 순위 탭에서 확인할 수 있습니다.</Text>
+                                <Text style={styles.completedSub}>결과는 분석 탭에서 확인할 수 있습니다.</Text>
                             </View>
                         </View>
                     )}
