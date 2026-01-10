@@ -204,7 +204,7 @@ export default function RoomHomeScreen() {
                                     router.push(`/(tabs)/rooms/${roomId}/exam/${selectedExamId}/run`);
                                 }
                             }}
-                            buttonLabel={myAttempt?.ended_at ? "View My Result" : "Join Challenge"}
+                            buttonLabel={myAttempt?.ended_at ? "Completed" : "Join Challenge"}
                         />
                     ) : (
                         <View style={styles.emptyCard}>

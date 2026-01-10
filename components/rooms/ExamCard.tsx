@@ -47,7 +47,7 @@ export function ExamCard({ exam, onPress, attemptStatus = 'none' }: ExamCardProp
                 {isCompleted ? (
                     <View style={styles.statusBadgeSuccess}>
                         <Ionicons name="checkmark-circle" size={16} color={COLORS.success} />
-                        <Text style={styles.statusTextSuccess}>Done</Text>
+                        <Text style={styles.statusTextSuccess}>Completed</Text>
                     </View>
                 ) : isInProgress ? (
                     <View style={styles.statusBadgeWarning}>

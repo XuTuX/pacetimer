@@ -157,6 +157,7 @@ export default function ExamDetailScreen() {
     const roomAvgPerQuestion = useMemo(() => {
         const questionAvg: Record<number, number[]> = {};
         participants.forEach(p => {
+            if (p.status !== 'COMPLETED') return;
             if (p.records) {
                 p.records.forEach(r => {
                     if (!questionAvg[r.question_no]) questionAvg[r.question_no] = [];

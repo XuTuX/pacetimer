@@ -20,6 +20,8 @@ import { formatSupabaseError } from "../../../../../../lib/supabaseError";
 import { COLORS } from "../../../../../../lib/theme";
 
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
+type AttemptRow = Database["public"]["Tables"]["attempts"]["Row"];
+type AttemptRecordRow = Database["public"]["Tables"]["attempt_records"]["Row"];
 
 function formatTime(ms: number) {
     const s = Math.floor(ms / 1000);
@@ -72,7 +74,38 @@ export default function ExamRunScreen() {
             return;
         }
 
+        let cancelled = false;
+
+        const hydrateExistingAttempt = async (
+            attempt: Pick<AttemptRow, "id" | "started_at">,
+            totalQuestions: number
+        ) => {
+            const startedAtMs = attempt.started_at ? new Date(attempt.started_at).getTime() : Date.now();
+            let records: AttemptRecordRow[] = [];
+            const { data: recordData, error: recordError } = await supabase
+                .from("attempt_records")
+                .select("id, question_no, duration_ms")
+                .eq("attempt_id", attempt.id)
+                .order("question_no", { ascending: true });
+
+            if (!recordError && recordData) {
+                records = recordData;
+            }
+
+            const completedCount = records.length;
+            const elapsedFromRecords = records.reduce((sum, record) => sum + record.duration_ms, 0);
+            const nextIndex = Math.min(completedCount + 1, totalQuestions);
+
+            if (cancelled) return;
+            setAttemptId(attempt.id);
+            setStartedAtTime(startedAtMs);
+            setQuestionIndex(nextIndex);
+            setIsCompleted(completedCount >= totalQuestions);
+            setLastLapTime(startedAtMs + elapsedFromRecords);
+        };
+
         const init = async () => {
+            setLoading(true);
             try {
                 // Fetch Exam
                 const { data: eData, error: eError } = await supabase
@@ -81,7 +114,38 @@ export default function ExamRunScreen() {
                     .eq("id", currentExamId)
                     .single();
                 if (eError) throw eError;
+                if (cancelled) return;
                 setExam(eData);
+
+                const { data: existingAttempt, error: existingError } = await supabase
+                    .from("attempts")
+                    .select("id, started_at, ended_at")
+                    .eq("room_id", roomId)
+                    .eq("exam_id", currentExamId)
+                    .eq("user_id", userId)
+                    .order("created_at", { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+                if (existingError) throw existingError;
+
+                if (existingAttempt?.ended_at) {
+                    Alert.alert(
+                        "이미 완료한 시험",
+                        "이 시험은 이미 완료했습니다. 분석 화면으로 이동합니다.",
+                        [
+                            {
+                                text: "확인",
+                                onPress: () => router.replace(`/(tabs)/rooms/${roomId}/exam/${currentExamId}`)
+                            }
+                        ]
+                    );
+                    return;
+                }
+
+                if (existingAttempt) {
+                    await hydrateExistingAttempt(existingAttempt, eData.total_questions);
+                    return;
+                }
 
                 // Create Attempt
                 const startTime = new Date();
@@ -89,28 +153,58 @@ export default function ExamRunScreen() {
                     .from("attempts")
                     .insert({
                         exam_id: currentExamId,
-                        room_id: roomId ?? null,
+                        room_id: roomId,
                         user_id: userId,
                         started_at: startTime.toISOString(),
                     })
-                    .select("id")
+                    .select("id, started_at")
                     .single();
 
-                if (aError) throw aError;
+                if (aError) {
+                    if ((aError as { code?: string })?.code === "23505") {
+                        const { data: retryAttempt, error: retryError } = await supabase
+                            .from("attempts")
+                            .select("id, started_at, ended_at")
+                            .eq("room_id", roomId)
+                            .eq("exam_id", currentExamId)
+                            .eq("user_id", userId)
+                            .order("created_at", { ascending: false })
+                            .limit(1)
+                            .maybeSingle();
+                        if (retryError) throw retryError;
+                        if (retryAttempt?.ended_at) {
+                            router.replace(`/(tabs)/rooms/${roomId}/exam/${currentExamId}`);
+                            return;
+                        }
+                        if (retryAttempt) {
+                            await hydrateExistingAttempt(retryAttempt, eData.total_questions);
+                            return;
+                        }
+                    }
+                    throw aError;
+                }
+
+                if (cancelled) return;
+                const startedAtMs = aData.started_at ? new Date(aData.started_at).getTime() : startTime.getTime();
                 setAttemptId(aData.id);
-                setStartedAtTime(startTime.getTime());
-                setLastLapTime(startTime.getTime());
+                setStartedAtTime(startedAtMs);
+                setLastLapTime(startedAtMs);
+                setQuestionIndex(1);
+                setIsCompleted(false);
 
             } catch (err: any) {
                 Alert.alert("Error", formatSupabaseError(err));
                 router.back();
             } finally {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             }
         };
 
-        if (loading) init();
-    }, [roomId, currentExamId, isLoaded, userId, loading, supabase, router]);
+        init();
+        return () => {
+            cancelled = true;
+        };
+    }, [roomId, currentExamId, isLoaded, userId, supabase, router]);
 
     const handleNext = useCallback(async () => {
         if (!attemptId || !exam) return;
@@ -168,8 +262,7 @@ export default function ExamRunScreen() {
                             duration_ms: durationMs,
                         }).eq("id", attemptId);
 
-                        // Redirect to the new Room Race Tab
-                        router.replace(`/room/${roomId}/race`);
+                        router.replace(`/(tabs)/rooms/${roomId}/exam/${currentExamId}`);
                     } catch (e) {
                         Alert.alert("Error", "Failed to save result.");
                         setLoading(false);

@@ -158,8 +158,11 @@ export default function RoomHomeScreen() {
 
     const openExamRunner = () => {
         if (!selectedExam) return;
-        // Navigate to the runner stack
-        router.push(`/(tabs)/rooms/${roomId}/exam/${selectedExam.id}/run`);
+        if (myAttempt?.ended_at) {
+            router.push(`/(tabs)/rooms/${roomId}/exam/${selectedExam.id}`);
+        } else {
+            router.push(`/(tabs)/rooms/${roomId}/exam/${selectedExam.id}/run`);
+        }
     };
 
     if (loading && !room) {
@@ -197,12 +200,7 @@ export default function RoomHomeScreen() {
                             timeMinutes={selectedExam.total_minutes}
                             participantCount={participants.length} // Showing total room members here might be better for "Potential"
                             onStart={openExamRunner}
-                            buttonLabel={myAttempt?.ended_at ? "View Results" : "Enter Challenge"}
-
-                        // If finished, maybe redirect to results?
-                        // Logic: If ended, buttonLabel is "View Results" -> still runs openExamRunner?
-                        // Probably should go to Race tab instead if finished.
-                        // Let's refine onStart.
+                            buttonLabel={myAttempt?.ended_at ? "Completed" : "Enter Challenge"}
                         />
                     ) : (
                         <View style={styles.emptyCard}>
