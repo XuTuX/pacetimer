@@ -9,14 +9,22 @@ export default function RoomTabsLayout() {
             screenOptions={{
                 headerShown: false,
                 tabBarActiveTintColor: COLORS.primary,
-                tabBarInactiveTintColor: COLORS.gray,
-                tabBarLabelStyle: { fontSize: 10, fontWeight: "600" },
+                tabBarInactiveTintColor: COLORS.textMuted,
+                tabBarLabelStyle: {
+                    fontSize: 11,
+                    fontWeight: "600",
+                    marginBottom: Platform.OS === "ios" ? 0 : 4,
+                },
                 tabBarStyle: {
-                    backgroundColor: COLORS.bg,
-                    borderTopColor: COLORS.border,
-                    borderTopWidth: 1,
-                    paddingTop: 12,
+                    backgroundColor: COLORS.surface,
+                    borderTopColor: 'transparent', // Cleaner look without hard border
+                    elevation: 0, // Remove Android shadow for flatter look or keep it subtle
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: -2 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 10,
                     height: Platform.OS === "ios" ? 88 : 68,
+                    paddingTop: 8,
                 },
             }}
         >
@@ -25,7 +33,7 @@ export default function RoomTabsLayout() {
                 options={{
                     title: "Lobby",
                     tabBarIcon: ({ color, size, focused }) => (
-                        <Ionicons name={focused ? "home" : "home-outline"} size={size} color={color} />
+                        <Ionicons name={focused ? "home" : "home-outline"} size={26} color={color} />
                     ),
                 }}
             />
@@ -34,7 +42,7 @@ export default function RoomTabsLayout() {
                 options={{
                     title: "Race",
                     tabBarIcon: ({ color, size, focused }) => (
-                        <Ionicons name={focused ? "stopwatch" : "stopwatch-outline"} size={size} color={color} />
+                        <Ionicons name={focused ? "flag" : "flag-outline"} size={26} color={color} />
                     ),
                 }}
             />
@@ -43,7 +51,7 @@ export default function RoomTabsLayout() {
                 options={{
                     title: "Rank",
                     tabBarIcon: ({ color, size, focused }) => (
-                        <Ionicons name={focused ? "ribbon" : "ribbon-outline"} size={size} color={color} />
+                        <Ionicons name={focused ? "trophy" : "trophy-outline"} size={26} color={color} />
                     ),
                 }}
             />

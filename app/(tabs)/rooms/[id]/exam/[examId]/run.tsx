@@ -168,7 +168,8 @@ export default function ExamRunScreen() {
                             duration_ms: durationMs,
                         }).eq("id", attemptId);
 
-                        router.replace(`/(tabs)/rooms/${roomId}/exam/${currentExamId}`);
+                        // Redirect to the new Room Race Tab
+                        router.replace(`/room/${roomId}/race`);
                     } catch (e) {
                         Alert.alert("Error", "Failed to save result.");
                         setLoading(false);
@@ -195,15 +196,15 @@ export default function ExamRunScreen() {
             {/* Header */}
             <View style={styles.header}>
                 <View>
-                    <Text style={styles.label}>남은 시간</Text>
+                    <Text style={styles.label}>TIME REMAINING</Text>
                     <Text style={[styles.examTimer, remainingSec < 300 && { color: COLORS.accent }]}>
                         {formatSec(remainingSec)}
                     </Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={styles.label}>진행도</Text>
+                    <Text style={styles.label}>PROGRESS</Text>
                     <Text style={styles.progressText}>
-                        {isCompleted ? "완료" : `${questionIndex} / ${exam.total_questions}`}
+                        {isCompleted ? "Review" : `${questionIndex} / ${exam.total_questions}`}
                     </Text>
                 </View>
             </View>
@@ -213,7 +214,7 @@ export default function ExamRunScreen() {
                 <Text style={styles.examTitle}>{exam.title}</Text>
                 <View style={[styles.badge, isCompleted ? styles.badgeComplete : styles.badgeProgress]}>
                     <Text style={[styles.badgeText, isCompleted ? styles.textComplete : styles.textProgress]}>
-                        {isCompleted ? "검토 중" : "시험 진행 중"}
+                        {isCompleted ? "Submit Now" : "Focus Mode"}
                     </Text>
                 </View>
             </View>
@@ -222,36 +223,38 @@ export default function ExamRunScreen() {
             <Pressable
                 style={({ pressed }) => [
                     styles.touchArea,
-                    pressed && { backgroundColor: COLORS.primaryLight },
-                    isCompleted && { borderColor: COLORS.primary, borderStyle: 'solid' }
+                    pressed && { backgroundColor: COLORS.surfaceVariant }, // subtle feedback
+                    isCompleted && { borderColor: COLORS.primary, borderWidth: 2, borderStyle: 'solid' }
                 ]}
                 onPress={handleNext}
             >
                 <View style={styles.qInfo}>
                     <Text style={styles.qHeader}>
-                        {isCompleted ? "최종 확인" : `Question`}
+                        {isCompleted ? "Ready to Submit?" : `Question`}
                     </Text>
                     <Text style={[styles.qNumber, isCompleted && { color: COLORS.primary }]}>
                         {isCompleted ? "DONE" : `Q${questionIndex}`}
                     </Text>
                 </View>
 
+                {/* Only show lap time if not done? Or total time? */}
+                {/* Keeping lap time is fine for pacing */}
                 <Text style={styles.lapTime}>{formatTime(lapElapsedMs)}</Text>
 
                 <View style={styles.tapHint}>
                     <Ionicons
-                        name={isCompleted ? "checkmark-done-circle" : "finger-print"}
-                        size={24}
-                        color={COLORS.primary}
+                        name={isCompleted ? "checkmark-circle" : "finger-print-outline"}
+                        size={32}
+                        color={isCompleted ? COLORS.primary : COLORS.textMuted}
                     />
                     <Text style={styles.tapHintText}>
-                        {isCompleted ? "터치하면 시험을 최종 종료합니다" : "화면을 터치하면 다음 문항으로 넘어갑니다"}
+                        {isCompleted ? "Tap to finish exam" : "Tap anywhere for next question"}
                     </Text>
                 </View>
             </Pressable>
 
             <TouchableOpacity onPress={() => router.back()} style={styles.exitBtn}>
-                <Text style={styles.exitBtnText}>시험 중단하기</Text>
+                <Text style={styles.exitBtnText}>Quit Exam</Text>
             </TouchableOpacity>
         </SafeAreaView>
     );
@@ -265,9 +268,9 @@ const styles = StyleSheet.create({
         paddingHorizontal: 24,
         paddingVertical: 20,
     },
-    label: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginBottom: 4, letterSpacing: 0.5 },
-    examTimer: { fontSize: 28, fontWeight: '900', color: COLORS.text, fontVariant: ['tabular-nums'] },
-    progressText: { fontSize: 20, fontWeight: '800', color: COLORS.primary },
+    label: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted, marginBottom: 4, letterSpacing: 1 },
+    examTimer: { fontSize: 24, fontWeight: '800', color: COLORS.text, fontVariant: ['tabular-nums'] },
+    progressText: { fontSize: 24, fontWeight: '800', color: COLORS.primary, fontVariant: ['tabular-nums'] },
 
     titleArea: {
         alignItems: 'center',
@@ -277,8 +280,8 @@ const styles = StyleSheet.create({
     },
     examTitle: {
         fontSize: 16,
-        fontWeight: '700',
-        color: COLORS.textMuted,
+        fontWeight: '600',
+        color: COLORS.text,
         textAlign: 'center',
     },
     badge: {
@@ -286,31 +289,34 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
         borderRadius: 8,
     },
-    badgeProgress: { backgroundColor: COLORS.primaryLight },
-    badgeComplete: { backgroundColor: '#FFDCE0' }, // Light red/accent tint
-    badgeText: { fontSize: 11, fontWeight: '800' },
-    textProgress: { color: COLORS.primary },
-    textComplete: { color: COLORS.accent },
+    badgeProgress: { backgroundColor: COLORS.surfaceVariant },
+    badgeComplete: { backgroundColor: '#E0F2F1' }, // Light teal
+    badgeText: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
+    textProgress: { color: COLORS.textMuted },
+    textComplete: { color: COLORS.primary },
 
     touchArea: {
         flex: 1,
         marginHorizontal: 20,
-        marginBottom: 20,
+        marginBottom: 30,
         borderRadius: 32,
         backgroundColor: COLORS.surface,
-        borderWidth: 2,
-        borderColor: COLORS.border,
-        borderStyle: 'dashed',
+        // Removed dashed border for cleaner look, added shadow
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        elevation: 3,
         justifyContent: 'center',
         alignItems: 'center',
     },
     qInfo: { alignItems: 'center', marginBottom: 20 },
-    qHeader: { fontSize: 18, fontWeight: '600', color: COLORS.textMuted },
-    qNumber: { fontSize: 48, fontWeight: '900', color: COLORS.text },
-    lapTime: { fontSize: 64, fontWeight: '900', color: COLORS.primary, fontVariant: ['tabular-nums'], marginVertical: 20 },
-    tapHint: { alignItems: 'center', gap: 8, opacity: 0.7, paddingHorizontal: 40 },
-    tapHintText: { fontSize: 14, fontWeight: '600', color: COLORS.textMuted, textAlign: 'center' },
+    qHeader: { fontSize: 16, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
+    qNumber: { fontSize: 56, fontWeight: '900', color: COLORS.text, marginVertical: 8 },
+    lapTime: { fontSize: 56, fontWeight: '300', color: COLORS.primary, fontVariant: ['tabular-nums'], marginBottom: 32 },
+    tapHint: { alignItems: 'center', gap: 12, opacity: 0.8 },
+    tapHintText: { fontSize: 14, fontWeight: '500', color: COLORS.textMuted },
 
     exitBtn: { alignSelf: 'center', marginBottom: 20, padding: 10 },
-    exitBtnText: { color: COLORS.textMuted, fontWeight: '600', textDecorationLine: 'underline' }
+    exitBtnText: { color: COLORS.error, fontWeight: '600', fontSize: 13 }
 });

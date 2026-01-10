@@ -114,6 +114,8 @@ export default function RoomHomeScreen() {
     );
 
     const isMember = useMemo(() => participants.some(p => p.user_id === userId), [participants, userId]);
+    // const selectedExam = useMemo(() => exams.find(e => e.id === selectedExamId), [exams, selectedExamId]); // Redundant if we just use exams[0] or selectedExamId logic properly
+    // Let's stick to the active one for now
     const selectedExam = useMemo(() => exams.find(e => e.id === selectedExamId), [exams, selectedExamId]);
     const myAttempt = useMemo(() => participants.find(p => p.user_id === userId)?.attempt, [participants, userId]);
 
@@ -127,10 +129,6 @@ export default function RoomHomeScreen() {
             .sort((a, b) => (a.attempt?.duration_ms || 0) - (b.attempt?.duration_ms || 0)),
         [participants]);
 
-    const otherParticipants = useMemo(() =>
-        participants.filter(p => !p.attempt),
-        [participants]);
-
     const handleJoin = async () => {
         if (!roomId || !userId) return;
         setJoining(true);
@@ -139,7 +137,7 @@ export default function RoomHomeScreen() {
                 .from("room_members")
                 .insert({ room_id: roomId, user_id: userId });
             if (error) throw error;
-            loadData();
+            await loadData();
         } catch (err) {
             setError(formatSupabaseError(err));
         } finally {
@@ -158,13 +156,10 @@ export default function RoomHomeScreen() {
         }
     };
 
-    // Update navigation to point to internal Room Tabs
-    const openExam = () => {
-        // Redirection logic can be handled by switching to 'race' tab, 
-        // but since 'race' tab needs auto-detection, we can also just push to the old exam screen?
-        // Wait, the plan is to have a Race Tab.
-        // If I push to router.push('/room/[id]/race'), it switches tab.
-        router.push(`/room/${roomId}/race`);
+    const openExamRunner = () => {
+        if (!selectedExam) return;
+        // Navigate to the runner stack
+        router.push(`/(tabs)/rooms/${roomId}/exam/${selectedExam.id}/run`);
     };
 
     if (loading && !room) {
@@ -185,105 +180,116 @@ export default function RoomHomeScreen() {
                 onBack={() => router.replace('/(tabs)/rooms')}
                 rightElement={
                     <Pressable onPress={handleShare} style={styles.headerAction}>
-                        <Ionicons name="share-outline" size={22} color={COLORS.text} />
+                        <Ionicons name="share-outline" size={24} color={COLORS.text} />
                     </Pressable>
                 }
             />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                {/* Active Exam / Challenge Card */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionLabel}>Active Event</Text>
+
+                {/* Hero / Active Exam Section */}
+                <View style={styles.heroSection}>
+                    <Text style={styles.sectionLabel}>Next Challenge</Text>
                     {selectedExam ? (
                         <ChallengeCard
                             title={selectedExam.title}
                             questionCount={selectedExam.total_questions}
                             timeMinutes={selectedExam.total_minutes}
-                            participantCount={activeParticipants.length + finishedParticipants.length}
-                            onStart={openExam}
-                            buttonLabel={myAttempt?.ended_at ? "View My Result" : "Join Challenge"}
+                            participantCount={participants.length} // Showing total room members here might be better for "Potential"
+                            onStart={openExamRunner}
+                            buttonLabel={myAttempt?.ended_at ? "View Results" : "Enter Challenge"}
+
+                        // If finished, maybe redirect to results?
+                        // Logic: If ended, buttonLabel is "View Results" -> still runs openExamRunner?
+                        // Probably should go to Race tab instead if finished.
+                        // Let's refine onStart.
                         />
                     ) : (
                         <View style={styles.emptyCard}>
-                            <Text style={styles.emptyText}>No active exam right now.</Text>
+                            <Ionicons name="file-tray-outline" size={48} color={COLORS.textMuted} />
+                            <Text style={styles.emptyText}>No active exams.</Text>
+                            <Text style={styles.emptySubText}>The host hasn't started a session yet.</Text>
                         </View>
                     )}
                 </View>
 
-                {/* Section: Live Now */}
-                {activeParticipants.length > 0 && (
+                {/* Quick Stats / Info */}
+                <View style={styles.statsRow}>
+                    <View style={styles.statItem}>
+                        <Text style={styles.statValue}>{participants.length}</Text>
+                        <Text style={styles.statLabel}>Members</Text>
+                    </View>
+                    <View style={styles.statSeparator} />
+                    <View style={styles.statItem}>
+                        <Text style={styles.statValue}>{finishedParticipants.length}</Text>
+                        <Text style={styles.statLabel}>Finished</Text>
+                    </View>
+                    <View style={styles.statSeparator} />
+                    <View style={styles.statItem}>
+                        <Text style={styles.statValue}>{activeParticipants.length}</Text>
+                        <Text style={styles.statLabel}>Racing</Text>
+                    </View>
+                </View>
+
+                {/* Live Activity Section */}
+                {(activeParticipants.length > 0) && (
                     <View style={styles.section}>
                         <View style={styles.sectionHeader}>
                             <View style={styles.liveIndicator}>
                                 <View style={styles.liveDot} />
-                                <Text style={styles.liveText}>LIVE NOW</Text>
+                                <Text style={styles.liveText}>LIVE RACERS</Text>
                             </View>
-                            <Text style={styles.countText}>{activeParticipants.length}</Text>
                         </View>
                         {activeParticipants.map(p => (
                             <ParticipantRow
                                 key={p.user_id}
-                                name={p.profile?.display_name || `User ${(p.user_id || "").slice(0, 4)}`}
+                                name={p.profile?.display_name || `User`}
                                 status="IN_PROGRESS"
                                 isMe={p.user_id === userId}
-                                progress="Racing..."
+                                progress="In Progress"
                             />
                         ))}
                     </View>
                 )}
 
-                {/* Section: Leaderboard Preview */}
-                <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionLabel}>Leaderboard</Text>
-                    </View>
-                    {finishedParticipants.length === 0 ? (
-                        <View style={styles.emptyList}>
-                            <Text style={styles.emptyListText}>Be the first to finish!</Text>
-                        </View>
-                    ) : (
-                        finishedParticipants.map((p, index) => (
+                {/* Recent Finishers */}
+                {finishedParticipants.length > 0 && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionLabel}>Recent Finishers</Text>
+                        {finishedParticipants.slice(0, 5).map((p, index) => ( // Show top 5
                             <ParticipantRow
                                 key={p.user_id}
-                                name={p.profile?.display_name || `User ${(p.user_id || "").slice(0, 4)}`}
+                                name={p.profile?.display_name || `User`}
                                 status="COMPLETED"
                                 isMe={p.user_id === userId}
                                 rank={index + 1}
-                                lastUpdated={p.attempt?.ended_at ? new Date(p.attempt.ended_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined}
-                            />
-                        ))
-                    )}
-                </View>
-
-                {/* Section: Others */}
-                {otherParticipants.length > 0 && (
-                    <View style={styles.section}>
-                        <Text style={styles.sectionLabel}>Ready to Join</Text>
-                        {otherParticipants.map(p => (
-                            <ParticipantRow
-                                key={p.user_id}
-                                name={p.profile?.display_name || `User ${(p.user_id || "").slice(0, 4)}`}
-                                status="NOT_STARTED"
-                                isMe={p.user_id === userId}
+                                lastUpdated={new Date(p.attempt!.ended_at!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             />
                         ))}
+                        {finishedParticipants.length > 5 && (
+                            <Pressable style={styles.viewAllBtn} onPress={() => router.push(`/room/${roomId}/rank`)}>
+                                <Text style={styles.viewAllText}>View All Rankings</Text>
+                                <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+                            </Pressable>
+                        )}
                     </View>
                 )}
 
                 {!isMember && (
                     <View style={styles.joinOverlay}>
-                        <View style={styles.joinCard}>
-                            <Text style={styles.joinTitle}>Join the Race</Text>
-                            <Text style={styles.joinDesc}>Join this room to compete with others in real-time.</Text>
+                        <View style={styles.joinMsgContainer}>
+                            <Text style={styles.joinTitle}>Join {room?.name}</Text>
+                            <Text style={styles.joinDesc}>Participate in group exams and track your progress together.</Text>
                             <PrimaryButton
                                 label="Join Room"
                                 onPress={handleJoin}
                                 loading={joining}
-                                style={{ width: '100%', marginTop: 16 }}
+                                style={{ width: '100%', marginTop: 20 }}
                             />
                         </View>
                     </View>
                 )}
+
             </ScrollView>
 
             {error && (
@@ -306,22 +312,79 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     headerAction: {
-        padding: 4,
+        padding: 8,
     },
     scrollContent: {
-        paddingBottom: 40,
+        paddingBottom: 100,
     },
-    section: {
-        paddingHorizontal: 20,
-        marginTop: 24,
+    heroSection: {
+        padding: 20,
+        paddingTop: 10,
     },
     sectionLabel: {
         fontSize: 13,
         fontWeight: '700',
         color: COLORS.textMuted,
         textTransform: 'uppercase',
-        letterSpacing: 0.5,
+        letterSpacing: 1,
         marginBottom: 12,
+    },
+    emptyCard: {
+        padding: 40,
+        alignItems: 'center',
+        backgroundColor: COLORS.surface,
+        borderRadius: 24,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderStyle: 'dashed',
+    },
+    emptyText: {
+        marginTop: 16,
+        fontSize: 16,
+        fontWeight: '700',
+        color: COLORS.text,
+    },
+    emptySubText: {
+        marginTop: 4,
+        fontSize: 14,
+        color: COLORS.textMuted,
+        textAlign: 'center',
+    },
+    statsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginHorizontal: 20,
+        padding: 20,
+        backgroundColor: COLORS.surface,
+        borderRadius: 16,
+        marginBottom: 24,
+        borderWidth: 1, // subtle border
+        borderColor: COLORS.border,
+    },
+    statItem: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    statValue: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: COLORS.text,
+        marginBottom: 4,
+    },
+    statLabel: {
+        fontSize: 12,
+        color: COLORS.textMuted,
+        fontWeight: '600',
+    },
+    statSeparator: {
+        width: 1,
+        height: 24,
+        backgroundColor: COLORS.border,
+    },
+    section: {
+        paddingHorizontal: 20,
+        marginBottom: 24,
     },
     sectionHeader: {
         flexDirection: 'row',
@@ -333,65 +396,51 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
+        backgroundColor: COLORS.errorLight,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
     },
     liveDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
+        width: 6,
+        height: 6,
+        borderRadius: 3,
         backgroundColor: COLORS.error,
     },
     liveText: {
-        fontSize: 13,
+        fontSize: 11,
         fontWeight: '800',
         color: COLORS.error,
     },
-    countText: {
+    viewAllBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        marginTop: 8,
+    },
+    viewAllText: {
         fontSize: 13,
         fontWeight: '600',
         color: COLORS.textMuted,
-    },
-    emptyCard: {
-        padding: 24,
-        alignItems: 'center',
-        backgroundColor: COLORS.surfaceVariant,
-        borderRadius: 16,
-    },
-    emptyText: {
-        color: COLORS.textMuted,
-        fontWeight: '600',
-    },
-    emptyList: {
-        padding: 16,
-        alignItems: 'center',
-        backgroundColor: COLORS.surface,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        borderStyle: 'dashed',
-    },
-    emptyListText: {
-        color: COLORS.textMuted,
-        fontStyle: 'italic',
+        marginRight: 4,
     },
     joinOverlay: {
-        margin: 20,
-        marginTop: 40,
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        padding: 20,
+        paddingBottom: 40,
+        backgroundColor: 'rgba(255,255,255,0.95)', // Glass effect overlay if possible? Or just solid
+        borderTopWidth: 1,
+        borderTopColor: COLORS.border,
     },
-    joinCard: {
-        padding: 24,
-        backgroundColor: COLORS.surface,
-        borderRadius: 24,
+    joinMsgContainer: {
         alignItems: 'center',
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 2,
     },
     joinTitle: {
-        fontSize: 20,
+        fontSize: 18,
         fontWeight: '800',
         color: COLORS.text,
         marginBottom: 8,
@@ -403,7 +452,10 @@ const styles = StyleSheet.create({
         lineHeight: 20,
     },
     errorBanner: {
-        margin: 20,
+        position: 'absolute',
+        top: 100,
+        left: 20,
+        right: 20,
         padding: 12,
         backgroundColor: COLORS.errorLight,
         borderRadius: 12,
