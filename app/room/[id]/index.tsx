@@ -4,9 +4,6 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ChallengeCard } from "../../../components/ui/ChallengeCard";
-import { ParticipantRow } from "../../../components/ui/ParticipantRow";
-import { PrimaryButton } from "../../../components/ui/PrimaryButton";
 import { ScreenHeader } from "../../../components/ui/ScreenHeader";
 import type { Database } from "../../../lib/db-types";
 import { useSupabase } from "../../../lib/supabase";
@@ -129,6 +126,21 @@ export default function RoomHomeScreen() {
             .sort((a, b) => (a.attempt?.duration_ms || 0) - (b.attempt?.duration_ms || 0)),
         [participants]);
 
+    const handleLeaveRoom = async () => {
+        if (!roomId || !userId) return;
+        try {
+            const { error } = await supabase
+                .from("room_members")
+                .delete()
+                .eq("room_id", roomId)
+                .eq("user_id", userId);
+            if (error) throw error;
+            router.replace('/(tabs)/rooms');
+        } catch (err) {
+            setError(formatSupabaseError(err));
+        }
+    };
+
     const handleJoin = async () => {
         if (!roomId || !userId) return;
         setJoining(true);
@@ -156,8 +168,20 @@ export default function RoomHomeScreen() {
         }
     };
 
-    const openExamRunner = () => {
+    const openExamRunner = async () => {
         if (!selectedExam) return;
+
+        // Auto-join if not member
+        if (!isMember && roomId && userId) {
+            try {
+                await supabase
+                    .from("room_members")
+                    .insert({ room_id: roomId, user_id: userId });
+            } catch (err) {
+                console.error("Auto-join failed:", err);
+            }
+        }
+
         if (myAttempt?.ended_at) {
             router.push(`/(tabs)/rooms/${roomId}/exam/${selectedExam.id}`);
         } else {
@@ -179,119 +203,80 @@ export default function RoomHomeScreen() {
         <View style={styles.container}>
             <ScreenHeader
                 title={room?.name || "룸"}
-                showBack={true}
-                onBack={() => router.replace('/(tabs)/rooms')}
+                showBack={false}
                 rightElement={
-                    <Pressable onPress={handleShare} style={styles.headerAction}>
-                        <Ionicons name="share-outline" size={24} color={COLORS.text} />
-                    </Pressable>
+                    <View style={styles.headerActions}>
+                        <Pressable onPress={handleShare} style={styles.headerBtn}>
+                            <Ionicons name="share-outline" size={20} color={COLORS.text} />
+                        </Pressable>
+                        <Pressable onPress={() => router.replace('/(tabs)/rooms')} style={styles.headerBtn}>
+                            <Ionicons name="close" size={24} color={COLORS.text} />
+                        </Pressable>
+                    </View>
                 }
             />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-
-                {/* Hero / Active Exam Section */}
+                {/* Hero Section */}
                 <View style={styles.heroSection}>
-                    <Text style={styles.sectionLabel}>다음 챌린지</Text>
-                    {selectedExam ? (
-                        <ChallengeCard
-                            title={selectedExam.title}
-                            questionCount={selectedExam.total_questions}
-                            timeMinutes={selectedExam.total_minutes}
-                            participantCount={participants.length} // Showing total room members here might be better for "Potential"
-                            onStart={openExamRunner}
-                            buttonLabel={myAttempt?.ended_at ? "완료" : "챌린지 입장"}
-                        />
-                    ) : (
-                        <View style={styles.emptyCard}>
-                            <Ionicons name="file-tray-outline" size={48} color={COLORS.textMuted} />
-                            <Text style={styles.emptyText}>진행 중인 시험이 없습니다.</Text>
-                            <Text style={styles.emptySubText}>호스트가 아직 세션을 시작하지 않았습니다.</Text>
-                        </View>
-                    )}
+                    <Text style={styles.welcomeText}>안녕하세요!</Text>
+                    <Text style={styles.roomName}>{room?.name || "스터디 룸"}</Text>
+                    <Text style={styles.roomDesc}>함께 공부하며 목표를 달성해봐요.</Text>
                 </View>
 
-                {/* Quick Stats / Info */}
-                <View style={styles.statsRow}>
-                    <View style={styles.statItem}>
-                        <Text style={styles.statValue}>{participants.length}</Text>
-                        <Text style={styles.statLabel}>참여자</Text>
-                    </View>
-                    <View style={styles.statSeparator} />
-                    <View style={styles.statItem}>
-                        <Text style={styles.statValue}>{finishedParticipants.length}</Text>
-                        <Text style={styles.statLabel}>완료</Text>
-                    </View>
-                    <View style={styles.statSeparator} />
-                    <View style={styles.statItem}>
-                        <Text style={styles.statValue}>{activeParticipants.length}</Text>
-                        <Text style={styles.statLabel}>진행 중</Text>
-                    </View>
-                </View>
+                {/* Main Action / Active Challenge Removed - Moved to Mock Exam Tab */}
 
-                {/* Live Activity Section */}
-                {(activeParticipants.length > 0) && (
-                    <View style={styles.section}>
-                        <View style={styles.sectionHeader}>
-                            <View style={styles.liveIndicator}>
-                                <View style={styles.liveDot} />
-                                <Text style={styles.liveText}>진행 중</Text>
-                            </View>
-                        </View>
-                        {activeParticipants.map(p => (
-                            <ParticipantRow
-                                key={p.user_id}
-                                name={p.profile?.display_name || "사용자"}
-                                status="IN_PROGRESS"
-                                isMe={p.user_id === userId}
-                                progress="진행 중"
-                            />
-                        ))}
+                {/* Participants */}
+                <View style={styles.participantsSection}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionLabel}>참여 중인 멤버</Text>
+                        <Text style={styles.countBadge}>{participants.length}</Text>
                     </View>
-                )}
-
-                {/* Recent Finishers */}
-                {finishedParticipants.length > 0 && (
-                    <View style={styles.section}>
-                        <Text style={styles.sectionLabel}>최근 완료자</Text>
-                        {finishedParticipants.slice(0, 5).map((p, index) => ( // Show top 5
-                            <ParticipantRow
-                                key={p.user_id}
-                                name={p.profile?.display_name || "사용자"}
-                                status="COMPLETED"
-                                isMe={p.user_id === userId}
-                                rank={index + 1}
-                                lastUpdated={new Date(p.attempt!.ended_at!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            />
-                        ))}
-                        {finishedParticipants.length > 5 && (
-                            <Pressable style={styles.viewAllBtn} onPress={() => router.push(`/room/${roomId}/rank`)}>
-                                <Text style={styles.viewAllText}>전체 순위 보기</Text>
-                                <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-                            </Pressable>
+                    <View style={styles.participantsGrid}>
+                        {participants.map((p) => {
+                            const isStudying = p.attempt && !p.attempt.ended_at;
+                            return (
+                                <View key={p.user_id} style={styles.participantItem}>
+                                    <View style={[styles.avatarContainer, isStudying && styles.activeAvatar]}>
+                                        <View style={styles.avatarInner}>
+                                            <Ionicons
+                                                name={isStudying ? "flash" : "person"}
+                                                size={22}
+                                                color={isStudying ? COLORS.primary : COLORS.textMuted}
+                                            />
+                                        </View>
+                                        {isStudying && (
+                                            <View style={styles.statusRing}>
+                                                <View style={styles.statusDot} />
+                                            </View>
+                                        )}
+                                    </View>
+                                    <Text style={[styles.participantName, isStudying && styles.activeText]} numberOfLines={1}>
+                                        {p.user_id === userId ? "나" : (p.profile?.display_name || "사용자")}
+                                    </Text>
+                                    {isStudying && <Text style={styles.activeLabel}>공부중</Text>}
+                                </View>
+                            );
+                        })}
+                        {participants.length === 0 && (
+                            <Text style={styles.emptyText}>참여 중인 멤버가 없습니다.</Text>
                         )}
                     </View>
-                )}
+                </View>
 
-                {!isMember && (
-                    <View style={styles.joinOverlay}>
-                        <View style={styles.joinMsgContainer}>
-                            <Text style={styles.joinTitle}>{room?.name} 참여</Text>
-                            <Text style={styles.joinDesc}>함께 모의고사에 참여하고 진행 상황을 기록해 보세요.</Text>
-                            <PrimaryButton
-                                label="룸 참여"
-                                onPress={handleJoin}
-                                loading={joining}
-                                style={{ width: '100%', marginTop: 20 }}
-                            />
-                        </View>
-                    </View>
-                )}
-
+                {/* Footer Actions */}
+                <View style={styles.footerActions}>
+                    {isMember && (
+                        <Pressable onPress={handleLeaveRoom} style={styles.leaveRoomBtn}>
+                            <Ionicons name="exit-outline" size={16} color={COLORS.textMuted} />
+                            <Text style={styles.leaveRoomText}>룸에서 나가기</Text>
+                        </Pressable>
+                    )}
+                </View>
             </ScrollView>
 
             {error && (
-                <View style={styles.errorBanner}>
+                <View style={styles.errorContainer}>
                     <Text style={styles.errorText}>{error}</Text>
                 </View>
             )}
@@ -309,159 +294,252 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    headerAction: {
-        padding: 8,
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    headerBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: COLORS.surface,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
     },
     scrollContent: {
-        paddingBottom: 100,
+        paddingBottom: 40,
     },
     heroSection: {
-        padding: 20,
-        paddingTop: 10,
+        padding: 24,
+        paddingTop: 12,
+    },
+    welcomeText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: COLORS.primary,
+        marginBottom: 4,
+    },
+    roomName: {
+        fontSize: 28,
+        fontWeight: '900',
+        color: COLORS.text,
+        letterSpacing: -1,
+    },
+    roomDesc: {
+        fontSize: 14,
+        color: COLORS.textMuted,
+        marginTop: 4,
+        fontWeight: '500',
+    },
+    mainSection: {
+        paddingHorizontal: 20,
+        marginBottom: 32,
     },
     sectionLabel: {
         fontSize: 13,
-        fontWeight: '700',
+        fontWeight: '800',
         color: COLORS.textMuted,
         textTransform: 'uppercase',
         letterSpacing: 1,
-        marginBottom: 12,
+        marginBottom: 16,
     },
-    emptyCard: {
-        padding: 40,
-        alignItems: 'center',
+    challengeCard: {
         backgroundColor: COLORS.surface,
         borderRadius: 24,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        borderStyle: 'dashed',
-    },
-    emptyText: {
-        marginTop: 16,
-        fontSize: 16,
-        fontWeight: '700',
-        color: COLORS.text,
-    },
-    emptySubText: {
-        marginTop: 4,
-        fontSize: 14,
-        color: COLORS.textMuted,
-        textAlign: 'center',
-    },
-    statsRow: {
+        padding: 20,
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        marginHorizontal: 20,
-        padding: 20,
-        backgroundColor: COLORS.surface,
-        borderRadius: 16,
-        marginBottom: 24,
-        borderWidth: 1, // subtle border
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.1,
+        shadowRadius: 15,
+        elevation: 5,
+        borderWidth: 1,
         borderColor: COLORS.border,
     },
-    statItem: {
-        flex: 1,
+    challengeIconBox: {
+        width: 48,
+        height: 48,
+        borderRadius: 16,
+        backgroundColor: COLORS.primaryLight,
         alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 16,
     },
-    statValue: {
-        fontSize: 20,
+    challengeDetails: {
+        flex: 1,
+    },
+    challengeTitle: {
+        fontSize: 17,
         fontWeight: '800',
         color: COLORS.text,
-        marginBottom: 4,
+        marginBottom: 6,
     },
-    statLabel: {
+    challengeMeta: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    metaBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    metaText: {
         fontSize: 12,
         color: COLORS.textMuted,
         fontWeight: '600',
     },
-    statSeparator: {
-        width: 1,
-        height: 24,
-        backgroundColor: COLORS.border,
+    startBtn: {
+        backgroundColor: COLORS.primary,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
     },
-    section: {
+    startBtnText: {
+        color: COLORS.white,
+        fontSize: 13,
+        fontWeight: '800',
+    },
+    emptyChallenge: {
+        backgroundColor: COLORS.surfaceVariant,
+        borderRadius: 24,
+        padding: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderStyle: 'dashed',
+    },
+    emptyChallengeText: {
+        marginTop: 12,
+        fontSize: 14,
+        color: COLORS.textMuted,
+        fontWeight: '600',
+    },
+    participantsSection: {
         paddingHorizontal: 20,
-        marginBottom: 24,
     },
     sectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 12,
+        gap: 8,
+        marginBottom: 16,
     },
-    liveIndicator: {
+    countBadge: {
+        backgroundColor: COLORS.surfaceVariant,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 10,
+        fontSize: 11,
+        fontWeight: '700',
+        color: COLORS.textMuted,
+        marginBottom: 16,
+    },
+    participantsGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 20,
+    },
+    participantItem: {
+        width: 70,
+        alignItems: 'center',
+    },
+    avatarContainer: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        padding: 3,
+        backgroundColor: COLORS.bg,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        marginBottom: 8,
+        position: 'relative',
+    },
+    activeAvatar: {
+        borderColor: COLORS.primary,
+        borderWidth: 2,
+    },
+    avatarInner: {
+        flex: 1,
+        borderRadius: 27,
+        backgroundColor: COLORS.surface,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    statusRing: {
+        position: 'absolute',
+        top: -2,
+        right: -2,
+        backgroundColor: COLORS.bg,
+        borderRadius: 10,
+        padding: 2,
+    },
+    statusDot: {
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        backgroundColor: COLORS.primary,
+        borderWidth: 2,
+        borderColor: COLORS.surface,
+    },
+    participantName: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: COLORS.text,
+        textAlign: 'center',
+    },
+    activeText: {
+        color: COLORS.primary,
+        fontWeight: '800',
+    },
+    activeLabel: {
+        fontSize: 9,
+        fontWeight: '800',
+        color: COLORS.primary,
+        marginTop: 2,
+    },
+    footerActions: {
+        marginTop: 48,
+        alignItems: 'center',
+    },
+    leaveRoomBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        backgroundColor: COLORS.errorLight,
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 12,
+        padding: 12,
     },
-    liveDot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: COLORS.error,
-    },
-    liveText: {
-        fontSize: 11,
-        fontWeight: '800',
-        color: COLORS.error,
-    },
-    viewAllBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 12,
-        marginTop: 8,
-    },
-    viewAllText: {
+    leaveRoomText: {
         fontSize: 13,
+        color: COLORS.textMuted,
         fontWeight: '600',
-        color: COLORS.textMuted,
-        marginRight: 4,
     },
-    joinOverlay: {
+    errorContainer: {
         position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        padding: 20,
-        paddingBottom: 40,
-        backgroundColor: 'rgba(255,255,255,0.95)', // Glass effect overlay if possible? Or just solid
-        borderTopWidth: 1,
-        borderTopColor: COLORS.border,
-    },
-    joinMsgContainer: {
-        alignItems: 'center',
-    },
-    joinTitle: {
-        fontSize: 18,
-        fontWeight: '800',
-        color: COLORS.text,
-        marginBottom: 8,
-    },
-    joinDesc: {
-        fontSize: 14,
-        color: COLORS.textMuted,
-        textAlign: 'center',
-        lineHeight: 20,
-    },
-    errorBanner: {
-        position: 'absolute',
-        top: 100,
+        bottom: 20,
         left: 20,
         right: 20,
-        padding: 12,
+        padding: 16,
         backgroundColor: COLORS.errorLight,
-        borderRadius: 12,
+        borderRadius: 16,
         alignItems: 'center',
     },
     errorText: {
         color: COLORS.error,
-        fontSize: 13,
+        fontSize: 14,
         fontWeight: '600',
+    },
+    emptyText: {
+        fontSize: 13,
+        color: COLORS.textMuted,
+        fontStyle: 'italic',
     },
 });

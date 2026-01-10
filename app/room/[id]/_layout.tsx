@@ -40,9 +40,9 @@ export default function RoomTabsLayout() {
             <Tabs.Screen
                 name="race"
                 options={{
-                    title: "레이스",
+                    title: "모의고사",
                     tabBarIcon: ({ color, size, focused }) => (
-                        <Ionicons name={focused ? "flag" : "flag-outline"} size={26} color={color} />
+                        <Ionicons name={focused ? "document-text" : "document-text-outline"} size={26} color={color} />
                     ),
                 }}
             />

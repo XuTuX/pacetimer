@@ -1,14 +1,9 @@
 import { useAuth } from "@clerk/clerk-expo";
+import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
-import { CompareRow } from "../../../components/ui/CompareRow";
-import { ParticipantRow } from "../../../components/ui/ParticipantRow";
-import { PrimaryButton } from "../../../components/ui/PrimaryButton";
-import { ProgressBar } from "../../../components/ui/ProgressBar";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ScreenHeader } from "../../../components/ui/ScreenHeader";
-import { SegmentedTabs } from "../../../components/ui/SegmentedTabs";
-import { StatCard } from "../../../components/ui/StatCard";
 import type { Database } from "../../../lib/db-types";
 import { useSupabase } from "../../../lib/supabase";
 import { formatSupabaseError } from "../../../lib/supabaseError";
@@ -180,6 +175,10 @@ export default function RaceScreen() {
         return avgs;
     }, [participants]);
 
+    // ... (imports remain)
+
+    // ... (hooks remain until render)
+
     if (loading) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -191,158 +190,131 @@ export default function RaceScreen() {
     if (!exam) {
         return (
             <View style={styles.container}>
-                <ScreenHeader title="라이브 레이스" />
+                <ScreenHeader title="모의고사" showBack={false} />
                 <View style={styles.emptyContainer}>
+                    <Ionicons name="document-text-outline" size={64} color={COLORS.border} />
                     <Text style={styles.emptyText}>진행 중인 시험이 없습니다.</Text>
-                    <Text style={styles.emptySub}>호스트가 시작할 때까지 기다려 주세요.</Text>
+                    <Text style={styles.emptySub}>호스트가 모의고사를 생성할 때까지{"\n"}잠시만 기다려 주세요.</Text>
                 </View>
             </View>
         );
     }
 
-    const totalQuestions = exam?.total_questions || 1;
-
     return (
         <View style={styles.container}>
-            <ScreenHeader title={exam?.title || "라이브 레이스"} />
-
-            <SegmentedTabs
-                tabs={['라이브', '리더보드', '페이스 분석']}
-                activeTab={activeTab}
-                onChange={setActiveTab}
+            <ScreenHeader
+                title="모의고사"
+                showBack={false}
+                rightElement={
+                    <View style={styles.headerActions}>
+                        <Pressable onPress={() => router.replace('/(tabs)/rooms')} style={styles.headerBtn}>
+                            <Ionicons name="close" size={24} color={COLORS.text} />
+                        </Pressable>
+                    </View>
+                }
             />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-
-                {/* Tab 0: Live Race */}
-                {activeTab === 0 && (
-                    <View style={styles.tabContent}>
-                        <View style={styles.statRow}>
-                            <StatCard
-                                label="진행 중"
-                                value={participants.filter(p => p.status === 'IN_PROGRESS').length}
-                                color={COLORS.warning}
-                            />
-                            <StatCard
-                                label="완료"
-                                value={participants.filter(p => p.status === 'COMPLETED').length}
-                                color={COLORS.primary}
-                            />
+                {/* Exam Focus Section */}
+                <View style={styles.examHero}>
+                    <View style={styles.examBadge}>
+                        <Text style={styles.examBadgeText}>LIVE CHALLENGE</Text>
+                    </View>
+                    <Text style={styles.examTitleLarge}>{exam.title}</Text>
+                    <View style={styles.examMetaRow}>
+                        <View style={styles.metaItem}>
+                            <Ionicons name="time" size={16} color={COLORS.primary} />
+                            <Text style={styles.metaText}>{exam.total_minutes}분</Text>
                         </View>
-
-                        <View style={styles.section}>
-                            <Text style={styles.sectionLabel}>레이스 현황</Text>
-                            {sortedByProgress.map(p => {
-                                const progressPct = Math.min(p.progressCount / totalQuestions, 1);
-                                return (
-                                    <ParticipantRow
-                                        key={p.userId}
-                                        name={p.name}
-                                        status={p.status}
-                                        isMe={p.isMe}
-                                        customRightElement={
-                                            <View style={{ width: 100, alignItems: 'flex-end', gap: 4 }}>
-                                                <ProgressBar progress={progressPct} color={p.status === 'COMPLETED' ? COLORS.primary : COLORS.warning} />
-                                                <Text style={{ fontSize: 10, color: COLORS.textMuted, fontWeight: '700' }}>
-                                                    {Math.round(progressPct * 100)}%
-                                                </Text>
-                                            </View>
-                                        }
-                                    />
-                                );
-                            })}
+                        <View style={styles.metaItem}>
+                            <Ionicons name="document-text" size={16} color={COLORS.primary} />
+                            <Text style={styles.metaText}>{exam.total_questions}문제</Text>
                         </View>
                     </View>
-                )}
 
-                {/* Tab 1: Leaderboard */}
-                {activeTab === 1 && (
-                    <View style={styles.tabContent}>
-                        {myResult?.status === 'COMPLETED' ? (
-                            <View style={styles.myRankCard}>
-                                <Text style={styles.myRankTitle}>내 순위</Text>
-                                <Text style={styles.myRankValue}>#{myRank}</Text>
-                                <Text style={styles.myRankSub}>
-                                    시간: {formatDuration(myResult.durationMs)}
-                                </Text>
+                    {myResult?.status !== 'COMPLETED' ? (
+                        <Pressable
+                            onPress={() => router.push(`/(tabs)/rooms/${roomId}/exam/${exam.id}/run`)}
+                            style={({ pressed }) => [
+                                styles.mainStartBtn,
+                                pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }
+                            ]}
+                        >
+                            <Text style={styles.mainStartBtnText}>
+                                {myResult?.status === 'IN_PROGRESS' ? '시험 이어하기' : '지금 시작하기'}
+                            </Text>
+                            <Ionicons name="rocket" size={20} color={COLORS.white} />
+                        </Pressable>
+                    ) : (
+                        <View style={styles.completedStatus}>
+                            <View style={styles.completedIconBox}>
+                                <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
                             </View>
-                        ) : (
-                            <View style={styles.infoCard}>
-                                <Text style={styles.infoText}>완주하면 순위가 표시됩니다.</Text>
+                            <View>
+                                <Text style={styles.completedTitle}>시험을 완료했습니다!</Text>
+                                <Text style={styles.completedSub}>결과는 순위 탭에서 확인할 수 있습니다.</Text>
                             </View>
-                        )}
-
-                        <View style={styles.section}>
-                            <Text style={styles.sectionLabel}>완료 순서</Text>
-                            {sortedByTime.map((p, index) => (
-                                <ParticipantRow
-                                    key={p.userId}
-                                    name={p.name}
-                                    status="COMPLETED"
-                                    rank={index + 1}
-                                    progress={formatDuration(p.durationMs)}
-                                    isMe={p.isMe}
-                                />
-                            ))}
-                            {sortedByTime.length === 0 && (
-                                <Text style={styles.emptyText}>아직 완료자가 없어요.</Text>
-                            )}
                         </View>
-                    </View>
-                )}
-
-                {/* Tab 2: Pace Analysis */}
-                {activeTab === 2 && (
-                    <View style={styles.tabContent}>
-                        {myResult?.status === 'COMPLETED' && myResult.records.length > 0 ? (
-                            <>
-                                <View style={styles.infoCard}>
-                                    <Text style={styles.infoText}>초록=평균보다 빠름 / 빨강=느림</Text>
-                                </View>
-                                <View style={styles.section}>
-                                    {myResult.records.map(r => {
-                                        const avg = roomAvgPerQuestion[r.question_no] || r.duration_ms;
-                                        const diff = r.duration_ms - avg;
-                                        const diffPercent = (diff / avg) * 100;
-                                        return (
-                                            <CompareRow
-                                                key={r.id}
-                                                label={`Q${r.question_no}`}
-                                                myValue={formatDuration(r.duration_ms)}
-                                                avgValue={formatDuration(avg)}
-                                                isFaster={r.duration_ms < avg}
-                                                diffPercent={diffPercent}
-                                            />
-                                        );
-                                    })}
-                                </View>
-                            </>
-                        ) : (
-                            <View style={styles.infoCard}>
-                                <Text style={styles.infoText}>완료 후 확인할 수 있어요.</Text>
-                            </View>
-                        )}
-                    </View>
-                )}
-            </ScrollView>
-
-            {myResult && myResult.status !== 'COMPLETED' && (
-                <View style={styles.bottomBar}>
-                    <PrimaryButton
-                        label={myResult.status === 'IN_PROGRESS' ? "레이스 이어하기" : "레이스 참여"}
-                        // Redirect to run logic. Wait, this needs 'run' path.
-                        // app/room/[id]/run is not a tab.
-                        // I need to use the old stack path for the actual running part because it shouldn't show tabs?
-                        // Or I should put 'run.tsx' inside 'app/room/[id]/run.tsx'?
-                        // The plan didn't specify 'run'.
-                        // Currently run is at `/rooms/[id]/exam/[examId]/run`.
-                        // I will keep using that for the actual test taking to avoid navigation complexity,
-                        // or better, I should link to `/(tabs)/rooms/${roomId}/exam/${exam.id}/run` to be safe.
-                        onPress={() => router.push(`/(tabs)/rooms/${roomId}/exam/${exam.id}/run`)}
-                        style={{ width: '100%' }}
-                    />
+                    )}
                 </View>
-            )}
+
+                {/* Participants Progress */}
+                <View style={styles.progressSection}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionLabel}>실시간 진행 현황</Text>
+                        <View style={styles.liveIndicator}>
+                            <View style={styles.liveDot} />
+                            <Text style={styles.liveText}>LIVE</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.participantsList}>
+                        {participants.map(p => (
+                            <View key={p.userId} style={styles.participantCard}>
+                                <View style={styles.pInfo}>
+                                    <View style={[styles.pAvatar, p.status === 'IN_PROGRESS' && styles.pActiveAvatar]}>
+                                        <Ionicons
+                                            name={p.status === 'COMPLETED' ? "checkmark-circle" : "person"}
+                                            size={20}
+                                            color={p.status === 'COMPLETED' ? COLORS.primary : COLORS.textMuted}
+                                        />
+                                    </View>
+                                    <View>
+                                        <Text style={styles.pName}>{p.name}{p.isMe ? " (나)" : ""}</Text>
+                                        <Text style={styles.pStatusText}>
+                                            {p.status === 'COMPLETED' ? '완료' : p.status === 'IN_PROGRESS' ? '진행 중' : '대기 중'}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                <View style={styles.pProgress}>
+                                    {p.status === 'IN_PROGRESS' ? (
+                                        <View style={styles.progressFillContainer}>
+                                            <View style={styles.progressBarBg}>
+                                                <View
+                                                    style={[
+                                                        styles.progressBarFill,
+                                                        { width: `${(p.progressCount / exam.total_questions) * 100}%` }
+                                                    ]}
+                                                />
+                                            </View>
+                                            <Text style={styles.progressPercentText}>
+                                                {p.progressCount}/{exam.total_questions}
+                                            </Text>
+                                        </View>
+                                    ) : p.status === 'COMPLETED' ? (
+                                        <View style={styles.timeBadge}>
+                                            <Text style={styles.timeBadgeText}>{formatDuration(p.durationMs)}</Text>
+                                        </View>
+                                    ) : (
+                                        <Text style={styles.waitingText}>준비 중</Text>
+                                    )}
+                                </View>
+                            </View>
+                        ))}
+                    </View>
+                </View>
+            </ScrollView>
         </View>
     );
 }
@@ -352,96 +324,257 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: COLORS.bg,
     },
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    headerBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: COLORS.surface,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
+    },
+    scrollContent: {
+        paddingBottom: 40,
+    },
     emptyContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
         padding: 40,
     },
-    emptySub: {
-        color: COLORS.textMuted,
-        marginTop: 8,
-    },
-    scrollContent: {
-        paddingBottom: 40,
-    },
-    tabContent: {
+    emptyText: {
+        fontSize: 18,
+        fontWeight: '800',
+        color: COLORS.text,
         marginTop: 16,
     },
-    statRow: {
-        flexDirection: 'row',
-        paddingHorizontal: 20,
-        gap: 12,
-        marginBottom: 20,
-    },
-    section: {
-        paddingHorizontal: 20,
-        marginTop: 24,
-    },
-    sectionLabel: {
-        fontSize: 13,
-        fontWeight: '700',
+    emptySub: {
+        fontSize: 14,
         color: COLORS.textMuted,
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
+        marginTop: 8,
+        textAlign: 'center',
+        fontWeight: '500',
+    },
+    examHero: {
+        padding: 24,
+        margin: 16,
+        backgroundColor: COLORS.surface,
+        borderRadius: 32,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.05,
+        shadowRadius: 20,
+        elevation: 4,
+    },
+    examBadge: {
+        alignSelf: 'flex-start',
+        backgroundColor: COLORS.primaryLight,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 8,
         marginBottom: 12,
     },
-    myRankCard: {
-        marginHorizontal: 20,
-        padding: 24,
-        backgroundColor: COLORS.surface,
-        borderRadius: 20,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: COLORS.primary,
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
-        elevation: 4,
+    examBadgeText: {
+        fontSize: 10,
+        fontWeight: '900',
+        color: COLORS.primary,
+        letterSpacing: 1,
+    },
+    examTitleLarge: {
+        fontSize: 24,
+        fontWeight: '900',
+        color: COLORS.text,
+        marginBottom: 8,
+        letterSpacing: -0.5,
+    },
+    examMetaRow: {
+        flexDirection: 'row',
+        gap: 16,
         marginBottom: 24,
     },
-    myRankTitle: {
+    metaItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    metaText: {
         fontSize: 14,
         color: COLORS.textMuted,
         fontWeight: '600',
-        marginBottom: 4,
     },
-    myRankValue: {
-        fontSize: 36,
-        fontWeight: '900',
+    mainStartBtn: {
+        backgroundColor: COLORS.primary,
+        height: 56,
+        borderRadius: 20,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.2,
+        shadowRadius: 12,
+        elevation: 4,
+    },
+    mainStartBtnText: {
+        color: COLORS.white,
+        fontSize: 16,
+        fontWeight: '800',
+    },
+    completedStatus: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+        padding: 16,
+        backgroundColor: COLORS.primaryLight,
+        borderRadius: 20,
+    },
+    completedIconBox: {
+        width: 44,
+        height: 44,
+        borderRadius: 14,
+        backgroundColor: COLORS.white,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    completedTitle: {
+        fontSize: 15,
+        fontWeight: '800',
         color: COLORS.primary,
-        marginBottom: 4,
     },
-    myRankSub: {
-        fontSize: 14,
-        color: COLORS.text,
+    completedSub: {
+        fontSize: 12,
+        color: COLORS.primary,
+        opacity: 0.8,
         fontWeight: '500',
     },
-    infoCard: {
-        margin: 20,
-        padding: 24,
+    progressSection: {
+        paddingHorizontal: 20,
+        marginTop: 16,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 16,
+    },
+    sectionLabel: {
+        fontSize: 13,
+        fontWeight: '800',
+        color: COLORS.textMuted,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+    },
+    liveIndicator: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: '#FFE5E5',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+    },
+    liveDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: '#FF3B30',
+    },
+    liveText: {
+        fontSize: 10,
+        fontWeight: '900',
+        color: '#FF3B30',
+    },
+    participantsList: {
+        gap: 12,
+    },
+    participantCard: {
         backgroundColor: COLORS.surface,
         borderRadius: 20,
+        padding: 16,
+        flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'space-between',
         borderWidth: 1,
         borderColor: COLORS.border,
     },
-    infoText: {
+    pInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        flex: 1,
+    },
+    pAvatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: COLORS.surfaceVariant,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    pActiveAvatar: {
+        backgroundColor: COLORS.primaryLight,
+        borderWidth: 1,
+        borderColor: COLORS.primary,
+    },
+    pName: {
         fontSize: 14,
+        fontWeight: '700',
+        color: COLORS.text,
+    },
+    pStatusText: {
+        fontSize: 11,
         color: COLORS.textMuted,
-        textAlign: 'center',
+        fontWeight: '600',
+    },
+    pProgress: {
+        alignItems: 'flex-end',
+        width: 120,
+    },
+    progressFillContainer: {
+        width: '100%',
+        gap: 6,
+    },
+    progressBarBg: {
+        height: 6,
+        backgroundColor: COLORS.surfaceVariant,
+        borderRadius: 3,
+        overflow: 'hidden',
+    },
+    progressBarFill: {
+        height: '100%',
+        backgroundColor: COLORS.primary,
+    },
+    progressPercentText: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: COLORS.textMuted,
+        textAlign: 'right',
+    },
+    timeBadge: {
+        backgroundColor: COLORS.surfaceVariant,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 10,
+    },
+    timeBadgeText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: COLORS.text,
+    },
+    waitingText: {
+        fontSize: 12,
+        color: COLORS.textMuted,
         fontWeight: '500',
-    },
-    emptyText: {
-        fontSize: 14,
-        color: COLORS.textMuted,
-        textAlign: 'center',
-        marginTop: 20,
-    },
-    bottomBar: {
-        padding: 20,
-        paddingBottom: 32,
-        backgroundColor: COLORS.bg,
     },
 });

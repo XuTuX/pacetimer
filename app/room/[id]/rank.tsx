@@ -1,7 +1,8 @@
 import { useAuth } from "@clerk/clerk-expo";
+import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ParticipantRow } from "../../../components/ui/ParticipantRow";
 import { ScreenHeader } from "../../../components/ui/ScreenHeader";
 import type { Database } from "../../../lib/db-types";
@@ -154,7 +155,15 @@ export default function RankScreen() {
 
     return (
         <View style={styles.container}>
-            <ScreenHeader title="리더보드" />
+            <ScreenHeader
+                title="리더보드"
+                showBack={false}
+                rightElement={
+                    <Pressable onPress={() => router.replace('/(tabs)/rooms')} style={{ padding: 8 }}>
+                        <Ionicons name="close-outline" size={28} color={COLORS.text} />
+                    </Pressable>
+                }
+            />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.headerInfo}>

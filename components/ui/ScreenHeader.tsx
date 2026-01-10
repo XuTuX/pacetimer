@@ -18,27 +18,35 @@ export function ScreenHeader({ title, showBack = true, rightElement, onBack }: S
 
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
-            <View style={styles.content}>
-                <View style={styles.left}>
-                    {showBack && (
+            <View style={styles.headerContent}>
+                <View style={styles.leftContainer}>
+                    {showBack ? (
                         <Pressable
                             onPress={onBack || (() => router.back())}
                             style={({ pressed }) => [
-                                styles.backButton,
-                                pressed && { opacity: 0.7 }
+                                styles.actionButton,
+                                pressed && { opacity: 0.6 }
                             ]}
                         >
                             <Ionicons name="chevron-back" size={24} color={COLORS.text} />
                         </Pressable>
+                    ) : (
+                        <View style={{ width: 40 }} />
                     )}
                 </View>
 
-                <View style={styles.center}>
-                    <Text style={styles.title} numberOfLines={1}>{title}</Text>
+                <View style={styles.titleContainer}>
+                    <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
                 </View>
 
-                <View style={styles.right}>
-                    {rightElement}
+                <View style={styles.rightContainer}>
+                    {rightElement ? (
+                        <View style={styles.rightContent}>
+                            {rightElement}
+                        </View>
+                    ) : (
+                        <View style={{ width: 40 }} />
+                    )}
                 </View>
             </View>
         </View>
@@ -49,34 +57,49 @@ const styles = StyleSheet.create({
     container: {
         backgroundColor: COLORS.bg,
     },
-    content: {
+    headerContent: {
         height: 56,
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 8,
+        paddingHorizontal: 16,
     },
-    left: {
-        width: 48,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    center: {
+    leftContainer: {
         flex: 1,
+        alignItems: 'flex-start',
+        justifyContent: 'center',
+    },
+    titleContainer: {
+        flex: 4,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    right: {
-        width: 48,
-        alignItems: 'center',
+    rightContainer: {
+        flex: 1,
+        alignItems: 'flex-end',
         justifyContent: 'center',
     },
-    title: {
+    headerTitle: {
         fontSize: 18,
-        fontWeight: '700',
+        fontWeight: '800',
         color: COLORS.text,
         letterSpacing: -0.5,
     },
-    backButton: {
-        padding: 4,
+    actionButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: COLORS.surface,
+        // Subtle shadow
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    rightContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
     }
 });
