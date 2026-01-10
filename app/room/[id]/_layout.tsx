@@ -31,7 +31,7 @@ export default function RoomTabsLayout() {
             <Tabs.Screen
                 name="index"
                 options={{
-                    title: "Lobby",
+                    title: "로비",
                     tabBarIcon: ({ color, size, focused }) => (
                         <Ionicons name={focused ? "home" : "home-outline"} size={26} color={color} />
                     ),
@@ -40,7 +40,7 @@ export default function RoomTabsLayout() {
             <Tabs.Screen
                 name="race"
                 options={{
-                    title: "Race",
+                    title: "레이스",
                     tabBarIcon: ({ color, size, focused }) => (
                         <Ionicons name={focused ? "flag" : "flag-outline"} size={26} color={color} />
                     ),
@@ -49,7 +49,7 @@ export default function RoomTabsLayout() {
             <Tabs.Screen
                 name="rank"
                 options={{
-                    title: "Rank",
+                    title: "순위",
                     tabBarIcon: ({ color, size, focused }) => (
                         <Ionicons name={focused ? "trophy" : "trophy-outline"} size={26} color={color} />
                     ),

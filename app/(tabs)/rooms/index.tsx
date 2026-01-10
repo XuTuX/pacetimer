@@ -77,7 +77,7 @@ export default function RoomsIndexScreen() {
         if (!roomId) return;
         if (!isLoaded) return;
         if (!userId) {
-            setError("Please sign in to join a room.");
+            setError("룸에 참여하려면 로그인해 주세요.");
             return;
         }
 
@@ -90,7 +90,7 @@ export default function RoomsIndexScreen() {
                 .eq("id", roomId)
                 .single();
 
-            if (roomMatchError || !roomData) throw new Error("Room not found with this ID.");
+            if (roomMatchError || !roomData) throw new Error("해당 ID의 룸을 찾을 수 없습니다.");
 
             const { error: joinError } = await supabase
                 .from("room_members")
@@ -118,8 +118,8 @@ export default function RoomsIndexScreen() {
                 {/* Header Section */}
                 <View style={styles.header}>
                     <View>
-                        <Text style={styles.title}>Study Rooms</Text>
-                        <Text style={styles.subtitle}>Collaborative Focus Sessions</Text>
+                        <Text style={styles.title}>스터디 룸</Text>
+                        <Text style={styles.subtitle}>함께 집중하는 스터디</Text>
                     </View>
                     <Pressable
                         onPress={() => router.push("/(tabs)/rooms/create")}
@@ -131,12 +131,12 @@ export default function RoomsIndexScreen() {
 
                 {/* Join Section - Integrated Look */}
                 <View style={styles.joinContainer}>
-                    <Text style={styles.sectionLabel}>JOIN A ROOM</Text>
+                    <Text style={styles.sectionLabel}>룸 참여하기</Text>
                     <View style={styles.joinInputRow}>
                         <TextInput
                             value={roomIdInput}
                             onChangeText={setRoomIdInput}
-                            placeholder="Paste room ID"
+                            placeholder="룸 ID 붙여넣기"
                             placeholderTextColor={COLORS.textMuted}
                             autoCapitalize="none"
                             autoCorrect={false}
@@ -164,7 +164,7 @@ export default function RoomsIndexScreen() {
                 {/* Rooms List */}
                 <View style={styles.listSection}>
                     <View style={styles.listHeader}>
-                        <Text style={styles.sectionLabel}>MY ACTIVE ROOMS</Text>
+                        <Text style={styles.sectionLabel}>내 활성 룸</Text>
                         {loading && <ActivityIndicator size="small" color={COLORS.primary} />}
                     </View>
 
@@ -173,15 +173,15 @@ export default function RoomsIndexScreen() {
                             <View style={styles.emptyIconCircle}>
                                 <Ionicons name="school-outline" size={32} color={COLORS.primary} />
                             </View>
-                            <Text style={styles.emptyTitle}>Join your first room</Text>
+                            <Text style={styles.emptyTitle}>첫 룸에 참여해 보세요</Text>
                             <Text style={styles.emptySubtitle}>
-                                Study together with friends or classmates by joining a room or creating your own.
+                                친구나 동료와 함께 공부하려면 룸에 참여하거나 직접 만들어보세요.
                             </Text>
                             <Pressable
                                 style={styles.emptyAction}
                                 onPress={() => router.push("/(tabs)/rooms/create")}
                             >
-                                <Text style={styles.emptyActionText}>Create a new room</Text>
+                                <Text style={styles.emptyActionText}>새 룸 만들기</Text>
                             </Pressable>
                         </View>
                     ) : (

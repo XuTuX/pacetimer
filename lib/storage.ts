@@ -34,6 +34,12 @@ export const DEFAULT_CATEGORIES: Category[] = [
     { id: "eng", name: "영어", isDefault: true, defaultQuestions: "45   ", defaultMinutes: "70" },
 ];
 
+const logStorageError = (message: string, error: unknown) => {
+    if (__DEV__) {
+        console.error(message, error);
+    }
+};
+
 export const saveSession = async (session: ExamSession) => {
     try {
         const existingData = await AsyncStorage.getItem(STORAGE_KEY);
@@ -41,7 +47,7 @@ export const saveSession = async (session: ExamSession) => {
         sessions.unshift(session); // Add to beginning
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
     } catch (error) {
-        console.error('Failed to save session:', error);
+        logStorageError('세션 저장 실패:', error);
     }
 };
 
@@ -50,7 +56,7 @@ export const getSessions = async (): Promise<ExamSession[]> => {
         const data = await AsyncStorage.getItem(STORAGE_KEY);
         return data ? JSON.parse(data) : [];
     } catch (error) {
-        console.error('Failed to get sessions:', error);
+        logStorageError('세션 불러오기 실패:', error);
         return [];
     }
 };
@@ -59,7 +65,7 @@ export const clearSessions = async () => {
     try {
         await AsyncStorage.removeItem(STORAGE_KEY);
     } catch (error) {
-        console.error('Failed to clear sessions:', error);
+        logStorageError('세션 초기화 실패:', error);
     }
 };
 
@@ -72,7 +78,7 @@ export const deleteSession = async (id: string) => {
             await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
         }
     } catch (error) {
-        console.error('Failed to delete session:', error);
+        logStorageError('세션 삭제 실패:', error);
     }
 };
 
@@ -80,7 +86,7 @@ export const saveCategories = async (categories: Category[]) => {
     try {
         await AsyncStorage.setItem(CATEGORY_KEY, JSON.stringify(categories));
     } catch (error) {
-        console.error('Failed to save categories:', error);
+        logStorageError('과목 저장 실패:', error);
     }
 };
 
@@ -93,7 +99,7 @@ export const getCategories = async (): Promise<Category[]> => {
         }
         return JSON.parse(data);
     } catch (error) {
-        console.error('Failed to get categories:', error);
+        logStorageError('과목 불러오기 실패:', error);
         return DEFAULT_CATEGORIES;
     }
 };

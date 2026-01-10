@@ -18,12 +18,12 @@ export function ParticipantList({ participants, currentUserId }: ParticipantList
 
     return (
         <View style={styles.container}>
-            <Text style={styles.header}>Participants ({participants.length})</Text>
+            <Text style={styles.header}>참여자 ({participants.length})</Text>
             <View style={styles.list}>
                 {participants.map((p) => (
                     <View key={p.user_id} style={[styles.pill, p.user_id === currentUserId && styles.mePill]}>
                         <Text style={[styles.text, p.user_id === currentUserId && styles.meText]}>
-                            {p.user_id === currentUserId ? 'Me' : p.user_id.slice(0, 4)}
+                            {p.user_id === currentUserId ? '나' : p.user_id.slice(0, 4)}
                         </Text>
                     </View>
                 ))}

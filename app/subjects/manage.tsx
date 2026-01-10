@@ -24,11 +24,11 @@ export default function SubjectManageScreen() {
         const name = newSubjectName.trim();
         if (!name) return;
         if (name.length > 20) {
-            Alert.alert('Error', 'Name must be 20 characters or less.');
+            Alert.alert('오류', '이름은 20자 이하로 입력해 주세요.');
             return;
         }
         if (activeSubjects.some(s => s.name.toLowerCase() === name.toLowerCase())) {
-            Alert.alert('Error', 'Subject name already exists.');
+            Alert.alert('오류', '이미 있는 과목 이름입니다.');
             return;
         }
 
@@ -39,12 +39,12 @@ export default function SubjectManageScreen() {
 
     const handleDelete = (id: string) => {
         Alert.alert(
-            'Delete Subject',
-            'Are you sure you want to delete this subject? Past records will be kept.',
+            '과목 삭제',
+            '이 과목을 삭제할까요? 기존 기록은 유지됩니다.',
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: '취소', style: 'cancel' },
                 {
-                    text: 'Delete',
+                    text: '삭제',
                     style: 'destructive',
                     onPress: () => deleteSubject(id),
                 },
@@ -62,12 +62,12 @@ export default function SubjectManageScreen() {
         const name = editName.trim();
         if (!name) return;
         if (name.length > 20) {
-            Alert.alert('Error', 'Name must be 20 characters or less.');
+            Alert.alert('오류', '이름은 20자 이하로 입력해 주세요.');
             return;
         }
         // Check duplicates (excluding self)
         if (activeSubjects.some(s => s.id !== editingId && s.name.toLowerCase() === name.toLowerCase())) {
-            Alert.alert('Error', 'Subject name already exists.');
+            Alert.alert('오류', '이미 있는 과목 이름입니다.');
             return;
         }
 
@@ -96,7 +96,7 @@ export default function SubjectManageScreen() {
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                     <Ionicons name="arrow-back" size={24} color={COLORS.text} />
                 </TouchableOpacity>
-                <Text style={styles.title}>Manage Subjects</Text>
+                <Text style={styles.title}>과목 관리</Text>
                 <TouchableOpacity onPress={() => setIsAdding(!isAdding)} style={styles.addButtonIcon}>
                     <Ionicons name={isAdding ? "close" : "add"} size={24} color={COLORS.primary} />
                 </TouchableOpacity>
@@ -107,14 +107,14 @@ export default function SubjectManageScreen() {
                 <View style={styles.inputContainer}>
                     <TextInput
                         style={styles.input}
-                        placeholder="New Subject Name"
+                        placeholder="새 과목 이름"
                         placeholderTextColor={COLORS.gray}
                         value={newSubjectName}
                         onChangeText={setNewSubjectName}
                         autoFocus
                     />
                     <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
-                        <Text style={styles.addButtonText}>Add</Text>
+                        <Text style={styles.addButtonText}>추가</Text>
                     </TouchableOpacity>
                 </View>
             )}

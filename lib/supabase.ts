@@ -13,6 +13,12 @@ const supabaseAnonKey = requireEnv("EXPO_PUBLIC_SUPABASE_ANON_KEY");
 
 let didWarnJwtRejected = false;
 
+const warnDevOnly = (...args: unknown[]) => {
+    if (__DEV__) {
+        console.warn(...args);
+    }
+};
+
 export function createClerkSupabaseClient(getToken: ClerkGetTokenFn): SupabaseClient<Database> {
     return createClient<Database>(supabaseUrl, supabaseAnonKey, {
         auth: {
@@ -29,7 +35,7 @@ export function createClerkSupabaseClient(getToken: ClerkGetTokenFn): SupabaseCl
                 try {
                     token = await getToken();
                 } catch (err) {
-                    console.warn("Failed to get Clerk JWT for Supabase request", err);
+                    warnDevOnly("Supabase 요청용 Clerk JWT 가져오기 실패", err);
                 }
 
                 const originalHeaders = new Headers(init.headers ?? {});
@@ -50,9 +56,9 @@ export function createClerkSupabaseClient(getToken: ClerkGetTokenFn): SupabaseCl
 
                 if (!didWarnJwtRejected) {
                     didWarnJwtRejected = true;
-                    console.warn(
-                        "Supabase rejected the Clerk JWT (PGRST301). Falling back to the anon key; " +
-                            "make sure your Clerk JWT template is HS256 and signed with your Supabase JWT secret (not the anon key).",
+                    warnDevOnly(
+                        "Supabase가 Clerk JWT(PGRST301)를 거절했습니다. anon 키로 대체합니다. " +
+                            "Clerk JWT 템플릿이 HS256이며 Supabase JWT 시크릿으로 서명됐는지 확인하세요.",
                     );
                 }
 

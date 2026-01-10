@@ -193,7 +193,7 @@ export default function ExamRunScreen() {
                 setIsCompleted(false);
 
             } catch (err: any) {
-                Alert.alert("Error", formatSupabaseError(err));
+                Alert.alert("오류", formatSupabaseError(err));
                 router.back();
             } finally {
                 if (!cancelled) setLoading(false);
@@ -227,10 +227,14 @@ export default function ExamRunScreen() {
                 duration_ms: duration,
             });
             if (rError) {
-                console.warn("Failed to insert attempt_record:", rError.message);
+                if (__DEV__) {
+                    console.warn("attempt_record 저장 실패:", rError.message);
+                }
             }
         } catch (rErr) {
-            console.warn("Error inserting attempt_record:", rErr);
+            if (__DEV__) {
+                console.warn("attempt_record 저장 중 오류:", rErr);
+            }
         }
 
         // 3. Last question?
@@ -264,7 +268,7 @@ export default function ExamRunScreen() {
 
                         router.replace(`/(tabs)/rooms/${roomId}/exam/${currentExamId}`);
                     } catch (e) {
-                        Alert.alert("Error", "Failed to save result.");
+                        Alert.alert("오류", "결과 저장에 실패했습니다.");
                         setLoading(false);
                     }
                 }
@@ -289,15 +293,15 @@ export default function ExamRunScreen() {
             {/* Header */}
             <View style={styles.header}>
                 <View>
-                    <Text style={styles.label}>TIME REMAINING</Text>
+                    <Text style={styles.label}>남은 시간</Text>
                     <Text style={[styles.examTimer, remainingSec < 300 && { color: COLORS.accent }]}>
                         {formatSec(remainingSec)}
                     </Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={styles.label}>PROGRESS</Text>
+                    <Text style={styles.label}>진행도</Text>
                     <Text style={styles.progressText}>
-                        {isCompleted ? "Review" : `${questionIndex} / ${exam.total_questions}`}
+                        {isCompleted ? "검토" : `${questionIndex} / ${exam.total_questions}`}
                     </Text>
                 </View>
             </View>
@@ -307,7 +311,7 @@ export default function ExamRunScreen() {
                 <Text style={styles.examTitle}>{exam.title}</Text>
                 <View style={[styles.badge, isCompleted ? styles.badgeComplete : styles.badgeProgress]}>
                     <Text style={[styles.badgeText, isCompleted ? styles.textComplete : styles.textProgress]}>
-                        {isCompleted ? "Submit Now" : "Focus Mode"}
+                        {isCompleted ? "제출하기" : "집중 모드"}
                     </Text>
                 </View>
             </View>
@@ -323,10 +327,10 @@ export default function ExamRunScreen() {
             >
                 <View style={styles.qInfo}>
                     <Text style={styles.qHeader}>
-                        {isCompleted ? "Ready to Submit?" : `Question`}
+                        {isCompleted ? "제출할까요?" : "문항"}
                     </Text>
                     <Text style={[styles.qNumber, isCompleted && { color: COLORS.primary }]}>
-                        {isCompleted ? "DONE" : `Q${questionIndex}`}
+                        {isCompleted ? "완료" : `Q${questionIndex}`}
                     </Text>
                 </View>
 
@@ -341,13 +345,13 @@ export default function ExamRunScreen() {
                         color={isCompleted ? COLORS.primary : COLORS.textMuted}
                     />
                     <Text style={styles.tapHintText}>
-                        {isCompleted ? "Tap to finish exam" : "Tap anywhere for next question"}
+                        {isCompleted ? "눌러서 시험 종료" : "화면을 탭하면 다음 문항으로"}
                     </Text>
                 </View>
             </Pressable>
 
             <TouchableOpacity onPress={() => router.back()} style={styles.exitBtn}>
-                <Text style={styles.exitBtnText}>Quit Exam</Text>
+                <Text style={styles.exitBtnText}>시험 나가기</Text>
             </TouchableOpacity>
         </SafeAreaView>
     );

@@ -27,7 +27,7 @@ function formatDuration(ms: number) {
     const totalSeconds = Math.floor(ms / 1000);
     const m = Math.floor(totalSeconds / 60);
     const s = totalSeconds % 60;
-    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+    return m > 0 ? `${m}분 ${s}초` : `${s}초`;
 }
 
 export default function RankScreen() {
@@ -94,7 +94,7 @@ export default function RankScreen() {
 
                 return {
                     userId: m.user_id,
-                    name: m.profile?.display_name || `User ${(m.user_id || "").slice(0, 4)}`,
+                    name: m.profile?.display_name || `사용자 ${(m.user_id || "").slice(0, 4)}`,
                     status,
                     durationMs: attempt?.duration_ms || 0,
                     progressCount: 0, // Not needed for rank view
@@ -144,9 +144,9 @@ export default function RankScreen() {
     if (!exam) {
         return (
             <View style={styles.container}>
-                <ScreenHeader title="Leaderboard" />
+                <ScreenHeader title="리더보드" />
                 <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyText}>No active exam found.</Text>
+                    <Text style={styles.emptyText}>진행 중인 시험이 없습니다.</Text>
                 </View>
             </View>
         );
@@ -154,7 +154,7 @@ export default function RankScreen() {
 
     return (
         <View style={styles.container}>
-            <ScreenHeader title="Leaderboard" />
+            <ScreenHeader title="리더보드" />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.headerInfo}>
@@ -164,24 +164,24 @@ export default function RankScreen() {
 
                 {myResult?.status === 'COMPLETED' ? (
                     <View style={styles.myRankCard}>
-                        <Text style={styles.myRankTitle}>Your Rank</Text>
+                        <Text style={styles.myRankTitle}>내 순위</Text>
                         <Text style={styles.myRankValue}>#{myRank}</Text>
                         <Text style={styles.myRankSub}>
-                            Time: {formatDuration(myResult.durationMs)}
+                            시간: {formatDuration(myResult.durationMs)}
                         </Text>
                     </View>
                 ) : (
                     <View style={styles.infoCard}>
                         <Text style={styles.infoText}>
                             {myResult?.status === 'IN_PROGRESS'
-                                ? "Keep going! Finish to get ranked."
-                                : "Join the race to get on the leaderboard!"}
+                                ? "계속 진행하세요! 완료하면 순위가 표시됩니다."
+                                : "레이스에 참여해 순위에 도전하세요!"}
                         </Text>
                     </View>
                 )}
 
                 <View style={styles.section}>
-                    <Text style={styles.sectionLabel}>Top Performers</Text>
+                    <Text style={styles.sectionLabel}>상위 기록</Text>
                     {sortedByTime.map((p, index) => (
                         <ParticipantRow
                             key={p.userId}
@@ -193,7 +193,7 @@ export default function RankScreen() {
                         />
                     ))}
                     {sortedByTime.length === 0 && (
-                        <Text style={styles.emptyText}>No finishers yet. Be the first!</Text>
+                        <Text style={styles.emptyText}>아직 완료자가 없어요. 첫 완료자가 되어보세요!</Text>
                     )}
                 </View>
             </ScrollView>

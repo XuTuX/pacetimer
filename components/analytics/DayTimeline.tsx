@@ -180,7 +180,7 @@ export const DayTimeline: React.FC<Props> = ({
                     {sessions.map((s, i) => (
                         <View key={s.id} style={[styles.sessionDivider, { left: getX(s.startedAt) }]}>
                             <View style={styles.sessionLabel}>
-                                <Text style={styles.sessionLabelText}>Session {i + 1}</Text>
+                                <Text style={styles.sessionLabelText}>세션 {i + 1}</Text>
                             </View>
                         </View>
                     ))}

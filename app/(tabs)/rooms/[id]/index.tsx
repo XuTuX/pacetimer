@@ -152,7 +152,7 @@ export default function RoomHomeScreen() {
         if (!room) return;
         try {
             await Share.share({
-                message: `Join my study room "${room.name}" on Pacetime! Room ID: ${room.id}`,
+                message: `Pacetime에서 "${room.name}" 스터디 룸에 참여하세요! 룸 ID: ${room.id}`,
             });
         } catch (error) {
             // ignore
@@ -178,7 +178,7 @@ export default function RoomHomeScreen() {
     return (
         <View style={styles.container}>
             <ScreenHeader
-                title={room?.name || "Room"}
+                title={room?.name || "룸"}
                 rightElement={
                     <Pressable onPress={handleShare} style={styles.headerAction}>
                         <Ionicons name="share-outline" size={22} color={COLORS.text} />
@@ -189,7 +189,7 @@ export default function RoomHomeScreen() {
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 {/* Active Exam / Challenge Card */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionLabel}>Active Event</Text>
+                    <Text style={styles.sectionLabel}>진행 중 이벤트</Text>
                     {selectedExam ? (
                         <ChallengeCard
                             title={selectedExam.title}
@@ -204,11 +204,11 @@ export default function RoomHomeScreen() {
                                     router.push(`/(tabs)/rooms/${roomId}/exam/${selectedExamId}/run`);
                                 }
                             }}
-                            buttonLabel={myAttempt?.ended_at ? "Completed" : "Join Challenge"}
+                            buttonLabel={myAttempt?.ended_at ? "완료" : "챌린지 참여"}
                         />
                     ) : (
                         <View style={styles.emptyCard}>
-                            <Text style={styles.emptyText}>No active exam right now.</Text>
+                            <Text style={styles.emptyText}>현재 진행 중인 시험이 없습니다.</Text>
                         </View>
                     )}
                 </View>
@@ -219,17 +219,17 @@ export default function RoomHomeScreen() {
                         <View style={styles.sectionHeader}>
                             <View style={styles.liveIndicator}>
                                 <View style={styles.liveDot} />
-                                <Text style={styles.liveText}>LIVE NOW</Text>
+                                <Text style={styles.liveText}>지금 진행 중</Text>
                             </View>
                             <Text style={styles.countText}>{activeParticipants.length}</Text>
                         </View>
                         {activeParticipants.map(p => (
                             <ParticipantRow
                                 key={p.user_id}
-                                name={p.profile?.display_name || `User ${(p.user_id || "").slice(0, 4)}`}
+                                name={p.profile?.display_name || `사용자 ${(p.user_id || "").slice(0, 4)}`}
                                 status="IN_PROGRESS"
                                 isMe={p.user_id === userId}
-                                progress="Racing..."
+                                progress="레이싱 중..."
                             />
                         ))}
                     </View>
@@ -238,17 +238,17 @@ export default function RoomHomeScreen() {
                 {/* Section: Leaderboard Preview */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionLabel}>Leaderboard</Text>
+                        <Text style={styles.sectionLabel}>리더보드</Text>
                     </View>
                     {finishedParticipants.length === 0 ? (
                         <View style={styles.emptyList}>
-                            <Text style={styles.emptyListText}>Be the first to finish!</Text>
+                            <Text style={styles.emptyListText}>첫 완료자가 되어보세요!</Text>
                         </View>
                     ) : (
                         finishedParticipants.map((p, index) => (
                             <ParticipantRow
                                 key={p.user_id}
-                                name={p.profile?.display_name || `User ${(p.user_id || "").slice(0, 4)}`}
+                                name={p.profile?.display_name || `사용자 ${(p.user_id || "").slice(0, 4)}`}
                                 status="COMPLETED"
                                 isMe={p.user_id === userId}
                                 rank={index + 1}
@@ -261,11 +261,11 @@ export default function RoomHomeScreen() {
                 {/* Section: Others */}
                 {otherParticipants.length > 0 && (
                     <View style={styles.section}>
-                        <Text style={styles.sectionLabel}>Ready to Join</Text>
+                        <Text style={styles.sectionLabel}>참여 대기</Text>
                         {otherParticipants.map(p => (
                             <ParticipantRow
                                 key={p.user_id}
-                                name={p.profile?.display_name || `User ${(p.user_id || "").slice(0, 4)}`}
+                                name={p.profile?.display_name || `사용자 ${(p.user_id || "").slice(0, 4)}`}
                                 status="NOT_STARTED"
                                 isMe={p.user_id === userId}
                             />
@@ -276,10 +276,10 @@ export default function RoomHomeScreen() {
                 {!isMember && (
                     <View style={styles.joinOverlay}>
                         <View style={styles.joinCard}>
-                            <Text style={styles.joinTitle}>Join the Race</Text>
-                            <Text style={styles.joinDesc}>Join this room to compete with others in real-time.</Text>
+                            <Text style={styles.joinTitle}>레이스 참여</Text>
+                            <Text style={styles.joinDesc}>이 룸에 참여해 실시간으로 함께 경쟁해 보세요.</Text>
                             <PrimaryButton
-                                label="Join Room"
+                                label="룸 참여"
                                 onPress={handleJoin}
                                 loading={joining}
                                 style={{ width: '100%', marginTop: 16 }}

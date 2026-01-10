@@ -51,25 +51,25 @@ export default function AddExamScreen() {
         <SafeAreaView style={styles.container} edges={["bottom"]}>
             <ScrollView contentContainerStyle={styles.content}>
                 <View style={styles.header}>
-                    <Text style={styles.title}>Add Mock Exam</Text>
+                    <Text style={styles.title}>모의고사 추가</Text>
                     <Pressable onPress={() => router.back()}>
-                        <Text style={styles.cancelText}>Cancel</Text>
+                        <Text style={styles.cancelText}>취소</Text>
                     </Pressable>
                 </View>
 
                 <View style={styles.card}>
-                    <Text style={styles.label}>Exam Title</Text>
+                    <Text style={styles.label}>시험 제목</Text>
                     <TextInput
                         value={title}
                         onChangeText={setTitle}
-                        placeholder="e.g. 2026-03 Mock Test"
+                        placeholder="예: 2026-03 모의고사"
                         placeholderTextColor={COLORS.textMuted}
                         style={styles.input}
                     />
 
                     <View style={styles.row}>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.label}>Total Questions</Text>
+                            <Text style={styles.label}>총 문항 수</Text>
                             <TextInput
                                 value={questions}
                                 onChangeText={setQuestions}
@@ -80,7 +80,7 @@ export default function AddExamScreen() {
                             />
                         </View>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.label}>Time Limit (Minutes)</Text>
+                            <Text style={styles.label}>제한 시간(분)</Text>
                             <TextInput
                                 value={minutes}
                                 onChangeText={setMinutes}
@@ -103,7 +103,7 @@ export default function AddExamScreen() {
                             pressed && canSave && { opacity: 0.9 },
                         ]}
                     >
-                        <Text style={styles.primaryBtnText}>{saving ? "Adding..." : "Add Exam"}</Text>
+                        <Text style={styles.primaryBtnText}>{saving ? "추가 중..." : "시험 추가"}</Text>
                     </Pressable>
                 </View>
             </ScrollView>

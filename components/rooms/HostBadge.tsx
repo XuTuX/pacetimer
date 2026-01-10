@@ -6,7 +6,7 @@ export function HostBadge() {
     return (
         <View style={styles.badge}>
             <Ionicons name="star" size={10} color={COLORS.primary} />
-            <Text style={styles.text}>HOST</Text>
+            <Text style={styles.text}>호스트</Text>
         </View>
     );
 }

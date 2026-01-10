@@ -33,7 +33,7 @@ export function RoomCard({ room, isHost, onPress }: RoomCardProps) {
                     <Text style={styles.name} numberOfLines={1}>{room.name}</Text>
                     {isHost && (
                         <View style={styles.hostBadge}>
-                            <Text style={styles.hostText}>HOST</Text>
+                            <Text style={styles.hostText}>호스트</Text>
                         </View>
                     )}
                 </View>
@@ -44,18 +44,18 @@ export function RoomCard({ room, isHost, onPress }: RoomCardProps) {
                     </Text>
                 ) : (
                     <Text style={[styles.description, { fontStyle: 'italic', opacity: 0.5 }]}>
-                        No description provided
+                        설명이 없습니다
                     </Text>
                 )}
 
                 <View style={styles.footer}>
                     <View style={styles.codeBadge}>
                         <Ionicons name="key-outline" size={12} color={COLORS.textMuted} />
-                        <Text style={styles.codeText}>ID {shortId}</Text>
+                        <Text style={styles.codeText}>코드 {shortId}</Text>
                     </View>
                     <View style={styles.memberSmall}>
                         <Ionicons name="person-outline" size={12} color={COLORS.textMuted} />
-                        <Text style={styles.memberText}>Group Room</Text>
+                        <Text style={styles.memberText}>스터디 룸</Text>
                     </View>
                 </View>
             </View>

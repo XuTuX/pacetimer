@@ -57,7 +57,9 @@ export default function LoginScreen() {
                 router.replace("/(tabs)");
             }
         } catch (err) {
-            console.error("OAuth error", err);
+            if (__DEV__) {
+                console.error("OAuth 오류", err);
+            }
         }
     };
 
@@ -92,7 +94,7 @@ export default function LoginScreen() {
                                 <Text style={styles.title}>Pacetime</Text>
                                 <View style={styles.dot} />
                             </View>
-                            <Text style={styles.tagline}>Study with Pace, Win the Race</Text>
+                            <Text style={styles.tagline}>페이스를 잡고, 레이스를 완주하세요</Text>
                         </Animated.View>
 
                         <Animated.View entering={FadeInDown.delay(400).duration(800)} style={styles.descriptionWrapper}>
@@ -113,7 +115,7 @@ export default function LoginScreen() {
                             activeOpacity={0.9}
                         >
                             <Ionicons name="logo-apple" size={22} color="#FFFFFF" style={styles.buttonIcon} />
-                            <Text style={[styles.buttonText, { color: "#FFFFFF" }]}>Apple로 계속하기</Text>
+                            <Text style={[styles.buttonText, { color: "#FFFFFF" }]}>애플로 계속하기</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -128,7 +130,7 @@ export default function LoginScreen() {
                             />
                             {/* 구글 로고 아이콘이 보통 없으므로 Ionicons 사용 */}
                             <Ionicons name="logo-google" size={20} color="#1C1C1E" style={{ position: 'absolute', left: 24 }} />
-                            <Text style={[styles.buttonText, { color: "#1C1C1E" }]}>Google로 계속하기</Text>
+                            <Text style={[styles.buttonText, { color: "#1C1C1E" }]}>구글로 계속하기</Text>
                         </TouchableOpacity>
                     </Animated.View>
 

@@ -21,7 +21,7 @@ export function CompareRow({ label, myValue, avgValue, isFaster, diffPercent = 0
                 <Text style={styles.label}>{label}</Text>
                 <View style={styles.values}>
                     <Text style={[styles.value, styles.myValue]}>{myValue}</Text>
-                    <Text style={styles.valueMuted}> / avg {avgValue}</Text>
+                    <Text style={styles.valueMuted}> / 평균 {avgValue}</Text>
                 </View>
             </View>
 

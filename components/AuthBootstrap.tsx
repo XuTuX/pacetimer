@@ -3,6 +3,12 @@ import { useEffect, useRef } from "react";
 import { formatSupabaseError } from "../lib/supabaseError";
 import { useSupabase } from "../lib/supabase";
 
+const warnDevOnly = (...args: unknown[]) => {
+    if (__DEV__) {
+        console.warn(...args);
+    }
+};
+
 function toDisplayName(user: ReturnType<typeof useUser>["user"]): string | null {
     if (!user) return null;
     if (user.fullName) return user.fullName;
@@ -42,16 +48,16 @@ export default function AuthBootstrap() {
                 .upsert(
                     { id: userId, display_name: displayName, avatar_url: avatarUrl },
                     { onConflict: "id" },
-                );
+            );
 
             if (error) {
-                console.warn("profiles.upsert failed", formatSupabaseError(error));
+                warnDevOnly("profiles.upsert 실패", formatSupabaseError(error));
                 return;
             }
 
             upsertedForUserIdRef.current = userId;
         })().catch((err) => {
-            console.warn("AuthBootstrap failed", formatSupabaseError(err));
+            warnDevOnly("AuthBootstrap 실패", formatSupabaseError(err));
         }).finally(() => {
             inFlightRef.current = false;
         });

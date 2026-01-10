@@ -34,7 +34,7 @@ export function ParticipantRow({ name, status, progress, lastUpdated, isMe, rank
 
                 <View style={styles.textContainer}>
                     <Text style={styles.name} numberOfLines={1}>
-                        {name} {isMe && <Text style={styles.meLabel}>(Me)</Text>}
+                        {name} {isMe && <Text style={styles.meLabel}>(나)</Text>}
                     </Text>
                     {lastUpdated && <Text style={styles.subtitle}>{lastUpdated}</Text>}
                 </View>

@@ -10,7 +10,9 @@ import { COLORS } from "../lib/theme";
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
 if (!publishableKey) {
-  console.error("Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in .env");
+  if (__DEV__) {
+    console.error("EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY가 설정되지 않았습니다.");
+  }
 }
 
 const tokenCache = {

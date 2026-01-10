@@ -60,7 +60,9 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
                 Alert.alert("알림", "공유 기능을 사용할 수 없는 환경입니다.");
             }
         } catch (e) {
-            console.error(e);
+            if (__DEV__) {
+                console.error(e);
+            }
             Alert.alert("오류", "이미지 생성 중 오류가 발생했습니다.");
         }
     };
@@ -162,18 +164,18 @@ export default function SessionDetail({ session, initialSortMode = 'number', sty
                             <Text style={styles.shareCategory}>{session.categoryName}</Text>
                             <Text style={styles.shareDate}>{formatDate(session.date)}</Text>
                         </View>
-                        <Text style={styles.shareTitle}>{session.title}</Text>
+                            <Text style={styles.shareTitle}>{session.title}</Text>
                         <View style={styles.shareStatGrid}>
                             <View style={styles.shareStatItem}>
-                                <Text style={styles.shareStatLabel}>Total Time</Text>
+                                <Text style={styles.shareStatLabel}>총 시간</Text>
                                 <Text style={styles.shareStatValue}>{formatTime(session.totalSeconds)}</Text>
                             </View>
                             <View style={styles.shareStatItem}>
-                                <Text style={styles.shareStatLabel}>Average</Text>
+                                <Text style={styles.shareStatLabel}>평균</Text>
                                 <Text style={styles.shareStatValue}>{formatTime(analysis.average)}</Text>
                             </View>
                             <View style={styles.shareStatItem}>
-                                <Text style={styles.shareStatLabel}>Questions</Text>
+                                <Text style={styles.shareStatLabel}>문항</Text>
                                 <Text style={styles.shareStatValue}>{session.totalQuestions}</Text>
                             </View>
                         </View>

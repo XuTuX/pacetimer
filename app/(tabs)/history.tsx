@@ -108,7 +108,9 @@ export default function HistoryScreen() {
             await signOut();
             router.replace('/auth/login');
         } catch (err) {
-            console.error(err);
+            if (__DEV__) {
+                console.error(err);
+            }
         }
     };
 
@@ -119,7 +121,7 @@ export default function HistoryScreen() {
                 <View style={styles.header}>
                     <View>
                         <Text style={styles.headerTitle}>학습 기록</Text>
-                        <Text style={styles.userLabel}>{userId || 'Guest User'}</Text>
+                        <Text style={styles.userLabel}>{userId || '게스트'}</Text>
                     </View>
                     <TouchableOpacity style={styles.settingsBtn} onPress={() => setSettingsOpen(v => !v)}>
                         <Ionicons name="settings-outline" size={22} color={COLORS.text} />

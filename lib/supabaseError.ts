@@ -10,13 +10,13 @@ function isRecord(value: unknown): value is UnknownRecord {
 }
 
 export function normalizeSupabaseError(error: unknown): NormalizedSupabaseError {
-    if (!error) return { message: "Unknown error" };
+    if (!error) return { message: "알 수 없는 오류" };
     if (typeof error === "string") return { message: error };
     if (error instanceof Error) return { message: error.message };
 
     if (!isRecord(error)) return { message: String(error) };
 
-    const message = typeof error.message === "string" ? error.message : "Unknown error";
+    const message = typeof error.message === "string" ? error.message : "알 수 없는 오류";
     const code = typeof error.code === "string" ? error.code : undefined;
     const status = typeof error.status === "number" ? error.status : undefined;
     const details = typeof error.details === "string" ? error.details : undefined;
@@ -24,7 +24,7 @@ export function normalizeSupabaseError(error: unknown): NormalizedSupabaseError 
 
     const prefix = [
         code ? `[${code}]` : null,
-        status ? `(status ${status})` : null,
+        status ? `(상태 ${status})` : null,
     ].filter(Boolean).join(" ");
 
     const fullMessage = prefix ? `${prefix} ${message}` : message;
@@ -37,4 +37,3 @@ export function formatSupabaseError(error: unknown): string {
     const normalized = normalizeSupabaseError(error);
     return normalized.details ? `${normalized.message}\n${normalized.details}` : normalized.message;
 }
-

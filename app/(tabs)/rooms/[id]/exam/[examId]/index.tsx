@@ -32,7 +32,7 @@ function formatDuration(ms: number) {
     const totalSeconds = Math.floor(ms / 1000);
     const m = Math.floor(totalSeconds / 60);
     const s = totalSeconds % 60;
-    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+    return m > 0 ? `${m}분 ${s}초` : `${s}초`;
 }
 
 export default function ExamDetailScreen() {
@@ -104,7 +104,7 @@ export default function ExamDetailScreen() {
 
                 return {
                     userId: m.user_id,
-                    name: m.profile?.display_name || `User ${(m.user_id || "").slice(0, 4)}`,
+                    name: m.profile?.display_name || `사용자 ${(m.user_id || "").slice(0, 4)}`,
                     status,
                     durationMs: attempt?.duration_ms || 0,
                     progressCount: records.length,
@@ -188,10 +188,10 @@ export default function ExamDetailScreen() {
 
     return (
         <View style={styles.container}>
-            <ScreenHeader title={exam?.title || "Exam Results"} />
+            <ScreenHeader title={exam?.title || "시험 결과"} />
 
             <SegmentedTabs
-                tabs={['Live Race', 'Leaderboard', 'Pace Analysis']}
+                tabs={['라이브 레이스', '리더보드', '페이스 분석']}
                 activeTab={activeTab}
                 onChange={setActiveTab}
             />
@@ -203,19 +203,19 @@ export default function ExamDetailScreen() {
                     <View style={styles.tabContent}>
                         <View style={styles.statRow}>
                             <StatCard
-                                label="Racing"
+                                label="진행 중"
                                 value={participants.filter(p => p.status === 'IN_PROGRESS').length}
                                 color={COLORS.warning}
                             />
                             <StatCard
-                                label="Finished"
+                                label="완료"
                                 value={participants.filter(p => p.status === 'COMPLETED').length}
                                 color={COLORS.primary}
                             />
                         </View>
 
                         <View style={styles.section}>
-                            <Text style={styles.sectionLabel}>Race Track</Text>
+                            <Text style={styles.sectionLabel}>레이스 현황</Text>
                             {sortedByProgress.map(p => {
                                 const progressPct = Math.min(p.progressCount / totalQuestions, 1);
                                 return (
@@ -244,20 +244,20 @@ export default function ExamDetailScreen() {
                     <View style={styles.tabContent}>
                         {myResult?.status === 'COMPLETED' ? (
                             <View style={styles.myRankCard}>
-                                <Text style={styles.myRankTitle}>Your Rank</Text>
+                                <Text style={styles.myRankTitle}>내 순위</Text>
                                 <Text style={styles.myRankValue}>#{myRank}</Text>
                                 <Text style={styles.myRankSub}>
-                                    Time: {formatDuration(myResult.durationMs)}
+                                    시간: {formatDuration(myResult.durationMs)}
                                 </Text>
                             </View>
                         ) : (
                             <View style={styles.infoCard}>
-                                <Text style={styles.infoText}>Complete the race to get ranked!</Text>
+                                <Text style={styles.infoText}>완주하면 순위가 표시됩니다!</Text>
                             </View>
                         )}
 
                         <View style={styles.section}>
-                            <Text style={styles.sectionLabel}>All Finishers</Text>
+                            <Text style={styles.sectionLabel}>완료자</Text>
                             {sortedByTime.map((p, index) => (
                                 <ParticipantRow
                                     key={p.userId}
@@ -269,7 +269,7 @@ export default function ExamDetailScreen() {
                                 />
                             ))}
                             {sortedByTime.length === 0 && (
-                                <Text style={styles.emptyText}>No finishers yet. Be the first!</Text>
+                                <Text style={styles.emptyText}>아직 완료자가 없어요. 첫 완료자가 되어보세요!</Text>
                             )}
                         </View>
                     </View>
@@ -281,10 +281,10 @@ export default function ExamDetailScreen() {
                         {myResult?.status === 'COMPLETED' && myResult.records.length > 0 ? (
                             <>
                                 <View style={styles.infoCard}>
-                                    <Text style={styles.infoText}>Green bars mean you were faster than average. Red means slower.</Text>
+                                    <Text style={styles.infoText}>초록 막대는 평균보다 빠름, 빨강은 느림을 의미합니다.</Text>
                                 </View>
                                 <View style={styles.section}>
-                                    <Text style={styles.sectionLabel}>Question Analysis</Text>
+                                    <Text style={styles.sectionLabel}>문항별 분석</Text>
                                     {myResult.records.map(r => {
                                         const avg = roomAvgPerQuestion[r.question_no] || r.duration_ms;
                                         const diff = r.duration_ms - avg;
@@ -304,7 +304,7 @@ export default function ExamDetailScreen() {
                             </>
                         ) : (
                             <View style={styles.infoCard}>
-                                <Text style={styles.infoText}>Pace analysis is available after you complete the exam.</Text>
+                                <Text style={styles.infoText}>시험 완료 후 페이스 분석을 볼 수 있어요.</Text>
                             </View>
                         )}
                     </View>
@@ -314,7 +314,7 @@ export default function ExamDetailScreen() {
             {myResult && myResult.status !== 'COMPLETED' && (
                 <View style={styles.bottomBar}>
                     <PrimaryButton
-                        label="Join the Race"
+                        label="레이스 참여"
                         onPress={() => router.push({ pathname: "/(tabs)/rooms/[id]/exam/[examId]/run", params: { id: roomId, examId: currentExamId } })}
                         style={{ width: '100%' }}
                     />

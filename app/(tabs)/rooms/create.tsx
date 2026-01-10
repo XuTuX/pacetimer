@@ -59,26 +59,26 @@ export default function RoomsCreateScreen() {
         <SafeAreaView style={styles.container} edges={["bottom"]}>
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 <View style={styles.card}>
-                    <Text style={styles.title}>Create a Room</Text>
+                    <Text style={styles.title}>룸 만들기</Text>
                     <Text style={styles.hint}>
-                        Create a shared space for asynchronous mock exams. You will be the host.
+                        비동기 모의고사를 함께하는 공간을 만듭니다. 생성한 분이 호스트가 됩니다.
                     </Text>
 
-                    <Text style={styles.label}>Room Name</Text>
+                    <Text style={styles.label}>룸 이름</Text>
                     <TextInput
                         value={name}
                         onChangeText={setName}
-                        placeholder="e.g. 2026 SAT Study Group"
+                        placeholder="예: 2026 수능 스터디"
                         placeholderTextColor={COLORS.textMuted}
                         style={styles.input}
                         returnKeyType="next"
                     />
 
-                    <Text style={styles.label}>Description (Optional)</Text>
+                    <Text style={styles.label}>설명 (선택)</Text>
                     <TextInput
                         value={description}
                         onChangeText={setDescription}
-                        placeholder="e.g. Weekly math practice..."
+                        placeholder="예: 매주 수학 연습"
                         placeholderTextColor={COLORS.textMuted}
                         style={[styles.input, { minHeight: 80 }]}
                         multiline
@@ -95,7 +95,7 @@ export default function RoomsCreateScreen() {
                             pressed && canCreate && { opacity: 0.9 },
                         ]}
                     >
-                        <Text style={styles.primaryBtnText}>{saving ? "Creating..." : "Create Room"}</Text>
+                        <Text style={styles.primaryBtnText}>{saving ? "생성 중..." : "룸 생성"}</Text>
                     </Pressable>
                 </View>
             </ScrollView>
@@ -168,4 +168,3 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
 });
-

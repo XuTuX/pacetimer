@@ -23,7 +23,7 @@ export default function HomeScreen() {
     const formatTime = (ms: number) => {
         const hours = Math.floor(ms / 3600000);
         const minutes = Math.floor((ms % 3600000) / 60000);
-        if (hours > 0) return `${hours}h ${minutes}m`;
+        if (hours > 0) return `${hours}시간 ${minutes}분`;
         return `${minutes}분 ${Math.floor((ms % 60000) / 1000)}초`;
     };
 

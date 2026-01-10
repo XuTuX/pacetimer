@@ -149,7 +149,7 @@ export default function RoomHomeScreen() {
         if (!room) return;
         try {
             await Share.share({
-                message: `Join my study room "${room.name}" on Pacetime! Room ID: ${room.id}`,
+                message: `Pacetime에서 "${room.name}" 스터디 룸에 참여하세요! 룸 ID: ${room.id}`,
             });
         } catch (error) {
             // ignore
@@ -178,7 +178,7 @@ export default function RoomHomeScreen() {
     return (
         <View style={styles.container}>
             <ScreenHeader
-                title={room?.name || "Room"}
+                title={room?.name || "룸"}
                 showBack={true}
                 onBack={() => router.replace('/(tabs)/rooms')}
                 rightElement={
@@ -192,7 +192,7 @@ export default function RoomHomeScreen() {
 
                 {/* Hero / Active Exam Section */}
                 <View style={styles.heroSection}>
-                    <Text style={styles.sectionLabel}>Next Challenge</Text>
+                    <Text style={styles.sectionLabel}>다음 챌린지</Text>
                     {selectedExam ? (
                         <ChallengeCard
                             title={selectedExam.title}
@@ -200,13 +200,13 @@ export default function RoomHomeScreen() {
                             timeMinutes={selectedExam.total_minutes}
                             participantCount={participants.length} // Showing total room members here might be better for "Potential"
                             onStart={openExamRunner}
-                            buttonLabel={myAttempt?.ended_at ? "Completed" : "Enter Challenge"}
+                            buttonLabel={myAttempt?.ended_at ? "완료" : "챌린지 입장"}
                         />
                     ) : (
                         <View style={styles.emptyCard}>
                             <Ionicons name="file-tray-outline" size={48} color={COLORS.textMuted} />
-                            <Text style={styles.emptyText}>No active exams.</Text>
-                            <Text style={styles.emptySubText}>The host hasn't started a session yet.</Text>
+                            <Text style={styles.emptyText}>진행 중인 시험이 없습니다.</Text>
+                            <Text style={styles.emptySubText}>호스트가 아직 세션을 시작하지 않았습니다.</Text>
                         </View>
                     )}
                 </View>
@@ -215,17 +215,17 @@ export default function RoomHomeScreen() {
                 <View style={styles.statsRow}>
                     <View style={styles.statItem}>
                         <Text style={styles.statValue}>{participants.length}</Text>
-                        <Text style={styles.statLabel}>Members</Text>
+                        <Text style={styles.statLabel}>참여자</Text>
                     </View>
                     <View style={styles.statSeparator} />
                     <View style={styles.statItem}>
                         <Text style={styles.statValue}>{finishedParticipants.length}</Text>
-                        <Text style={styles.statLabel}>Finished</Text>
+                        <Text style={styles.statLabel}>완료</Text>
                     </View>
                     <View style={styles.statSeparator} />
                     <View style={styles.statItem}>
                         <Text style={styles.statValue}>{activeParticipants.length}</Text>
-                        <Text style={styles.statLabel}>Racing</Text>
+                        <Text style={styles.statLabel}>진행 중</Text>
                     </View>
                 </View>
 
@@ -235,16 +235,16 @@ export default function RoomHomeScreen() {
                         <View style={styles.sectionHeader}>
                             <View style={styles.liveIndicator}>
                                 <View style={styles.liveDot} />
-                                <Text style={styles.liveText}>LIVE RACERS</Text>
+                                <Text style={styles.liveText}>진행 중</Text>
                             </View>
                         </View>
                         {activeParticipants.map(p => (
                             <ParticipantRow
                                 key={p.user_id}
-                                name={p.profile?.display_name || `User`}
+                                name={p.profile?.display_name || "사용자"}
                                 status="IN_PROGRESS"
                                 isMe={p.user_id === userId}
-                                progress="In Progress"
+                                progress="진행 중"
                             />
                         ))}
                     </View>
@@ -253,11 +253,11 @@ export default function RoomHomeScreen() {
                 {/* Recent Finishers */}
                 {finishedParticipants.length > 0 && (
                     <View style={styles.section}>
-                        <Text style={styles.sectionLabel}>Recent Finishers</Text>
+                        <Text style={styles.sectionLabel}>최근 완료자</Text>
                         {finishedParticipants.slice(0, 5).map((p, index) => ( // Show top 5
                             <ParticipantRow
                                 key={p.user_id}
-                                name={p.profile?.display_name || `User`}
+                                name={p.profile?.display_name || "사용자"}
                                 status="COMPLETED"
                                 isMe={p.user_id === userId}
                                 rank={index + 1}
@@ -266,7 +266,7 @@ export default function RoomHomeScreen() {
                         ))}
                         {finishedParticipants.length > 5 && (
                             <Pressable style={styles.viewAllBtn} onPress={() => router.push(`/room/${roomId}/rank`)}>
-                                <Text style={styles.viewAllText}>View All Rankings</Text>
+                                <Text style={styles.viewAllText}>전체 순위 보기</Text>
                                 <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
                             </Pressable>
                         )}
@@ -276,10 +276,10 @@ export default function RoomHomeScreen() {
                 {!isMember && (
                     <View style={styles.joinOverlay}>
                         <View style={styles.joinMsgContainer}>
-                            <Text style={styles.joinTitle}>Join {room?.name}</Text>
-                            <Text style={styles.joinDesc}>Participate in group exams and track your progress together.</Text>
+                            <Text style={styles.joinTitle}>{room?.name} 참여</Text>
+                            <Text style={styles.joinDesc}>함께 모의고사에 참여하고 진행 상황을 기록해 보세요.</Text>
                             <PrimaryButton
-                                label="Join Room"
+                                label="룸 참여"
                                 onPress={handleJoin}
                                 loading={joining}
                                 style={{ width: '100%', marginTop: 20 }}

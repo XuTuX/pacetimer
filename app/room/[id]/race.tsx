@@ -32,7 +32,7 @@ function formatDuration(ms: number) {
     const totalSeconds = Math.floor(ms / 1000);
     const m = Math.floor(totalSeconds / 60);
     const s = totalSeconds % 60;
-    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+    return m > 0 ? `${m}분 ${s}초` : `${s}초`;
 }
 
 export default function RaceScreen() {
@@ -112,7 +112,7 @@ export default function RaceScreen() {
 
                 return {
                     userId: m.user_id,
-                    name: m.profile?.display_name || `User ${(m.user_id || "").slice(0, 4)}`,
+                    name: m.profile?.display_name || `사용자 ${(m.user_id || "").slice(0, 4)}`,
                     status,
                     durationMs: attempt?.duration_ms || 0,
                     progressCount: records.length,
@@ -191,10 +191,10 @@ export default function RaceScreen() {
     if (!exam) {
         return (
             <View style={styles.container}>
-                <ScreenHeader title="Live Race" />
+                <ScreenHeader title="라이브 레이스" />
                 <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyText}>No active exam found.</Text>
-                    <Text style={styles.emptySub}>Wait for the host to create one!</Text>
+                    <Text style={styles.emptyText}>진행 중인 시험이 없습니다.</Text>
+                    <Text style={styles.emptySub}>호스트가 시작할 때까지 기다려 주세요.</Text>
                 </View>
             </View>
         );
@@ -204,10 +204,10 @@ export default function RaceScreen() {
 
     return (
         <View style={styles.container}>
-            <ScreenHeader title={exam?.title || "Live Race"} />
+            <ScreenHeader title={exam?.title || "라이브 레이스"} />
 
             <SegmentedTabs
-                tabs={['Live', 'Leaderboard', 'Analysis']}
+                tabs={['라이브', '리더보드', '페이스 분석']}
                 activeTab={activeTab}
                 onChange={setActiveTab}
             />
@@ -219,19 +219,19 @@ export default function RaceScreen() {
                     <View style={styles.tabContent}>
                         <View style={styles.statRow}>
                             <StatCard
-                                label="Racing"
+                                label="진행 중"
                                 value={participants.filter(p => p.status === 'IN_PROGRESS').length}
                                 color={COLORS.warning}
                             />
                             <StatCard
-                                label="Finished"
+                                label="완료"
                                 value={participants.filter(p => p.status === 'COMPLETED').length}
                                 color={COLORS.primary}
                             />
                         </View>
 
                         <View style={styles.section}>
-                            <Text style={styles.sectionLabel}>Race Track</Text>
+                            <Text style={styles.sectionLabel}>레이스 현황</Text>
                             {sortedByProgress.map(p => {
                                 const progressPct = Math.min(p.progressCount / totalQuestions, 1);
                                 return (
@@ -260,20 +260,20 @@ export default function RaceScreen() {
                     <View style={styles.tabContent}>
                         {myResult?.status === 'COMPLETED' ? (
                             <View style={styles.myRankCard}>
-                                <Text style={styles.myRankTitle}>Your Checkpoint</Text>
+                                <Text style={styles.myRankTitle}>내 순위</Text>
                                 <Text style={styles.myRankValue}>#{myRank}</Text>
                                 <Text style={styles.myRankSub}>
-                                    Time: {formatDuration(myResult.durationMs)}
+                                    시간: {formatDuration(myResult.durationMs)}
                                 </Text>
                             </View>
                         ) : (
                             <View style={styles.infoCard}>
-                                <Text style={styles.infoText}>Finish correctly to set your rank.</Text>
+                                <Text style={styles.infoText}>완주하면 순위가 표시됩니다.</Text>
                             </View>
                         )}
 
                         <View style={styles.section}>
-                            <Text style={styles.sectionLabel}>Finishing Order</Text>
+                            <Text style={styles.sectionLabel}>완료 순서</Text>
                             {sortedByTime.map((p, index) => (
                                 <ParticipantRow
                                     key={p.userId}
@@ -285,7 +285,7 @@ export default function RaceScreen() {
                                 />
                             ))}
                             {sortedByTime.length === 0 && (
-                                <Text style={styles.emptyText}>No finishers yet.</Text>
+                                <Text style={styles.emptyText}>아직 완료자가 없어요.</Text>
                             )}
                         </View>
                     </View>
@@ -297,7 +297,7 @@ export default function RaceScreen() {
                         {myResult?.status === 'COMPLETED' && myResult.records.length > 0 ? (
                             <>
                                 <View style={styles.infoCard}>
-                                    <Text style={styles.infoText}>Green = Faster than Avg / Red = Slower</Text>
+                                    <Text style={styles.infoText}>초록=평균보다 빠름 / 빨강=느림</Text>
                                 </View>
                                 <View style={styles.section}>
                                     {myResult.records.map(r => {
@@ -319,7 +319,7 @@ export default function RaceScreen() {
                             </>
                         ) : (
                             <View style={styles.infoCard}>
-                                <Text style={styles.infoText}>Available after finishing.</Text>
+                                <Text style={styles.infoText}>완료 후 확인할 수 있어요.</Text>
                             </View>
                         )}
                     </View>
@@ -329,7 +329,7 @@ export default function RaceScreen() {
             {myResult && myResult.status !== 'COMPLETED' && (
                 <View style={styles.bottomBar}>
                     <PrimaryButton
-                        label={myResult.status === 'IN_PROGRESS' ? "Continue Race" : "Join Race"}
+                        label={myResult.status === 'IN_PROGRESS' ? "레이스 이어하기" : "레이스 참여"}
                         // Redirect to run logic. Wait, this needs 'run' path.
                         // app/room/[id]/run is not a tab.
                         // I need to use the old stack path for the actual running part because it shouldn't show tabs?

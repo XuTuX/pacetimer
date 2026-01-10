@@ -21,7 +21,7 @@ export function ChallengeCard({
     timeMinutes,
     participantCount,
     onStart,
-    buttonLabel = "Start Challenge"
+    buttonLabel = "챌린지 시작"
 }: ChallengeCardProps) {
     return (
         <View style={styles.container}>
@@ -30,7 +30,7 @@ export function ChallengeCard({
                     <Ionicons name="trophy" size={24} color={COLORS.primary} />
                 </View>
                 <View style={styles.headerText}>
-                    <Text style={styles.liveBadge}>LIVE EVENT</Text>
+                    <Text style={styles.liveBadge}>라이브 이벤트</Text>
                     <Text style={styles.title} numberOfLines={1}>{title}</Text>
                 </View>
             </View>
@@ -38,17 +38,17 @@ export function ChallengeCard({
             <View style={styles.statsRow}>
                 <View style={styles.stat}>
                     <Ionicons name="document-text-outline" size={16} color={COLORS.textMuted} />
-                    <Text style={styles.statText}>{questionCount} Qs</Text>
+                    <Text style={styles.statText}>{questionCount}문항</Text>
                 </View>
                 <View style={styles.divider} />
                 <View style={styles.stat}>
                     <Ionicons name="time-outline" size={16} color={COLORS.textMuted} />
-                    <Text style={styles.statText}>{timeMinutes}m</Text>
+                    <Text style={styles.statText}>{timeMinutes}분</Text>
                 </View>
                 <View style={styles.divider} />
                 <View style={styles.stat}>
                     <Ionicons name="people-outline" size={16} color={COLORS.textMuted} />
-                    <Text style={styles.statText}>{participantCount} joined</Text>
+                    <Text style={styles.statText}>{participantCount}명 참여</Text>
                 </View>
             </View>
 

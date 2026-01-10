@@ -34,11 +34,11 @@ export function ExamCard({ exam, onPress, attemptStatus = 'none' }: ExamCardProp
                 <View style={styles.metaRow}>
                     <View style={styles.badge}>
                         <Ionicons name="document-text" size={12} color={COLORS.textMuted} />
-                        <Text style={styles.metaText}>{exam.total_questions} Qs</Text>
+                        <Text style={styles.metaText}>{exam.total_questions}문항</Text>
                     </View>
                     <View style={styles.badge}>
                         <Ionicons name="time" size={12} color={COLORS.textMuted} />
-                        <Text style={styles.metaText}>{exam.total_minutes}m</Text>
+                        <Text style={styles.metaText}>{exam.total_minutes}분</Text>
                     </View>
                 </View>
             </View>
@@ -47,12 +47,12 @@ export function ExamCard({ exam, onPress, attemptStatus = 'none' }: ExamCardProp
                 {isCompleted ? (
                     <View style={styles.statusBadgeSuccess}>
                         <Ionicons name="checkmark-circle" size={16} color={COLORS.success} />
-                        <Text style={styles.statusTextSuccess}>Completed</Text>
+                        <Text style={styles.statusTextSuccess}>완료</Text>
                     </View>
                 ) : isInProgress ? (
                     <View style={styles.statusBadgeWarning}>
                         <Ionicons name="play" size={16} color={COLORS.warning} />
-                        <Text style={styles.statusTextWarning}>Live</Text>
+                        <Text style={styles.statusTextWarning}>진행 중</Text>
                     </View>
                 ) : (
                     <View style={styles.startButton}>

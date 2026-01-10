@@ -234,7 +234,7 @@ export default function TimerScreen() {
 
                     <View style={styles.subjectSelectionContent}>
                         <View style={styles.subjectHeader}>
-                            <Text style={styles.pageSubtitle}>Ready to Study</Text>
+                            <Text style={styles.pageSubtitle}>공부 준비 완료</Text>
                             <Text style={styles.pageTitle}>어떤 과목을{"\n"}공부할까요?</Text>
                         </View>
 

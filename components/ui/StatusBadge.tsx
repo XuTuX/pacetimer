@@ -9,6 +9,12 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status }: StatusBadgeProps) {
+    const statusLabels: Record<StatusType, string> = {
+        COMPLETED: '완료',
+        IN_PROGRESS: '진행 중',
+        NOT_STARTED: '시작 전',
+        ABANDONED: '중단',
+    };
     const getStyles = () => {
         switch (status) {
             case 'COMPLETED':
@@ -26,7 +32,7 @@ export function StatusBadge({ status }: StatusBadgeProps) {
 
     return (
         <View style={[styles.container, { backgroundColor: bg }]}>
-            <Text style={[styles.text, { color: text }]}>{status.replace('_', ' ')}</Text>
+            <Text style={[styles.text, { color: text }]}>{statusLabels[status]}</Text>
         </View>
     );
 }
