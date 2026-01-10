@@ -11,6 +11,7 @@ import { COLORS } from "../../../../../../lib/theme";
 
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
 type ExamAttemptRow = Database["public"]["Tables"]["attempts"]["Row"];
+type AttemptRecordRow = Database["public"]["Tables"]["attempt_records"]["Row"];
 
 function formatDuration(seconds: number) {
     if (!seconds) return "0s";
@@ -30,6 +31,7 @@ export default function ExamDetailScreen() {
 
     const [exam, setExam] = useState<RoomExamRow | null>(null);
     const [allAttempts, setAllAttempts] = useState<ExamAttemptRow[]>([]);
+    const [allRecords, setAllRecords] = useState<AttemptRecordRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'leaderboard' | 'comparison'>('leaderboard');
@@ -58,6 +60,28 @@ export default function ExamDetailScreen() {
             if (aError) throw aError;
             const attempts = aData ?? [];
             setAllAttempts(attempts);
+
+            // 3. All Records
+            try {
+                if (attempts.length > 0) {
+                    const { data: rData, error: rError } = await supabase
+                        .from("attempt_records")
+                        .select("*")
+                        .in("attempt_id", attempts.map(a => a.id))
+                        .order("question_no", { ascending: true });
+
+                    if (rError) {
+                        // If table is missing, we just don't show records
+                        console.warn("attempt_records table not found or inaccessible:", rError.message);
+                        setAllRecords([]);
+                    } else {
+                        setAllRecords(rData ?? []);
+                    }
+                }
+            } catch (rErr) {
+                console.warn("Failed to fetch attempt_records:", rErr);
+                setAllRecords([]);
+            }
 
         } catch (err: any) {
             setError(formatSupabaseError(err));
@@ -174,11 +198,41 @@ export default function ExamDetailScreen() {
                         )}
                     </View>
                 ) : (
-                    <View style={styles.comparisonPlaceholder}>
-                        <Ionicons name="information-circle-outline" size={24} color={COLORS.textMuted} />
-                        <Text style={styles.comparisonText}>
-                            Detailed question breakdown isn't available with the current database schema.
-                        </Text>
+                    <View style={styles.list}>
+                        {allAttempts.length === 0 ? (
+                            <Text style={styles.emptyText}>No attempts to compare.</Text>
+                        ) : (
+                            allAttempts.map((attempt) => {
+                                const records = allRecords.filter(r => r.attempt_id === attempt.id);
+                                return (
+                                    <View key={attempt.id} style={styles.comparisonCard}>
+                                        <View style={styles.comparisonHeader}>
+                                            <Text style={styles.userIdText}>
+                                                {attempt.user_id === userId ? 'You (Me)' : `User ${attempt.user_id.slice(0, 6)}`}
+                                            </Text>
+                                            <Text style={styles.totalDuration}>
+                                                {formatDuration(Math.floor(attempt.duration_ms / 1000))}
+                                            </Text>
+                                        </View>
+
+                                        <View style={styles.recordsGrid}>
+                                            {records.length === 0 ? (
+                                                <Text style={styles.noRecordsText}>No question-level data available.</Text>
+                                            ) : (
+                                                records.map((rec) => (
+                                                    <View key={rec.id} style={styles.recordItem}>
+                                                        <Text style={styles.recordQNo}>Q{rec.question_no}</Text>
+                                                        <Text style={styles.recordTime}>
+                                                            {formatDuration(Math.floor(rec.duration_ms / 1000))}
+                                                        </Text>
+                                                    </View>
+                                                ))
+                                            )}
+                                        </View>
+                                    </View>
+                                );
+                            })
+                        )}
                     </View>
                 )}
 
@@ -397,5 +451,56 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '600',
         textAlign: 'center',
+    },
+    comparisonCard: {
+        backgroundColor: COLORS.surface,
+        borderRadius: 16,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        gap: 12,
+    },
+    comparisonHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingBottom: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.surfaceVariant,
+    },
+    totalDuration: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: COLORS.primary,
+    },
+    recordsGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    recordItem: {
+        backgroundColor: COLORS.bg,
+        paddingHorizontal: 8,
+        paddingVertical: 6,
+        borderRadius: 8,
+        minWidth: 60,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    recordQNo: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: COLORS.textMuted,
+    },
+    recordTime: {
+        fontSize: 12,
+        fontWeight: '800',
+        color: COLORS.text,
+    },
+    noRecordsText: {
+        fontSize: 12,
+        color: COLORS.textMuted,
+        fontStyle: 'italic',
     },
 });

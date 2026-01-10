@@ -117,7 +117,22 @@ export default function ExamRunScreen() {
 
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-        // 2. Last question?
+        // 2. Insert record for current question
+        const duration = nowMs - lastLapTime;
+        try {
+            const { error: rError } = await supabase.from("attempt_records").insert({
+                attempt_id: attemptId,
+                question_no: questionIndex,
+                duration_ms: duration,
+            });
+            if (rError) {
+                console.warn("Failed to insert attempt_record:", rError.message);
+            }
+        } catch (rErr) {
+            console.warn("Error inserting attempt_record:", rErr);
+        }
+
+        // 3. Last question?
         if (questionIndex >= exam.total_questions) {
             setIsCompleted(true);
             setLastLapTime(nowMs);
@@ -125,7 +140,7 @@ export default function ExamRunScreen() {
             setQuestionIndex(q => q + 1);
             setLastLapTime(nowMs);
         }
-    }, [attemptId, exam, questionIndex, lastLapTime, isCompleted]);
+    }, [attemptId, exam, questionIndex, lastLapTime, isCompleted, supabase]);
 
     const handleFinish = async () => {
         if (!attemptId || !startedAtTime) return;

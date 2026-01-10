@@ -14,7 +14,40 @@ export type Database = {
   }
   public: {
     Tables: {
+      attempt_records: {
+        Row: {
+          id: string
+          attempt_id: string
+          question_no: number
+          duration_ms: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          attempt_id: string
+          question_no: number
+          duration_ms: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          attempt_id?: string
+          question_no?: number
+          duration_ms?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attempt_records_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "attempts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attempts: {
+
         Row: {
           created_at: string
           duration_ms: number
