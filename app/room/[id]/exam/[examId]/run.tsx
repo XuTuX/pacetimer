@@ -1,5 +1,6 @@
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import { useKeepAwake } from "expo-keep-awake";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -10,7 +11,6 @@ import {
     Pressable,
     StyleSheet,
     Text,
-    TouchableOpacity,
     View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -66,11 +66,35 @@ export default function ExamRunScreen() {
     const [lastLapTime, setLastLapTime] = useState<number>(Date.now());
     const [isCompleted, setIsCompleted] = useState(false);
 
+    const navigation = useNavigation();
+
     // 1. Timer Tick
     useEffect(() => {
         const interval = setInterval(() => setNow(Date.now()), 16);
         return () => clearInterval(interval);
     }, []);
+
+    // 1.1 Prevent accidental navigation
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+            if (isCompleted || loading) return; // Allow if finished or still loading initial state
+
+            e.preventDefault();
+            Alert.alert(
+                '시험 중단 불가',
+                '룸 모의고사는 중간에 나갈 수 없으며, 나갈 경우 응시 기회를 잃게 됩니다. 정말 나가시겠습니까?',
+                [
+                    { text: '계속 풀기', style: 'cancel', onPress: () => { } },
+                    {
+                        text: '나가기(응시 기회 상실)',
+                        style: 'destructive',
+                        onPress: () => navigation.dispatch(e.data.action),
+                    },
+                ]
+            );
+        });
+        return unsubscribe;
+    }, [navigation, isCompleted, loading]);
 
     // 2. Initialize Attempt
     useEffect(() => {
@@ -135,10 +159,10 @@ export default function ExamRunScreen() {
                     .maybeSingle();
                 if (existingError) throw existingError;
 
-                if (existingAttempt?.ended_at) {
+                if (existingAttempt) {
                     Alert.alert(
-                        "이미 완료한 시험",
-                        "이 시험은 이미 완료했습니다. 분석 화면으로 이동합니다.",
+                        "응시 불가",
+                        "룸 모의고사는 1회만 응시 가능합니다. 이미 응시했거나 중간에 퇴장한 기록이 있어 입장이 제한됩니다.",
                         [
                             {
                                 text: "확인",
@@ -149,11 +173,6 @@ export default function ExamRunScreen() {
                             }
                         ]
                     );
-                    return;
-                }
-
-                if (existingAttempt) {
-                    await hydrateExistingAttempt(existingAttempt, eData.total_questions);
                     return;
                 }
 
@@ -387,6 +406,10 @@ export default function ExamRunScreen() {
                     <Ionicons name="time-outline" size={12} color={COLORS.primary} />
                     <Text style={styles.syncNoticeText}>시험 시간이 학습 시간에 실시간으로 반영됩니다.</Text>
                 </View>
+                <View style={[styles.syncNotice, { marginTop: 2 }]}>
+                    <Ionicons name="alert-circle-outline" size={12} color={COLORS.accent} />
+                    <Text style={[styles.syncNoticeText, { color: COLORS.accent }]}>1회 한정 응시 가능하며, 퇴장 시 재입장이 불가합니다.</Text>
+                </View>
             </View>
 
             {/* Main Touch area */}
@@ -423,9 +446,7 @@ export default function ExamRunScreen() {
                 </View>
             </Pressable>
 
-            <TouchableOpacity onPress={() => router.back()} style={styles.exitBtn}>
-                <Text style={styles.exitBtnText}>시험 나가기</Text>
-            </TouchableOpacity>
+            {/* EXIT BUTTON REMOVED BY USER REQUEST */}
         </SafeAreaView>
     );
 }
