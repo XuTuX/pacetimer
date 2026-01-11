@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ScreenHeader } from "../../../components/ui/ScreenHeader";
 import { useSupabase } from "../../../lib/supabase";
 import { formatSupabaseError } from "../../../lib/supabaseError";
 import { COLORS } from "../../../lib/theme";
@@ -52,7 +53,7 @@ export default function RoomsCreateScreen() {
 
             if (joinError) throw joinError;
 
-            router.replace({ pathname: "/(tabs)/rooms/[id]", params: { id: roomData.id } });
+            router.replace(`/room/${roomData.id}`);
         } catch (err) {
             setError(formatSupabaseError(err));
         } finally {
@@ -62,6 +63,7 @@ export default function RoomsCreateScreen() {
 
     return (
         <SafeAreaView style={styles.container} edges={["bottom"]}>
+            <ScreenHeader title="룸 만들기" />
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 <LinearGradient
                     colors={[COLORS.primaryLight, "#FFFFFF"]}

@@ -12,7 +12,7 @@ export default function RoomsLayout() {
             }}
         >
             <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="create" options={{ title: "룸 만들기" }} />
+            <Stack.Screen name="create" options={{ headerShown: false }} />
             <Stack.Screen name="[id]" options={{ headerShown: false }} />
         </Stack>
     );
