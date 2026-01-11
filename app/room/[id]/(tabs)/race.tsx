@@ -1,9 +1,8 @@
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useGlobalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { ExamCard } from "../../../../components/rooms/ExamCard";
 import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
 import type { Database } from "../../../../lib/db-types";
 import { useSupabase } from "../../../../lib/supabase";
@@ -12,16 +11,7 @@ import { COLORS } from "../../../../lib/theme";
 
 type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
-type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
-type RecordRow = Database["public"]["Tables"]["attempt_records"]["Row"];
-
-interface ParticipantResult {
-    userId: string;
-    name: string;
-    status: 'COMPLETED' | 'IN_PROGRESS' | 'NOT_STARTED';
-    progressCount: number;
-    isMe: boolean;
-}
+type AttemptRow = Database["public"]["Tables"]["attempts"]["Row"];
 
 export default function RaceScreen() {
     const supabase = useSupabase();
@@ -33,9 +23,9 @@ export default function RaceScreen() {
     const [room, setRoom] = useState<RoomRow | null>(null);
     const [exams, setExams] = useState<RoomExamRow[]>([]);
     const [loading, setLoading] = useState(true);
-    const [participants, setParticipants] = useState<ParticipantResult[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+    const [myAttempts, setMyAttempts] = useState<AttemptRow[]>([]);
 
     const loadData = useCallback(async () => {
         if (!roomId) {
@@ -62,49 +52,24 @@ export default function RaceScreen() {
             const fetchedExams = examData ?? [];
             setExams(fetchedExams);
 
-            const { data: mData, error: mError } = await supabase
-                .from("room_members")
-                .select(`*, profile:profiles(*)`)
-                .eq("room_id", roomId);
-            if (mError) throw mError;
-            const members = mData || [];
             if (userId) {
-                const currentMember = members.find((m: any) => m.user_id === userId);
-                setCurrentUserRole(currentMember?.role ?? null);
-            }
-
-            // Fetch live progress for the latest exam if it exists
-            if (fetchedExams.length > 0) {
-                const latestExamId = fetchedExams[0].id;
+                // Fetch current user's attempts for all exams in this room
                 const { data: aData } = await supabase
                     .from("attempts")
                     .select("*")
-                    .eq("exam_id", latestExamId);
-                const attempts = aData || [];
+                    .eq("room_id", roomId)
+                    .eq("user_id", userId);
+                setMyAttempts(aData || []);
 
-                const attemptIds = attempts.map(a => a.id);
-                let rData: RecordRow[] = [];
-                if (attemptIds.length > 0) {
-                    const { data: recData } = await supabase
-                        .from("attempt_records")
-                        .select("*")
-                        .in("attempt_id", attemptIds);
-                    rData = recData || [];
-                }
-
-                const results: ParticipantResult[] = members.map((m: any) => {
-                    const attempt = attempts.find(a => a.user_id === m.user_id);
-                    const records = rData.filter(r => r.attempt_id === attempt?.id);
-                    return {
-                        userId: m.user_id,
-                        name: m.profile?.display_name || "사용자",
-                        status: attempt ? (attempt.ended_at ? 'COMPLETED' : 'IN_PROGRESS') : 'NOT_STARTED',
-                        progressCount: records.length,
-                        isMe: m.user_id === userId,
-                    };
-                });
-                setParticipants(results);
+                const { data: mData } = await supabase
+                    .from("room_members")
+                    .select(`role`)
+                    .eq("room_id", roomId)
+                    .eq("user_id", userId)
+                    .single();
+                if (mData) setCurrentUserRole(mData.role);
             }
+
         } catch (err: any) {
             setError(formatSupabaseError(err));
         } finally {
@@ -119,9 +84,6 @@ export default function RaceScreen() {
     );
 
     const canCreateExam = true;
-
-    const activeExam = useMemo(() => exams[0], [exams]);
-    const myResult = useMemo(() => participants.find(p => p.isMe), [participants]);
 
     if (loading && exams.length === 0) {
         return (
@@ -144,8 +106,6 @@ export default function RaceScreen() {
                             onPress={() => {
                                 if (roomId && roomId !== 'undefined') {
                                     router.push(`/room/${roomId}/add-exam`);
-                                } else {
-                                    console.error("Room ID is missing in RaceScreen");
                                 }
                             }}
                             style={styles.headerAddBtn}
@@ -157,109 +117,38 @@ export default function RaceScreen() {
             />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                {/* Create Exam Prompt Section - Shows when no exams exist or for prominent action */}
-                {canCreateExam && exams.length === 0 && (
-                    <View style={styles.createSection}>
-                        <Pressable
-                            onPress={() => {
-                                if (roomId && roomId !== 'undefined') {
-                                    router.push(`/room/${roomId}/add-exam`);
-                                } else {
-                                    console.error("Room ID is missing in RaceScreenPrompt");
-                                }
-                            }}
-                            style={styles.createPromptCard}
-                        >
-                            <View style={styles.createIconBox}>
-                                <Ionicons name="add" size={32} color={COLORS.white} />
-                            </View>
-                            <View style={styles.createTexts}>
-                                <Text style={styles.createPromptTitle}>첫 시험 생성하기</Text>
-                                <Text style={styles.createPromptSub}>모의고사를 만들어 함께 실력을 측정해보세요.</Text>
-                            </View>
-                        </Pressable>
-                    </View>
-                )}
-
-                {/* Main Active Exam */}
-                {activeExam && (
-                    <View style={styles.activeExamSection}>
-                        <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionLabel}>진행 중인 시험</Text>
-                            <View style={styles.liveIndicator}>
-                                <View style={styles.liveDot} />
-                                <Text style={styles.liveText}>READY</Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.heroExamCard}>
-                            <View style={styles.heroExamInfo}>
-                                <Text style={styles.heroExamTitle}>{activeExam.title}</Text>
-                                <View style={styles.heroMetaRow}>
-                                    <View style={styles.heroMetaItem}>
-                                        <Ionicons name="time" size={16} color={COLORS.primary} />
-                                        <Text style={styles.heroMetaText}>{activeExam.total_minutes}분</Text>
-                                    </View>
-                                    <View style={styles.heroMetaItem}>
-                                        <Ionicons name="document-text" size={16} color={COLORS.primary} />
-                                        <Text style={styles.heroMetaText}>{activeExam.total_questions}문제</Text>
-                                    </View>
-                                </View>
-                            </View>
-
-                            <Pressable
-                                onPress={() => router.push(`/room/${roomId}/exam/${activeExam.id}/run`)}
-                                style={styles.heroStartBtn}
-                            >
-                                <Text style={styles.heroStartBtnText}>
-                                    {myResult?.status === 'IN_PROGRESS' ? '시험 이어하기' : (myResult?.status === 'COMPLETED' ? '한번 더 하기' : '시작하기')}
-                                </Text>
-                                <Ionicons name="rocket" size={18} color={COLORS.white} />
-                            </Pressable>
-                        </View>
-
-                        {/* Real-time status for the active exam */}
-                        {participants.length > 0 && (
-                            <View style={styles.liveStatusContainer}>
-                                <Text style={styles.liveStatusTitle}>현재 {participants.filter(p => p.status !== 'NOT_STARTED').length}명 참여 중</Text>
-                                <View style={styles.avatarStalk}>
-                                    {participants.filter(p => p.status !== 'NOT_STARTED').slice(0, 5).map((p, i) => (
-                                        <View key={p.userId} style={[styles.miniAvatar, { marginLeft: i === 0 ? 0 : -10, zIndex: 10 - i }]}>
-                                            <Text style={styles.miniAvatarText}>{p.name.charAt(0)}</Text>
-                                        </View>
-                                    ))}
-                                    {participants.filter(p => p.status !== 'NOT_STARTED').length > 5 && (
-                                        <View style={[styles.miniAvatar, styles.moreAvatar]}>
-                                            <Text style={styles.moreAvatarText}>+{participants.filter(p => p.status !== 'NOT_STARTED').length - 5}</Text>
-                                        </View>
-                                    )}
-                                </View>
-                            </View>
-                        )}
-                    </View>
-                )}
-
-                {/* Exam List Section */}
-                <View style={styles.listSection}>
+                {/* Exam Grid Section */}
+                <View style={styles.gridSection}>
                     <View style={styles.sectionHeader}>
                         <Text style={styles.sectionLabel}>시험 목록</Text>
+                        <Text style={styles.gridCount}>{exams.length}건</Text>
                     </View>
 
                     {exams.length === 0 ? (
                         <View style={styles.emptyExams}>
                             <Ionicons name="document-text-outline" size={48} color={COLORS.border} />
                             <Text style={styles.emptyExamsText}>등록된 시험이 없습니다.</Text>
+                            {canCreateExam && (
+                                <Pressable
+                                    onPress={() => router.push(`/room/${roomId}/add-exam`)}
+                                    style={styles.emptyCreateBtn}
+                                >
+                                    <Text style={styles.emptyCreateBtnText}>첫 시험 만들기</Text>
+                                </Pressable>
+                            )}
                         </View>
                     ) : (
-                        <View style={styles.examList}>
+                        <View style={styles.gridContainer}>
                             {exams.map((item) => {
-                                const participantStatus = item.id === activeExam?.id && myResult ? myResult.status : 'NOT_STARTED';
+                                const attempt = myAttempts.find(a => a.exam_id === item.id);
+                                const isCompleted = !!attempt?.ended_at;
+                                const isInProgress = !!attempt && !attempt.ended_at;
+
                                 return (
-                                    <ExamCard
+                                    <Pressable
                                         key={item.id}
-                                        exam={item}
                                         onPress={() => {
-                                            if (participantStatus === 'COMPLETED') {
+                                            if (isCompleted) {
                                                 router.push({
                                                     pathname: `/room/${roomId}/analysis` as any,
                                                     params: { initialExamId: item.id }
@@ -268,8 +157,35 @@ export default function RaceScreen() {
                                                 router.push(`/room/${roomId}/exam/${item.id}/run`);
                                             }
                                         }}
-                                        attemptStatus={item.id === activeExam?.id && myResult ? (myResult.status === 'COMPLETED' ? 'completed' : myResult.status === 'IN_PROGRESS' ? 'in_progress' : 'none') : 'none'}
-                                    />
+                                        style={({ pressed }) => [
+                                            styles.gridItem,
+                                            pressed && { opacity: 0.8, transform: [{ scale: 0.95 }] },
+                                            isCompleted && styles.gridItemCompleted
+                                        ]}
+                                    >
+                                        <View style={[
+                                            styles.iconBox,
+                                            isCompleted ? styles.iconBoxCompleted : (isInProgress ? styles.iconBoxProgress : null)
+                                        ]}>
+                                            <Ionicons
+                                                name={isCompleted ? "checkmark-circle" : (isInProgress ? "play" : "document-text")}
+                                                size={28}
+                                                color={isCompleted ? COLORS.success : (isInProgress ? COLORS.warning : COLORS.primary)}
+                                            />
+                                        </View>
+                                        <Text style={styles.itemTitle} numberOfLines={2}>{item.title}</Text>
+                                        <Text style={styles.itemMeta}>{item.total_questions}문항</Text>
+
+                                        {isCompleted ? (
+                                            <View style={styles.completedBadge}>
+                                                <Text style={styles.completedText}>분석보기</Text>
+                                            </View>
+                                        ) : isInProgress ? (
+                                            <View style={[styles.completedBadge, { borderColor: COLORS.warning }]}>
+                                                <Text style={[styles.completedText, { color: COLORS.warning }]}>진행중</Text>
+                                            </View>
+                                        ) : null}
+                                    </Pressable>
                                 );
                             })}
                         </View>
@@ -296,194 +212,120 @@ const styles = StyleSheet.create({
     headerAddBtn: {
         padding: 4,
     },
-    createSection: {
+    gridSection: {
         padding: 20,
-    },
-    createPromptCard: {
-        backgroundColor: COLORS.surface,
-        borderRadius: 24,
-        padding: 24,
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.05,
-        shadowRadius: 15,
-        elevation: 3,
-    },
-    createIconBox: {
-        width: 56,
-        height: 56,
-        borderRadius: 18,
-        backgroundColor: COLORS.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 16,
-    },
-    createTexts: {
-        flex: 1,
-    },
-    createPromptTitle: {
-        fontSize: 18,
-        fontWeight: '800',
-        color: COLORS.text,
-        marginBottom: 4,
-    },
-    createPromptSub: {
-        fontSize: 13,
-        color: COLORS.textMuted,
-        fontWeight: '500',
-    },
-    activeExamSection: {
-        paddingHorizontal: 20,
-        marginBottom: 32,
     },
     sectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 16,
-    },
-    sectionLabel: {
-        fontSize: 13,
-        fontWeight: '800',
-        color: COLORS.textMuted,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
-    liveIndicator: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        backgroundColor: COLORS.primaryLight,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 6,
-    },
-    liveDot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: COLORS.primary,
-    },
-    liveText: {
-        fontSize: 10,
-        fontWeight: '900',
-        color: COLORS.primary,
-    },
-    heroExamCard: {
-        backgroundColor: COLORS.primary,
-        borderRadius: 32,
-        padding: 24,
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.2,
-        shadowRadius: 24,
-        elevation: 10,
-    },
-    heroExamInfo: {
-        marginBottom: 24,
-    },
-    heroExamTitle: {
-        fontSize: 22,
-        fontWeight: '900',
-        color: COLORS.white,
-        marginBottom: 12,
-        letterSpacing: -0.5,
-    },
-    heroMetaRow: {
-        flexDirection: 'row',
-        gap: 16,
-    },
-    heroMetaItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        backgroundColor: 'rgba(255, 255, 255, 0.2)',
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 10,
-    },
-    heroMetaText: {
-        fontSize: 12,
-        color: COLORS.white,
-        fontWeight: '700',
-    },
-    heroStartBtn: {
-        backgroundColor: COLORS.white,
-        height: 56,
-        borderRadius: 20,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 10,
-    },
-    heroStartBtnText: {
-        color: COLORS.primary,
-        fontSize: 16,
-        fontWeight: '800',
-    },
-    liveStatusContainer: {
-        marginTop: 16,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        marginBottom: 20,
         paddingHorizontal: 4,
     },
-    liveStatusTitle: {
+    sectionLabel: {
+        fontSize: 15,
+        fontWeight: '800',
+        color: COLORS.text,
+        letterSpacing: -0.5,
+    },
+    gridCount: {
         fontSize: 13,
         color: COLORS.textMuted,
         fontWeight: '600',
     },
-    avatarStalk: {
+    gridContainer: {
         flexDirection: 'row',
-        alignItems: 'center',
-    },
-    miniAvatar: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        backgroundColor: COLORS.surfaceVariant,
-        borderWidth: 2,
-        borderColor: COLORS.bg,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    miniAvatarText: {
-        fontSize: 10,
-        fontWeight: '800',
-        color: COLORS.text,
-    },
-    moreAvatar: {
-        backgroundColor: COLORS.textMuted,
-    },
-    moreAvatarText: {
-        fontSize: 10,
-        fontWeight: '800',
-        color: COLORS.white,
-    },
-    listSection: {
-        paddingHorizontal: 20,
-    },
-    examList: {
+        flexWrap: 'wrap',
         gap: 12,
     },
-    emptyExams: {
-        padding: 48,
-        alignItems: 'center',
-        backgroundColor: COLORS.surface,
+    gridItem: {
+        width: '30.5%', // Slightly more space for gaps
+        aspectRatio: 0.75,
+        backgroundColor: COLORS.white,
         borderRadius: 24,
+        padding: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.03,
+        shadowRadius: 10,
+        elevation: 2,
+    },
+    gridItemCompleted: {
+        backgroundColor: COLORS.bg,
+        borderColor: 'transparent',
+    },
+    iconBox: {
+        width: 48,
+        height: 48,
+        borderRadius: 16,
+        backgroundColor: COLORS.primaryLight,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 8,
+    },
+    iconBoxCompleted: {
+        backgroundColor: '#E8FAEF',
+    },
+    iconBoxProgress: {
+        backgroundColor: COLORS.warningLight,
+    },
+    itemTitle: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: COLORS.text,
+        textAlign: 'center',
+        marginBottom: 4,
+        lineHeight: 14,
+    },
+    itemMeta: {
+        fontSize: 10,
+        color: COLORS.textMuted,
+        fontWeight: '600',
+    },
+    completedBadge: {
+        marginTop: 6,
+        paddingHorizontal: 6,
+        paddingVertical: 3,
+        borderRadius: 6,
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    completedText: {
+        fontSize: 8,
+        fontWeight: '800',
+        color: COLORS.textMuted,
+    },
+    emptyExams: {
+        padding: 60,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: COLORS.white,
+        borderRadius: 32,
         borderWidth: 1,
         borderColor: COLORS.border,
         borderStyle: 'dashed',
     },
     emptyExamsText: {
-        marginTop: 12,
-        fontSize: 14,
+        marginTop: 16,
+        fontSize: 15,
         color: COLORS.textMuted,
         fontWeight: '600',
     },
+    emptyCreateBtn: {
+        marginTop: 20,
+        backgroundColor: COLORS.primary,
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 12,
+    },
+    emptyCreateBtnText: {
+        color: COLORS.white,
+        fontWeight: '800',
+        fontSize: 14,
+    },
 });
-
