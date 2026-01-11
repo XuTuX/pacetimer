@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Database } from "../../../../../lib/db-types";
+import { useAppStore } from "../../../../../lib/store";
 import { useSupabase } from "../../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../../lib/supabaseError";
 import { COLORS } from "../../../../../lib/theme";
@@ -45,6 +46,8 @@ export default function ExamRunScreen() {
     const { isLoaded, userId } = useAuth();
     const { id, examId } = useLocalSearchParams<{ id: string; examId: string }>();
 
+    const { pauseStopwatch, startSession, endSession, startSegment, endSegment, addQuestionRecord } = useAppStore();
+
     const roomId = Array.isArray(id) ? id[0] : id;
     const currentExamId = Array.isArray(examId) ? examId[0] : examId;
 
@@ -52,6 +55,10 @@ export default function ExamRunScreen() {
     const [exam, setExam] = useState<RoomExamRow | null>(null);
     const [attemptId, setAttemptId] = useState<string | null>(null);
     const [startedAtTime, setStartedAtTime] = useState<number | null>(null);
+
+    // Local Store Session State
+    const [localSessionId, setLocalSessionId] = useState<string | null>(null);
+    const [localSegmentId, setLocalSegmentId] = useState<string | null>(null);
 
     // Timer State
     const [now, setNow] = useState(Date.now());
@@ -198,6 +205,26 @@ export default function ExamRunScreen() {
                 setQuestionIndex(1);
                 setIsCompleted(false);
 
+                // --- Synergy with Local Study Time ---
+                pauseStopwatch();
+                const lSessId = startSession('mock-exam', {
+                    title: `[룸] ${eData.title}`,
+                    mockExam: {
+                        subjectIds: ['__room_exam__'],
+                        timeLimitSec: eData.total_minutes * 60,
+                        targetQuestions: eData.total_questions,
+                    }
+                });
+                setLocalSessionId(lSessId);
+                const lSegId = startSegment({
+                    sessionId: lSessId,
+                    subjectId: '__room_exam__',
+                    kind: 'solve',
+                    startedAt: startedAtMs
+                });
+                setLocalSegmentId(lSegId);
+                // -------------------------------------
+
             } catch (err: any) {
                 Alert.alert("오류", formatSupabaseError(err));
                 router.back();
@@ -209,8 +236,10 @@ export default function ExamRunScreen() {
         init();
         return () => {
             cancelled = true;
+            // Best effort ending if they leave
+            // Note: In a real app, we might want to be more careful about duplicate ends
         };
-    }, [roomId, currentExamId, isLoaded, userId, supabase, router]);
+    }, [roomId, currentExamId, isLoaded, userId, supabase, router, pauseStopwatch, startSession, startSegment]);
 
     const handleNext = useCallback(async () => {
         if (!attemptId || !exam) return;
@@ -243,15 +272,41 @@ export default function ExamRunScreen() {
             }
         }
 
-        // 3. Last question?
+        // 3. Local Store sync
+        if (localSessionId && localSegmentId) {
+            addQuestionRecord({
+                sessionId: localSessionId,
+                segmentId: localSegmentId,
+                subjectId: '__room_exam__',
+                durationMs: duration,
+                startedAt: lastLapTime,
+                endedAt: nowMs,
+                source: 'tap'
+            });
+        }
+
+        // 4. Last question?
         if (questionIndex >= exam.total_questions) {
             setIsCompleted(true);
             setLastLapTime(nowMs);
+
+            // Local store: switch to review segment
+            if (localSessionId && localSegmentId) {
+                endSegment(localSegmentId, nowMs);
+                const reviewSegId = startSegment({
+                    sessionId: localSessionId,
+                    subjectId: '__review__',
+                    kind: 'review',
+                    startedAt: nowMs
+                });
+                setLocalSegmentId(reviewSegId);
+            }
         } else {
             setQuestionIndex(q => q + 1);
             setLastLapTime(nowMs);
         }
-    }, [attemptId, exam, questionIndex, lastLapTime, isCompleted, supabase]);
+    }, [attemptId, exam, questionIndex, lastLapTime, isCompleted, supabase, localSessionId, localSegmentId, addQuestionRecord, endSegment, startSegment]);
+
 
     const handleFinish = async () => {
         if (!attemptId || !startedAtTime) return;
@@ -271,6 +326,11 @@ export default function ExamRunScreen() {
                             ended_at: endedAt.toISOString(),
                             duration_ms: durationMs,
                         }).eq("id", attemptId);
+
+                        // --- Synergy with Local Study Time ---
+                        if (localSegmentId) endSegment(localSegmentId, endedAt.getTime());
+                        endSession();
+                        // -------------------------------------
 
                         router.replace({
                             pathname: `/room/${roomId}/analysis` as any,
@@ -322,6 +382,10 @@ export default function ExamRunScreen() {
                     <Text style={[styles.badgeText, isCompleted ? styles.textComplete : styles.textProgress]}>
                         {isCompleted ? "제출하기" : "집중 모드"}
                     </Text>
+                </View>
+                <View style={styles.syncNotice}>
+                    <Ionicons name="time-outline" size={12} color={COLORS.primary} />
+                    <Text style={styles.syncNoticeText}>시험 시간이 학습 시간에 실시간으로 반영됩니다.</Text>
                 </View>
             </View>
 
@@ -424,5 +488,17 @@ const styles = StyleSheet.create({
     tapHintText: { fontSize: 14, fontWeight: '500', color: COLORS.textMuted },
 
     exitBtn: { alignSelf: 'center', marginBottom: 20, padding: 10 },
-    exitBtnText: { color: COLORS.error, fontWeight: '600', fontSize: 13 }
+    exitBtnText: { color: COLORS.error, fontWeight: '600', fontSize: 13 },
+
+    syncNotice: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        marginTop: 4,
+    },
+    syncNoticeText: {
+        fontSize: 11,
+        color: COLORS.primary,
+        fontWeight: '600',
+    }
 });

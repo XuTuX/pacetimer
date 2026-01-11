@@ -1,6 +1,6 @@
-import type { QuestionRecord, Segment, Session, Subject } from './types';
-import { getStudyDateKey } from './studyDate';
 import { getSegmentDurationMs } from './recordsIndex';
+import { getStudyDateKey } from './studyDate';
+import type { QuestionRecord, Segment, Session, Subject } from './types';
 
 export type RangeKey = 'today' | 'week';
 
@@ -96,11 +96,9 @@ export function buildAnalyticsSnapshot(input: {
     const mockSessionIdsWeek = new Set<string>();
 
     for (const s of sessions) {
-        if (s.mode === 'problem-solving') {
+        if (s.mode === 'problem-solving' || s.mode === 'mock-exam') {
             if (s.studyDate === todayKey) problemSessionIdsToday.add(s.id);
             if (weekKeys.has(s.studyDate)) problemSessionIdsWeek.add(s.id);
-        } else if (s.mode === 'mock-exam') {
-            if (weekKeys.has(s.studyDate)) mockSessionIdsWeek.add(s.id);
         }
     }
 
@@ -120,7 +118,7 @@ export function buildAnalyticsSnapshot(input: {
     let weekQuestionCount = 0;
     for (const qr of questionRecords) {
         const s = sessionById[qr.sessionId];
-        if (!s || s.mode !== 'problem-solving') continue;
+        if (!s || (s.mode !== 'problem-solving' && s.mode !== 'mock-exam')) continue;
         if (s.studyDate === todayKey) todayQuestionCount += 1;
         if (weekKeys.has(s.studyDate)) weekQuestionCount += 1;
     }
@@ -129,7 +127,7 @@ export function buildAnalyticsSnapshot(input: {
     const dailyIndex: Record<string, number> = Object.fromEntries(daily.map((d, i) => [d.date, i]));
 
     for (const s of sessions) {
-        if (s.mode !== 'problem-solving') continue;
+        if (s.mode !== 'problem-solving' && s.mode !== 'mock-exam') continue;
         const idx = dailyIndex[s.studyDate];
         if (idx === undefined) continue;
         const segs = segmentsBySessionId[s.id] ?? [];
@@ -137,7 +135,7 @@ export function buildAnalyticsSnapshot(input: {
     }
     for (const qr of questionRecords) {
         const s = sessionById[qr.sessionId];
-        if (!s || s.mode !== 'problem-solving') continue;
+        if (!s || (s.mode !== 'problem-solving' && s.mode !== 'mock-exam')) continue;
         const idx = dailyIndex[s.studyDate];
         if (idx === undefined) continue;
         daily[idx].questionCount += 1;
@@ -160,7 +158,9 @@ export function buildAnalyticsSnapshot(input: {
     const subjectsWeek: SubjectTotal[] = Object.entries(subjectTotals)
         .map(([subjectId, v]) => ({
             subjectId,
-            subjectName: subjectsById[subjectId]?.name ?? (subjectId === '__review__' ? '검토' : '기타'),
+            subjectName: subjectsById[subjectId]?.name ??
+                (subjectId === '__review__' ? '검토' :
+                    subjectId === '__room_exam__' ? '룸 모의고사' : '기타'),
             durationMs: v.durationMs,
             questionCount: v.questionCount,
         }))

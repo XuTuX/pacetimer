@@ -62,6 +62,9 @@ interface AppState {
     // Active State
     activeSubjectId: string | null;
     setActiveSubjectId: (id: string | null) => void;
+
+    // Utils
+    addAccumulatedMs: (ms: number) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -100,6 +103,14 @@ export const useAppStore = create<AppState>()(
             // --- Stopwatch ---
             stopwatch: DEFAULT_STOPWATCH,
             stopwatchStudyDate: getStudyDateKey(Date.now()),
+            addAccumulatedMs: (ms) => {
+                set((prev) => ({
+                    stopwatch: {
+                        ...prev.stopwatch,
+                        accumulatedMs: prev.stopwatch.accumulatedMs + ms,
+                    },
+                }));
+            },
             startStopwatch: () => {
                 const state = get();
                 if (state.stopwatch.isRunning) return;
@@ -242,6 +253,9 @@ export const useAppStore = create<AppState>()(
                 const activeSessionId = state.activeSessionId;
                 if (!activeSessionId) return;
 
+                const session = state.sessions.find(s => s.id === activeSessionId);
+                const elapsed = session ? now - session.startedAt : 0;
+
                 set((prev) => ({
                     sessions: prev.sessions.map((s) => (s.id === activeSessionId ? { ...s, endedAt: now, updatedAt: now } : s)),
                     segments: prev.activeSegmentId
@@ -249,6 +263,10 @@ export const useAppStore = create<AppState>()(
                         : prev.segments,
                     activeSessionId: null,
                     activeSegmentId: null,
+                    // If it's a mock exam, add its duration to the global stopwatch accumulated time
+                    stopwatch: (session?.mode === 'mock-exam')
+                        ? { ...prev.stopwatch, accumulatedMs: prev.stopwatch.accumulatedMs + elapsed }
+                        : prev.stopwatch
                 }));
             },
             startSegment: ({ sessionId, subjectId, kind, startedAt }) => {

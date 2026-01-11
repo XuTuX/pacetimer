@@ -56,7 +56,9 @@ export function DailyAnalysis({ selectedDate, onDateChange, onSubjectSelect }: P
             dateMap[date].count += 1;
 
             const subject = subjects.find(s => s.id === r.subjectId);
-            const subjectName = subject?.name || '기타';
+            const subjectName = subject?.name ||
+                (r.subjectId === '__review__' ? '검토' :
+                    r.subjectId === '__room_exam__' ? '룸 모의고사' : '기타');
 
             if (!dateMap[date].bySubject[subjectName]) {
                 dateMap[date].bySubject[subjectName] = { count: 0, totalMs: 0, records: [] };
