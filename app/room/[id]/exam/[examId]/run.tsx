@@ -270,10 +270,15 @@ export default function ExamRunScreen() {
             return;
         }
 
+        const duration = nowMs - lastLapTime;
+        if (duration < 2000) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            return;
+        }
+
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
         // 2. Insert record for current question
-        const duration = nowMs - lastLapTime;
         try {
             const { error: rError } = await supabase.from("attempt_records").insert({
                 attempt_id: attemptId,
@@ -396,7 +401,7 @@ export default function ExamRunScreen() {
 
             {/* Title / Info */}
             <View style={styles.titleArea}>
-                <Text style={styles.examTitle}>{exam.title}</Text>
+                <Text style={styles.examTitle}>{exam.title.replace(/^(\[.*?\]\s*)+/, "")}</Text>
                 <View style={[styles.badge, isCompleted ? styles.badgeComplete : styles.badgeProgress]}>
                     <Text style={[styles.badgeText, isCompleted ? styles.textComplete : styles.textProgress]}>
                         {isCompleted ? "제출하기" : "집중 모드"}

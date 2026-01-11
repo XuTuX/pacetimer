@@ -132,16 +132,13 @@ export default function HistoryScreen() {
             <SafeAreaView style={{ flex: 1 }} edges={['top']}>
                 <StatusBar barStyle="dark-content" />
                 <View style={styles.header}>
-                    <View>
-                        <Text style={styles.headerTitle}>학습 기록</Text>
-                        <Text style={styles.userLabel}>{userId || '게스트'}</Text>
-                    </View>
+                    <Text style={styles.headerTitle}>학습 기록</Text>
                     <TouchableOpacity style={styles.settingsBtn} onPress={() => setSettingsOpen(v => !v)}>
-                        <Ionicons name="settings-outline" size={22} color={COLORS.text} />
+                        <Ionicons name="settings-outline" size={20} color={COLORS.text} />
                     </TouchableOpacity>
                     {settingsOpen && (
                         <View style={styles.dropdown}>
-                            <TouchableOpacity style={styles.dropdownItem} onPress={() => router.push('/subjects/manage')}>
+                            <TouchableOpacity style={styles.dropdownItem} onPress={() => { setSettingsOpen(false); router.push('/subjects/manage'); }}>
                                 <Ionicons name="book-outline" size={18} color={COLORS.text} />
                                 <Text style={styles.dropdownText}>과목 관리</Text>
                             </TouchableOpacity>
@@ -173,12 +170,14 @@ export default function HistoryScreen() {
                                 theme={{
                                     todayTextColor: COLORS.primary,
                                     arrowColor: COLORS.text,
-                                    textDayFontWeight: '600',
-                                    textMonthFontWeight: 'bold',
-                                    textDayHeaderFontWeight: 'bold',
-                                    textDayFontSize: 14,
-                                    textMonthFontSize: 16,
+                                    textDayFontWeight: '700',
+                                    textMonthFontWeight: '900',
+                                    textDayHeaderFontWeight: '800',
+                                    textDayFontSize: 13,
+                                    textMonthFontSize: 17,
                                     calendarBackground: 'transparent',
+                                    dayTextColor: COLORS.text,
+                                    textSectionTitleColor: COLORS.textMuted,
                                 }}
                                 enableSwipeMonths={true}
                             />
@@ -186,26 +185,23 @@ export default function HistoryScreen() {
                             {/* Color Legend */}
                             <View style={styles.legendContainer}>
                                 <Text style={styles.legendLabel}>학습 강도</Text>
-                                <View style={styles.legendStages}>
-                                    <View style={[styles.legendBox, { backgroundColor: COLORS.primaryLight }]} />
-                                    <View style={[styles.legendBox, { backgroundColor: '#C1F2E4' }]} />
-                                    <View style={[styles.legendBox, { backgroundColor: '#86E8CC' }]} />
-                                    <View style={[styles.legendBox, { backgroundColor: '#3CD6A3' }]} />
-                                    <View style={[styles.legendBox, { backgroundColor: COLORS.primary }]} />
-                                </View>
-                                <View style={styles.legendTimeLabels}>
-                                    <Text style={styles.legendTimeText}>0h</Text>
-                                    <Text style={styles.legendTimeText}>9h+</Text>
+                                <View style={styles.legendRow}>
+                                    <Text style={styles.legendText}>적음</Text>
+                                    <View style={styles.legendStages}>
+                                        <View style={[styles.legendBox, { backgroundColor: COLORS.primaryLight }]} />
+                                        <View style={[styles.legendBox, { backgroundColor: '#C1F2E4' }]} />
+                                        <View style={[styles.legendBox, { backgroundColor: '#86E8CC' }]} />
+                                        <View style={[styles.legendBox, { backgroundColor: '#3CD6A3' }]} />
+                                        <View style={[styles.legendBox, { backgroundColor: COLORS.primary }]} />
+                                    </View>
+                                    <Text style={styles.legendText}>많음</Text>
                                 </View>
                             </View>
                         </View>
 
-                        <View style={styles.selectedDateHeader}>
-                            <Text style={styles.selectedDateTitle}>{formatDisplayDate(selectedDate, nowMs)}</Text>
-                            <Text style={styles.selectedDateSub}>{selectedDate}</Text>
-                        </View>
-
                         <DayDetail
+                            date={selectedDate}
+                            nowMs={nowMs}
                             sessions={index.sessionsByDate[selectedDate] ?? []}
                             sessionStatsById={index.sessionStatsById}
                             subjectsById={subjectsById}
@@ -267,14 +263,8 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
         fontSize: 24,
-        fontWeight: '800',
+        fontWeight: '900',
         color: COLORS.text,
-    },
-    userLabel: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: COLORS.textMuted,
-        marginTop: 2,
     },
     settingsBtn: {
         width: 44,
@@ -283,8 +273,6 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.white,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: COLORS.border,
     },
     dropdown: {
         position: 'absolute',
@@ -294,9 +282,9 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         padding: 8,
         minWidth: 160,
-        shadowColor: '#000',
+        shadowColor: 'rgba(0,0,0,0.1)',
         shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 1,
         shadowRadius: 20,
         elevation: 10,
         borderWidth: 1,
@@ -310,7 +298,7 @@ const styles = StyleSheet.create({
     },
     dropdownText: {
         fontSize: 14,
-        fontWeight: '700',
+        fontWeight: '800',
         color: COLORS.text,
     },
     divider: {
@@ -321,22 +309,27 @@ const styles = StyleSheet.create({
     content: { flex: 1 },
     historyWrapper: {
         paddingHorizontal: 24,
-        paddingTop: 16,
-        gap: 18,
+        paddingTop: 8,
+        gap: 24,
     },
 
     calendarWrapper: {
-        borderRadius: 24,
+        borderRadius: 32,
         overflow: 'hidden',
         backgroundColor: COLORS.white,
+        padding: 12,
+        shadowColor: 'rgba(0,0,0,0.05)',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 1,
+        shadowRadius: 12,
+        elevation: 2,
         borderWidth: 1,
         borderColor: COLORS.border,
-        padding: 4,
     },
 
-    selectedDateHeader: { paddingHorizontal: 4, gap: 2 },
-    selectedDateTitle: { fontSize: 18, fontWeight: '900', color: COLORS.text },
-    selectedDateSub: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
+    selectedDateHeader: { paddingHorizontal: 4, gap: 4 },
+    selectedDateTitle: { fontSize: 20, fontWeight: '900', color: COLORS.text },
+    selectedDateSub: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted },
 
     overlayHeader: {
         flexDirection: 'row',
@@ -352,47 +345,39 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.white,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: COLORS.border,
     },
     overlayTitle: { fontSize: 18, fontWeight: '900', color: COLORS.text },
     overlaySub: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginTop: 2 },
 
     // Legend Styles
     legendContainer: {
-        paddingHorizontal: 20,
-        paddingBottom: 16,
-        paddingTop: 8,
+        paddingHorizontal: 12,
+        paddingTop: 12,
+        paddingBottom: 4,
     },
     legendLabel: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: COLORS.textMuted,
-        marginBottom: 8,
-        textAlign: 'right',
+        fontSize: 12,
+        fontWeight: '800',
+        color: COLORS.text,
+        marginBottom: 10,
+    },
+    legendRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
     },
     legendStages: {
         flexDirection: 'row',
-        justifyContent: 'flex-end',
-        gap: 4,
+        gap: 6,
     },
     legendBox: {
         width: 14,
         height: 14,
         borderRadius: 4,
     },
-    legendTimeLabels: {
-        flexDirection: 'row',
-        justifyContent: 'flex-end',
-        marginTop: 4,
-        width: '100%',
-        paddingLeft: '60%', // Align with the boxes
-    },
-    legendTimeText: {
-        fontSize: 10,
-        fontWeight: '600',
+    legendText: {
+        fontSize: 11,
+        fontWeight: '700',
         color: COLORS.textMuted,
-        flex: 1,
-        textAlign: 'right',
     },
 });

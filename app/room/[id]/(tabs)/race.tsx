@@ -1,8 +1,9 @@
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
 import type { Database } from "../../../../lib/db-types";
 import { useSupabase } from "../../../../lib/supabase";
@@ -28,7 +29,7 @@ export default function RaceScreen() {
     const [myAttempts, setMyAttempts] = useState<AttemptRow[]>([]);
 
     const loadData = useCallback(async () => {
-        if (!roomId) {
+        if (!roomId || roomId === 'undefined') {
             setLoading(false);
             return;
         }
@@ -151,12 +152,12 @@ export default function RaceScreen() {
                     (Object.entries(groupedExams) as [string, RoomExamRow[]][]).map(([subject, subjectExams]) => (
                         <View key={subject} style={styles.subjectSection}>
                             <View style={styles.subjectHeader}>
-                                <View style={styles.subjectIconBox}>
-                                    <Ionicons name="library" size={16} color={COLORS.primary} />
-                                </View>
-                                <Text style={styles.subjectTitle}>{subject}</Text>
-                                <View style={styles.subjectCountBadge}>
-                                    <Text style={styles.subjectCountText}>{subjectExams.length}</Text>
+                                <View style={styles.subjectBadge}>
+                                    <View style={styles.badgeDot} />
+                                    <Text style={styles.subjectTitle}>{subject}</Text>
+                                    <View style={styles.subjectCounter}>
+                                        <Text style={styles.subjectCounterText}>{subjectExams.length}</Text>
+                                    </View>
                                 </View>
                             </View>
 
@@ -181,34 +182,47 @@ export default function RaceScreen() {
                                             }}
                                             style={({ pressed }) => [
                                                 styles.gridItem,
-                                                pressed && { opacity: 0.8, transform: [{ scale: 0.95 }] },
+                                                pressed && { opacity: 0.9, transform: [{ scale: 0.97 }] },
                                                 isCompleted && styles.gridItemCompleted
                                             ]}
                                         >
-                                            <View style={[
-                                                styles.iconBox,
-                                                isCompleted ? styles.iconBoxCompleted : (isInProgress ? styles.iconBoxProgress : null)
-                                            ]}>
+                                            <LinearGradient
+                                                colors={isCompleted ? ['#F1F8E9', '#DCEDC8'] : (isInProgress ? ['#FFFDE7', '#FFF9C4'] : ['#F5F5F7', '#EEEEF0'])}
+                                                style={styles.iconBoxGradient}
+                                            >
                                                 <Ionicons
-                                                    name={isCompleted ? "checkmark-circle" : (isInProgress ? "play" : "document-text")}
-                                                    size={24}
-                                                    color={isCompleted ? COLORS.success : (isInProgress ? COLORS.warning : COLORS.primary)}
+                                                    name={isCompleted ? "checkmark-sharp" : (isInProgress ? "play-sharp" : "document-text-outline")}
+                                                    size={22}
+                                                    color={isCompleted ? COLORS.success : (isInProgress ? COLORS.warning : COLORS.textMuted)}
                                                 />
-                                            </View>
-                                            <Text style={styles.itemTitle} numberOfLines={2}>
-                                                {item.title.replace(/^\[.*?\]\s*/, "")}
-                                            </Text>
-                                            <Text style={styles.itemMeta}>{item.total_questions}문항</Text>
+                                            </LinearGradient>
 
-                                            {isCompleted ? (
-                                                <View style={styles.completedBadge}>
-                                                    <Text style={styles.completedText}>분석보기</Text>
-                                                </View>
-                                            ) : isInProgress ? (
-                                                <View style={[styles.completedBadge, { borderColor: COLORS.warning }]}>
-                                                    <Text style={[styles.completedText, { color: COLORS.warning }]}>진행중</Text>
-                                                </View>
-                                            ) : null}
+                                            <View style={styles.itemContent}>
+                                                <Text style={styles.itemTitle} numberOfLines={2}>
+                                                    {item.title.replace(/^(\[.*?\]\s*|.*?•\s*)+/, "")}
+                                                </Text>
+                                                <Text style={styles.itemMeta}>{item.total_questions}문항</Text>
+                                            </View>
+
+                                            <View style={styles.itemFooter}>
+                                                {isCompleted ? (
+                                                    <View style={styles.analysisBadge}>
+                                                        <Text style={styles.analysisBadgeText}>분석</Text>
+                                                        <Ionicons name="chevron-forward" size={10} color={COLORS.primary} />
+                                                    </View>
+                                                ) : isInProgress ? (
+                                                    <View style={styles.progressContainer}>
+                                                        <View style={styles.progressBarBg}>
+                                                            <View style={[styles.progressBarFill, { width: '45%' }]} />
+                                                        </View>
+                                                        <Text style={styles.progressText}>진행중</Text>
+                                                    </View>
+                                                ) : (
+                                                    <View style={styles.startBadge}>
+                                                        <Text style={styles.startBadgeText}>시작</Text>
+                                                    </View>
+                                                )}
+                                            </View>
                                         </Pressable>
                                     );
                                 })}
@@ -220,6 +234,8 @@ export default function RaceScreen() {
         </View>
     );
 }
+
+const { width } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
     container: {
@@ -235,109 +251,162 @@ const styles = StyleSheet.create({
         paddingBottom: 40,
     },
     headerAddBtn: {
-        padding: 4,
-    },
-    subjectSection: {
-        paddingHorizontal: 20,
-        paddingTop: 24,
-    },
-    subjectHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 16,
-        gap: 8,
-    },
-    subjectIconBox: {
-        width: 32,
-        height: 32,
-        borderRadius: 10,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         backgroundColor: COLORS.white,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: COLORS.border,
-    },
-    subjectTitle: {
-        fontSize: 16,
-        fontWeight: '900',
-        color: COLORS.text,
-        letterSpacing: -0.5,
-    },
-    subjectCountBadge: {
-        backgroundColor: COLORS.surfaceVariant,
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 10,
-    },
-    subjectCountText: {
-        fontSize: 11,
-        fontWeight: '800',
-        color: COLORS.textMuted,
-    },
-    gridContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 12,
-    },
-    gridItem: {
-        width: '30.5%', // Slightly more space for gaps
-        aspectRatio: 0.75,
-        backgroundColor: COLORS.white,
-        borderRadius: 24,
-        padding: 10,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
         borderColor: COLORS.border,
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.03,
+        shadowOpacity: 0.05,
         shadowRadius: 10,
-        elevation: 2,
     },
-    gridItemCompleted: {
-        backgroundColor: COLORS.bg,
-        borderColor: 'transparent',
+    subjectSection: {
+        paddingTop: 32,
     },
-    iconBox: {
-        width: 48,
-        height: 48,
-        borderRadius: 16,
-        backgroundColor: COLORS.primaryLight,
+    subjectHeader: {
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 8,
+        paddingHorizontal: 20,
+        marginBottom: 16,
     },
-    iconBoxCompleted: {
-        backgroundColor: '#E8FAEF',
-    },
-    iconBoxProgress: {
-        backgroundColor: COLORS.warningLight,
-    },
-    itemTitle: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: COLORS.text,
-        textAlign: 'center',
-        marginBottom: 4,
-        lineHeight: 14,
-    },
-    itemMeta: {
-        fontSize: 10,
-        color: COLORS.textMuted,
-        fontWeight: '600',
-    },
-    completedBadge: {
-        marginTop: 6,
-        paddingHorizontal: 6,
-        paddingVertical: 3,
-        borderRadius: 6,
-        backgroundColor: COLORS.surface,
+    subjectBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.white,
+        paddingLeft: 10,
+        paddingRight: 10,
+        paddingVertical: 8,
+        borderRadius: 16,
         borderWidth: 1,
         borderColor: COLORS.border,
+        gap: 8,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.03,
+        shadowRadius: 8,
     },
-    completedText: {
-        fontSize: 8,
+    badgeDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: COLORS.primary,
+    },
+    subjectTitle: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: COLORS.text,
+        letterSpacing: -0.3,
+    },
+    subjectCounter: {
+        backgroundColor: COLORS.bg,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 8,
+    },
+    subjectCounterText: {
+        fontSize: 11,
+        fontWeight: '900',
+        color: COLORS.textMuted,
+    },
+    gridContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        paddingHorizontal: 16,
+        gap: 10,
+    },
+    gridItem: {
+        width: (width - 32 - 20) / 3, // Precise 3-column split
+        backgroundColor: COLORS.white,
+        borderRadius: 28,
+        padding: 12,
+        marginBottom: 4,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.02)',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.03,
+        shadowRadius: 12,
+        justifyContent: 'space-between',
+        minHeight: 160,
+    },
+    gridItemCompleted: {
+        backgroundColor: '#F8F9FA',
+        shadowOpacity: 0.01,
+    },
+    iconBoxGradient: {
+        width: 44,
+        height: 44,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 12,
+    },
+    itemContent: {
+        flex: 1,
+        marginBottom: 12,
+    },
+    itemTitle: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: COLORS.text,
+        lineHeight: 18,
+        letterSpacing: -0.5,
+        marginBottom: 6,
+    },
+    itemMeta: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: COLORS.textMuted,
+    },
+    itemFooter: {
+        marginTop: 'auto',
+    },
+    analysisBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 4,
+        backgroundColor: COLORS.primaryLight,
+        paddingVertical: 6,
+        borderRadius: 12,
+    },
+    analysisBadgeText: {
+        fontSize: 11,
+        fontWeight: '900',
+        color: COLORS.primary,
+    },
+    progressContainer: {
+        gap: 6,
+    },
+    progressBarBg: {
+        height: 4,
+        backgroundColor: 'rgba(0,0,0,0.05)',
+        borderRadius: 2,
+        overflow: 'hidden',
+    },
+    progressBarFill: {
+        height: '100%',
+        backgroundColor: COLORS.warning,
+        borderRadius: 2,
+    },
+    progressText: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: COLORS.warning,
+        textAlign: 'center',
+    },
+    startBadge: {
+        backgroundColor: '#F0F0F3',
+        paddingVertical: 6,
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    startBadgeText: {
+        fontSize: 11,
         fontWeight: '800',
         color: COLORS.textMuted,
     },

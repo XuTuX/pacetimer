@@ -61,7 +61,7 @@ export default function AddExamScreen() {
             if (memberError) throw memberError;
 
             const subject = subjects.find(s => s.id === selectedSubjectId);
-            const finalTitle = subject ? `[${subject.name}] ${title.trim()}` : title.trim();
+            const finalTitle = subject ? `${subject.name} • ${title.trim()}` : title.trim();
 
             const { error } = await supabase
                 .from("room_exams")

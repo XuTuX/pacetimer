@@ -6,25 +6,61 @@ import { Dimensions, Pressable, ScrollView, StyleSheet, Text, TextInput, Touchab
 import { SafeAreaView } from 'react-native-safe-area-context';
 import SproutVisual from '../../components/SproutVisual';
 import { useAppStore } from '../../lib/store';
+import { getStudyDateKey } from '../../lib/studyDate';
 import { COLORS } from '../../lib/theme';
+import type { Segment, Session } from '../../lib/types';
 
 const { height } = Dimensions.get('window');
 
 export default function HomeScreen() {
     const router = useRouter();
-    const { stopwatch, subjects, addSubject, activeSubjectId, setActiveSubjectId } = useAppStore();
+    const { subjects, addSubject, activeSubjectId, setActiveSubjectId, sessions, segments, activeSegmentId, stopwatch } = useAppStore();
     const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
     const [newSubjectName, setNewSubjectName] = React.useState('');
     const [isAdding, setIsAdding] = React.useState(false);
+    const [now, setNow] = React.useState(Date.now());
 
-    const totalMs = stopwatch.accumulatedMs + (stopwatch.isRunning && stopwatch.startedAt ? Date.now() - stopwatch.startedAt : 0);
+    // Update 'now' for real-time timer updates
+    React.useEffect(() => {
+        const id = setInterval(() => setNow(Date.now()), 1000);
+        return () => clearInterval(id);
+    }, []);
+
+    const totalMs = React.useMemo(() => {
+        const today = getStudyDateKey(now);
+
+        // 1. Get all sessions for today
+        const todaySessionIds = new Set(
+            sessions.filter((s: Session) => s.studyDate === today).map((s: Session) => s.id)
+        );
+
+        // 2. Sum up finished segments for these sessions
+        let accumulated = segments.reduce((acc: number, seg: Segment) => {
+            if (todaySessionIds.has(seg.sessionId) && seg.endedAt) {
+                return acc + (seg.endedAt - seg.startedAt);
+            }
+            return acc;
+        }, 0);
+
+        // 3. Add active segment if it belongs to a today's session
+        if (activeSegmentId) {
+            const activeSeg = segments.find((s: Segment) => s.id === activeSegmentId);
+            if (activeSeg && todaySessionIds.has(activeSeg.sessionId)) {
+                accumulated += (now - activeSeg.startedAt);
+            }
+        }
+
+        return accumulated;
+    }, [sessions, segments, activeSegmentId, now]);
+
     const totalMinutes = Math.floor(totalMs / 60000);
 
     const formatTime = (ms: number) => {
         const hours = Math.floor(ms / 3600000);
         const minutes = Math.floor((ms % 3600000) / 60000);
+        const seconds = Math.floor((ms % 60000) / 1000);
         if (hours > 0) return `${hours}시간 ${minutes}분`;
-        return `${minutes}분 ${Math.floor((ms % 60000) / 1000)}초`;
+        return `${minutes}분 ${seconds}초`;
     };
 
     const handleAddSubject = () => {

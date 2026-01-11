@@ -199,8 +199,11 @@ export default function AnalysisScreen() {
     );
 
     const getSubject = (title: string) => {
-        const match = title.match(/^\[(.*?)\]/);
-        return match ? match[1] : "기타";
+        // Handle "Subject • Title" or "[Subject] Title"
+        const bulletMatch = title.match(/^(.*?) •/);
+        if (bulletMatch) return bulletMatch[1];
+        const bracketMatch = title.match(/^\[(.*?)\]/);
+        return bracketMatch ? bracketMatch[1] : "기타";
     };
 
     const uniqueSubjects = useMemo(() => {
@@ -337,7 +340,7 @@ export default function AnalysisScreen() {
                                     styles.examTabText,
                                     selectedExamId === e.id && styles.selectedExamTabText
                                 ]} numberOfLines={1}>
-                                    {e.title}
+                                    {e.title.replace(/^(\[.*?\]\s*|.*?•\s*)+/, "")}
                                 </Text>
                                 <Text style={[
                                     styles.examTabDate,
@@ -390,7 +393,7 @@ export default function AnalysisScreen() {
                             <View style={styles.examIconBox}>
                                 <Ionicons name="analytics" size={32} color={COLORS.primary} />
                             </View>
-                            <Text style={styles.examTitle}>{exam.title}</Text>
+                            <Text style={styles.examTitle}>{exam.title.replace(/^(\[.*?\]\s*|.*?•\s*)+/, "")}</Text>
                             <View style={styles.badgeRow}>
                                 <View style={styles.statusBadge}>
                                     <Text style={styles.statusBadgeText}>완료됨</Text>

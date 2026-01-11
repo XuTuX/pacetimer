@@ -9,7 +9,9 @@ export interface AnalyticsData {
     totalDurationMs: number;
     totalQuestionCount: number;
     averageQuestionDurationMs: number;
-    hourlyDistribution: number[]; // 24 numbers
+    hourlyDistribution: number[]; // 24 numbers (ms)
+    hourlyQuestionDistribution: number[]; // 24 numbers (counts)
+    dailyDistribution: { date: string; durationMs: number }[]; // days in range
     representativeDay: string; // YYYY-MM-DD
     timelineSessions: Session[];
     timelineSegments: Segment[];
@@ -87,6 +89,12 @@ export function processAnalytics(
         }
     }
 
+    const hourlyQuestionDistribution = new Array(24).fill(0);
+    for (const qr of targetQuestions) {
+        const hour = new Date(qr.startedAt).getHours();
+        hourlyQuestionDistribution[hour] += 1;
+    }
+
     // Representative Day Selection
     // Today: today
     // 7/30 days: most recent day with activity
@@ -130,11 +138,23 @@ export function processAnalytics(
         timelineQuestions = timelineQuestions.filter(qr => qr.subjectId === filter);
     }
 
+    // Daily Distribution for range
+    const dailyDistribution = rangeDates.map(date => {
+        const daySegments = targetSegments.filter(seg => {
+            const session = sessions.find(s => s.id === seg.sessionId);
+            return session?.studyDate === date;
+        });
+        const durationMs = daySegments.reduce((sum, seg) => sum + getSegmentDurationMs(seg, nowMs), 0);
+        return { date, durationMs };
+    }).reverse(); // chronological order
+
     return {
         totalDurationMs,
         totalQuestionCount,
         averageQuestionDurationMs,
         hourlyDistribution,
+        hourlyQuestionDistribution,
+        dailyDistribution,
         representativeDay,
         timelineSessions: timelineSessionsFiltered,
         timelineSegments,

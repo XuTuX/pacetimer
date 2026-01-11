@@ -22,40 +22,34 @@ export function RoomCard({ room, isHost, onPress }: RoomCardProps) {
                 pressed && { transform: [{ scale: 0.98 }], opacity: 0.9 }
             ]}
         >
-            <View style={styles.iconContainer}>
-                <View style={styles.iconCircle}>
-                    <Ionicons name="people" size={20} color={COLORS.primary} />
-                </View>
+            <View style={styles.iconCircle}>
+                <Ionicons name="apps-outline" size={22} color={COLORS.primary} />
             </View>
 
             <View style={styles.content}>
-                <View style={styles.headerRow}>
+                <View style={styles.header}>
                     <Text style={styles.name} numberOfLines={1}>{room.name}</Text>
                     {isHost && (
                         <View style={styles.hostBadge}>
+                            <Ionicons name="star" size={10} color={COLORS.white} />
                             <Text style={styles.hostText}>호스트</Text>
                         </View>
                     )}
                 </View>
 
-                {room.description ? (
+                {room.description && (
                     <Text style={styles.description} numberOfLines={1}>
                         {room.description}
                     </Text>
-                ) : (
-                    <Text style={[styles.description, { fontStyle: 'italic', opacity: 0.5 }]}>
-                        설명이 없습니다
-                    </Text>
                 )}
 
-                <View style={styles.footer}>
-                    <View style={styles.codeBadge}>
-                        <Ionicons name="key-outline" size={12} color={COLORS.textMuted} />
-                        <Text style={styles.codeText}>코드 {shortId}</Text>
+                <View style={styles.meta}>
+                    <View style={styles.idBadge}>
+                        <Text style={styles.idLabel}>ID</Text>
+                        <Text style={styles.idValue}>{shortId}</Text>
                     </View>
-                    <View style={styles.memberSmall}>
-                        <Ionicons name="person-outline" size={12} color={COLORS.textMuted} />
-                        <Text style={styles.memberText}>스터디 룸</Text>
+                    <View style={styles.typeBadge}>
+                        <Text style={styles.typeText}>스터디 룸</Text>
                     </View>
                 </View>
             </View>
@@ -72,93 +66,100 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: COLORS.surface,
-        padding: 16,
-        borderRadius: 20,
+        padding: 18,
+        borderRadius: 24,
         borderWidth: 1,
-        borderColor: 'rgba(0, 208, 148, 0.05)', // Extremely subtle primary tint
+        borderColor: COLORS.border,
         gap: 16,
-        // Premium subtle shadow
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.03,
-        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.02,
+        shadowRadius: 12,
         elevation: 2,
     },
-    iconContainer: {
-        justifyContent: 'center',
-    },
     iconCircle: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
+        width: 52,
+        height: 52,
+        borderRadius: 18,
         backgroundColor: COLORS.primaryLight,
         alignItems: 'center',
         justifyContent: 'center',
     },
     content: {
         flex: 1,
-        gap: 4,
+        gap: 6,
     },
-    headerRow: {
+    header: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
     },
     name: {
-        fontSize: 17,
-        fontWeight: '700',
+        fontSize: 18,
+        fontWeight: '800',
         color: COLORS.text,
-        letterSpacing: -0.3,
+        letterSpacing: -0.5,
     },
-    description: {
-        fontSize: 13,
-        color: COLORS.textMuted,
-        fontWeight: '500',
-    },
-    footer: {
+    hostBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
-        marginTop: 4,
+        gap: 3,
+        backgroundColor: COLORS.primary,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 8,
     },
-    codeBadge: {
+    hostText: {
+        fontSize: 10,
+        fontWeight: '900',
+        color: COLORS.white,
+    },
+    description: {
+        fontSize: 14,
+        color: COLORS.textMuted,
+        fontWeight: '500',
+        marginTop: -2,
+    },
+    meta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginTop: 2,
+    },
+    idBadge: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
         paddingHorizontal: 8,
-        paddingVertical: 3,
+        paddingVertical: 4,
         backgroundColor: COLORS.surfaceVariant,
-        borderRadius: 6,
+        borderRadius: 8,
     },
-    codeText: {
+    idLabel: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: COLORS.textMuted,
+        opacity: 0.7,
+    },
+    idValue: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: COLORS.text,
+        fontFamily: 'monospace',
+    },
+    typeBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        backgroundColor: 'rgba(0,0,0,0.03)',
+        borderRadius: 8,
+    },
+    typeText: {
         fontSize: 11,
         fontWeight: '700',
         color: COLORS.textMuted,
-        fontFamily: 'monospace',
-    },
-    memberSmall: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-    },
-    memberText: {
-        fontSize: 11,
-        fontWeight: '600',
-        color: COLORS.textMuted,
-    },
-    hostBadge: {
-        backgroundColor: COLORS.primary,
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 4,
-    },
-    hostText: {
-        fontSize: 9,
-        fontWeight: '900',
-        color: COLORS.white,
     },
     chevron: {
-        alignItems: 'center',
-        justifyContent: 'center',
+        marginLeft: 4,
     }
 });
+

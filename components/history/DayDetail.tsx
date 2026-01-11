@@ -1,24 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { SessionStats } from '../../lib/recordsIndex';
-import type { Session, Subject } from '../../lib/types';
+import { formatClockTime, formatDisplayDate, formatDurationMs } from '../../lib/studyDate';
 import { COLORS } from '../../lib/theme';
-import { formatClockTime, formatDurationMs } from '../../lib/studyDate';
+import type { Session, Subject } from '../../lib/types';
 
-function getModeLabel(mode: Session['mode']) {
-    return mode === 'problem-solving' ? '문제풀이' : '모의고사';
-}
-
-function getModePillStyle(mode: Session['mode']) {
-    if (mode === 'problem-solving') return { bg: COLORS.primaryLight, fg: COLORS.primary };
-    return { bg: COLORS.surfaceVariant, fg: COLORS.textMuted };
+function getModeInfo(mode: Session['mode']) {
+    if (mode === 'problem-solving') return { label: 'PERSONAL', color: '#8E8E93', icon: 'person' as const };
+    return { label: 'CHALLENGE', color: COLORS.primary, icon: 'flash' as const };
 }
 
 function getSubjectName(subjectId: string, subjectsById: Record<string, Subject>) {
     if (subjectId === '__review__') return '검토';
     if (subjectId.startsWith('__legacy_category__:')) return '이전 데이터';
-    return subjectsById[subjectId]?.name ?? '기타';
+    if (subjectId === '__room_exam__') return '룸 모의고사';
+    return subjectsById[subjectId]?.name ?? '미분류';
 }
 
 type Props = {
@@ -26,60 +23,82 @@ type Props = {
     sessionStatsById: Record<string, SessionStats>;
     subjectsById: Record<string, Subject>;
     onOpenSession: (sessionId: string) => void;
+    date: string;
+    nowMs: number;
 };
 
-export default function DayDetail({ sessions, sessionStatsById, subjectsById, onOpenSession }: Props) {
+export default function DayDetail({ sessions, sessionStatsById, subjectsById, onOpenSession, date, nowMs }: Props) {
+    const sortedSessions = useMemo(() => {
+        return [...sessions].sort((a, b) => b.startedAt - a.startedAt);
+    }, [sessions]);
+
+    const getSessionUI = (s: Session) => {
+        const isRoom = s.title?.includes('[룸]');
+        const modeInfo = getModeInfo(s.mode);
+        let title = s.title ?? (s.mode === 'mock-exam' ? '모의고사' : '학습 세션');
+        title = title.replace(/^(\[.*?\]\s*|.*?•\s*)+/, '');
+        return { isRoom, title, modeInfo };
+    };
+
     return (
         <View style={styles.container}>
-            <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>세션</Text>
-                <Text style={styles.sectionMeta}>{sessions.length}개</Text>
+            <View style={styles.header}>
+                <View style={styles.headerTextWrapper}>
+                    <Text style={styles.dateLabel}>{formatDisplayDate(date, nowMs)}</Text>
+                    <Text style={styles.sessionCount}>{sessions.length} sessions recorded</Text>
+                </View>
+                <View style={styles.headerLine} />
             </View>
 
-            {sessions.length === 0 ? (
-                <View style={styles.emptyCard}>
-                    <Ionicons name="calendar-outline" size={32} color={COLORS.border} />
-                    <Text style={styles.emptyText}>이 날짜에는 기록이 없어요.</Text>
+            {sortedSessions.length === 0 ? (
+                <View style={styles.emptyState}>
+                    <View style={styles.emptyIconCircle}>
+                        <Ionicons name="calendar-clear-outline" size={28} color={COLORS.border} />
+                    </View>
+                    <Text style={styles.emptyText}>No activity for this day</Text>
                 </View>
             ) : (
                 <View style={styles.list}>
-                    {sessions.map((s) => {
+                    {sortedSessions.map((s) => {
                         const stats = sessionStatsById[s.id];
-                        const modePill = getModePillStyle(s.mode);
-                        const subjectsText = (stats?.subjectIds ?? [])
-                            .slice(0, 3)
-                            .map((sid) => getSubjectName(sid, subjectsById))
-                            .join(' · ');
+                        const { isRoom, title, modeInfo } = getSessionUI(s);
+                        const subjectList = (stats?.subjectIds ?? [])
+                            .slice(0, 2)
+                            .map((sid) => getSubjectName(sid, subjectsById));
 
-                        const more = (stats?.subjectIds ?? []).length > 3 ? ` 외 ${(stats.subjectIds.length - 3)}개` : '';
+                        const subjectsDisplay = subjectList.join(', ');
+                        const moreCount = (stats?.subjectIds ?? []).length - subjectList.length;
 
                         return (
                             <TouchableOpacity
                                 key={s.id}
-                                style={styles.sessionCard}
+                                style={styles.card}
                                 onPress={() => onOpenSession(s.id)}
-                                activeOpacity={0.85}
+                                activeOpacity={0.6}
                             >
-                                <View style={styles.sessionTopRow}>
-                                    <View style={[styles.modePill, { backgroundColor: modePill.bg }]}>
-                                        <Text style={[styles.modePillText, { color: modePill.fg }]}>{getModeLabel(s.mode)}</Text>
+                                <View style={styles.cardHeader}>
+                                    <View style={styles.titleArea}>
+                                        <View style={styles.modeIndicator}>
+                                            <Ionicons name={isRoom ? 'people' : modeInfo.icon} size={12} color={isRoom ? COLORS.primary : modeInfo.color} />
+                                            <Text style={[styles.modeLabel, { color: isRoom ? COLORS.primary : modeInfo.color }]}>
+                                                {isRoom ? 'ROOM' : modeInfo.label}
+                                            </Text>
+                                        </View>
+                                        <Text style={styles.sessionTitle} numberOfLines={1}>{title}</Text>
                                     </View>
-                                    <Text style={styles.sessionTime}>{formatClockTime(s.startedAt)}</Text>
+                                    <Text style={styles.durationValue}>{formatDurationMs(stats?.durationMs ?? 0)}</Text>
                                 </View>
 
-                                <View style={styles.sessionMainRow}>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.sessionTitle}>{s.title ?? (s.mode === 'mock-exam' ? '모의고사' : '학습 세션')}</Text>
-                                        <Text style={styles.sessionSub} numberOfLines={1}>
-                                            {subjectsText || '과목 정보 없음'}
-                                            {more}
+                                <View style={styles.cardFooter}>
+                                    <View style={styles.metaInfo}>
+                                        <Text style={styles.timeText}>{formatClockTime(s.startedAt)}</Text>
+                                        <View style={styles.dot} />
+                                        <Text style={styles.subjectText} numberOfLines={1}>
+                                            {subjectsDisplay}
+                                            {moreCount > 0 && <Text style={styles.moreText}> +{moreCount}</Text>}
                                         </Text>
                                     </View>
-                                    <View style={styles.sessionStats}>
-                                        <Text style={styles.sessionStatValue}>{formatDurationMs(stats?.durationMs ?? 0)}</Text>
-                                        <Text style={styles.sessionStatSub}>{stats?.questionCount ?? 0}문항</Text>
-                                    </View>
-                                    <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />
+                                    <Ionicons name="chevron-forward" size={12} color={COLORS.border} />
                                 </View>
                             </TouchableOpacity>
                         );
@@ -91,47 +110,137 @@ export default function DayDetail({ sessions, sessionStatsById, subjectsById, on
 }
 
 const styles = StyleSheet.create({
-    container: { gap: 18 },
-
-    sectionHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', paddingHorizontal: 4 },
-    sectionTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text },
-    sectionMeta: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
-
-    list: { gap: 12 },
-    sessionCard: {
-        backgroundColor: COLORS.white,
-        borderRadius: 24,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: COLORS.border,
+    container: {
+        paddingBottom: 20,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 24,
+        paddingHorizontal: 4,
+    },
+    headerTextWrapper: {
+        marginRight: 16,
+    },
+    dateLabel: {
+        fontSize: 22,
+        fontWeight: '900',
+        color: COLORS.text,
+        letterSpacing: -0.8,
+        marginBottom: 2,
+    },
+    sessionCount: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: COLORS.textMuted,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    headerLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: COLORS.border,
+        opacity: 0.5,
+    },
+    list: {
         gap: 12,
     },
-    sessionTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    modePill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
-    modePillText: { fontSize: 12, fontWeight: '900' },
-    sessionTime: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted },
-
-    sessionMainRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    sessionTitle: { fontSize: 16, fontWeight: '900', color: COLORS.text },
-    sessionSub: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted, marginTop: 2 },
-    sessionStats: { alignItems: 'flex-end' },
-    sessionStatValue: { fontSize: 13, fontWeight: '900', color: COLORS.text },
-    sessionStatSub: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginTop: 2 },
-
-    emptyCard: {
+    card: {
         backgroundColor: COLORS.white,
-        borderRadius: 24,
-        padding: 30,
+        borderRadius: 20,
+        padding: 20,
+        // Using a more structured shadow and border combo
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.03)',
+        shadowColor: 'rgba(0,0,0,1)',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.03,
+        shadowRadius: 10,
+        elevation: 1,
+    },
+    cardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: 16,
+    },
+    titleArea: {
+        flex: 1,
+        marginRight: 12,
+    },
+    modeIndicator: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        marginBottom: 6,
+    },
+    modeLabel: {
+        fontSize: 10,
+        fontWeight: '900',
+        letterSpacing: 0.8,
+    },
+    sessionTitle: {
+        fontSize: 18,
+        fontWeight: '800',
+        color: COLORS.text,
+        letterSpacing: -0.4,
+    },
+    durationValue: {
+        fontSize: 16,
+        fontWeight: '900',
+        color: COLORS.primary,
+        fontVariant: ['tabular-nums'],
+    },
+    cardFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    metaInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    timeText: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: COLORS.textMuted,
+    },
+    dot: {
+        width: 3,
+        height: 3,
+        borderRadius: 1.5,
+        backgroundColor: COLORS.border,
+        marginHorizontal: 8,
+    },
+    subjectText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: COLORS.textMuted,
+        flex: 1,
+    },
+    moreText: {
+        color: COLORS.primary,
+        fontWeight: '800',
+    },
+    emptyState: {
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        borderStyle: 'dashed',
-        gap: 10,
+        paddingVertical: 60,
+        opacity: 0.8,
+    },
+    emptyIconCircle: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: COLORS.surfaceVariant,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 16,
     },
     emptyText: {
-        color: COLORS.textMuted,
         fontSize: 14,
-        fontWeight: '600',
+        fontWeight: '700',
+        color: COLORS.textMuted,
     },
 });

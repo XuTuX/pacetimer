@@ -80,24 +80,24 @@ export const AnalyticsHeader: React.FC<Props> = ({
 
 const styles = StyleSheet.create({
     container: {
-        paddingVertical: 8,
+        paddingVertical: 16,
         backgroundColor: COLORS.bg,
     },
     rangeContainer: {
         paddingHorizontal: 24,
-        marginBottom: 12,
+        marginBottom: 20,
     },
     segmentedControl: {
         flexDirection: 'row',
         backgroundColor: COLORS.surfaceVariant,
-        borderRadius: 14,
+        borderRadius: 16,
         padding: 4,
     },
     segmentBtn: {
         flex: 1,
-        paddingVertical: 8,
+        paddingVertical: 12,
         alignItems: 'center',
-        borderRadius: 10,
+        borderRadius: 12,
     },
     segmentBtnActive: {
         backgroundColor: COLORS.white,
@@ -108,24 +108,24 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
     segmentText: {
-        fontSize: 13,
-        fontWeight: '700',
+        fontSize: 14,
+        fontWeight: '800',
         color: COLORS.textMuted,
     },
     segmentTextActive: {
-        color: COLORS.text,
+        color: COLORS.primary,
     },
     filterScroll: {
-        paddingHorizontal: 24,
+        paddingHorizontal: 20,
         paddingBottom: 4,
         gap: 8,
     },
     filterChip: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 99,
+        paddingHorizontal: 18,
+        paddingVertical: 10,
+        borderRadius: 14,
         backgroundColor: COLORS.white,
         borderWidth: 1,
         borderColor: COLORS.border,
@@ -133,11 +133,16 @@ const styles = StyleSheet.create({
     filterChipActive: {
         backgroundColor: COLORS.primary,
         borderColor: COLORS.primary,
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 3,
     },
     filterText: {
-        fontSize: 12,
+        fontSize: 14,
         fontWeight: '800',
-        color: COLORS.textMuted,
+        color: COLORS.text,
     },
     filterTextActive: {
         color: COLORS.white,
