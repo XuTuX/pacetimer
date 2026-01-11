@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { formatDurationMs } from '../../lib/studyDate';
+import { formatDurationMs, formatHMS } from '../../lib/studyDate';
 import { COLORS } from '../../lib/theme';
 
 interface Props {
@@ -25,12 +25,14 @@ export const SummaryCards: React.FC<Props> = ({
         <View style={styles.container}>
             <View style={styles.card}>
                 <Text style={styles.label}>총 공부시간</Text>
-                <Text style={styles.value}>{formatDurationMs(totalDurationMs)}</Text>
+                <Text style={styles.value}>{formatHMS(totalDurationMs)}</Text>
+                <Text style={styles.secondary}>{formatDurationMs(totalDurationMs)}</Text>
             </View>
             <View style={styles.row}>
                 <View style={[styles.card, { flex: 1 }]}>
                     <Text style={styles.label}>총 해결 문항</Text>
-                    <Text style={styles.value}>{totalQuestionCount}개</Text>
+                    <Text style={styles.value}>{totalQuestionCount.toLocaleString('ko-KR')}</Text>
+                    <Text style={styles.secondary}>문제</Text>
                 </View>
                 <View style={[styles.card, { flex: 1 }]}>
                     <Text style={styles.label}>문항당 평균</Text>
@@ -73,5 +75,12 @@ const styles = StyleSheet.create({
         fontWeight: '900',
         color: COLORS.text,
         fontVariant: ['tabular-nums'],
+    },
+    secondary: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: COLORS.textMuted,
+        marginTop: 4,
+        letterSpacing: 0,
     },
 });

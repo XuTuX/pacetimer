@@ -52,6 +52,25 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
         return `${val}문제`;
     };
 
+    const formatHourlyValueLabel = (val: number) => {
+        if (mode === 'time') {
+            const totalSeconds = Math.max(0, Math.floor(val / 1000));
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+
+            if (hours > 0) {
+                return minutes > 0 ? `${hours}시간 ${minutes}분` : `${hours}시간`;
+            }
+            if (minutes > 0) {
+                return `${minutes}분`;
+            }
+            return `${seconds}초`;
+        }
+
+        return `${val}문제`;
+    };
+
     return (
         <Card variant="outlined" padding="lg" radius="xxl" style={styles.container}>
             <View style={styles.header}>
@@ -98,6 +117,7 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
                             {row.hours.map((h) => {
                                 const val = data[h];
                                 const isSelected = selectedHour === h;
+                                const labelColor = getIntensityTextColor(val);
                                 return (
                                     <TouchableOpacity
                                         key={h}
@@ -109,14 +129,25 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
                                         ]}
                                         onPress={() => setSelectedHour(selectedHour === h ? null : h)}
                                     >
-                                        <ThemedText
-                                            style={[
-                                                styles.hourText,
-                                                { color: getIntensityTextColor(val) }
-                                            ]}
-                                        >
-                                            {h}
-                                        </ThemedText>
+                                        <View style={styles.hourContent}>
+                                            <ThemedText
+                                                style={[
+                                                    styles.hourText,
+                                                    { color: labelColor }
+                                                ]}
+                                            >
+                                                {h}
+                                            </ThemedText>
+                                            <ThemedText
+                                                variant="caption"
+                                                style={[
+                                                    styles.hourValue,
+                                                    { color: labelColor }
+                                                ]}
+                                            >
+                                                {formatHourlyValueLabel(val)}
+                                            </ThemedText>
+                                        </View>
                                     </TouchableOpacity>
                                 );
                             })}
@@ -208,6 +239,14 @@ const styles = StyleSheet.create({
     hourText: {
         fontSize: 10,
         fontWeight: '800',
+    },
+    hourContent: {
+        alignItems: 'center',
+    },
+    hourValue: {
+        fontSize: 9,
+        fontWeight: '700',
+        marginTop: 2,
     },
     legend: {
         flexDirection: 'row',
