@@ -2,17 +2,17 @@ import { useAuth } from "@clerk/clerk-expo";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
-import { CompareRow } from "../../../../../../components/ui/CompareRow";
-import { ParticipantRow } from "../../../../../../components/ui/ParticipantRow";
-import { PrimaryButton } from "../../../../../../components/ui/PrimaryButton";
-import { ProgressBar } from "../../../../../../components/ui/ProgressBar";
-import { ScreenHeader } from "../../../../../../components/ui/ScreenHeader";
-import { SegmentedTabs } from "../../../../../../components/ui/SegmentedTabs";
-import { StatCard } from "../../../../../../components/ui/StatCard";
-import type { Database } from "../../../../../../lib/db-types";
-import { useSupabase } from "../../../../../../lib/supabase";
-import { formatSupabaseError } from "../../../../../../lib/supabaseError";
-import { COLORS } from "../../../../../../lib/theme";
+import { CompareRow } from "../../../../../components/ui/CompareRow";
+import { ParticipantRow } from "../../../../../components/ui/ParticipantRow";
+import { PrimaryButton } from "../../../../../components/ui/PrimaryButton";
+import { ProgressBar } from "../../../../../components/ui/ProgressBar";
+import { ScreenHeader } from "../../../../../components/ui/ScreenHeader";
+import { SegmentedTabs } from "../../../../../components/ui/SegmentedTabs";
+import { StatCard } from "../../../../../components/ui/StatCard";
+import type { Database } from "../../../../../lib/db-types";
+import { useSupabase } from "../../../../../lib/supabase";
+import { formatSupabaseError } from "../../../../../lib/supabaseError";
+import { COLORS } from "../../../../../lib/theme";
 
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
 type RecordRow = Database["public"]["Tables"]["attempt_records"]["Row"];
@@ -315,7 +315,7 @@ export default function ExamDetailScreen() {
                 <View style={styles.bottomBar}>
                     <PrimaryButton
                         label="레이스 참여"
-                        onPress={() => router.push({ pathname: "/(tabs)/rooms/[id]/exam/[examId]/run", params: { id: roomId, examId: currentExamId } })}
+                        onPress={() => router.push({ pathname: "/room/[id]/exam/[examId]/run", params: { id: roomId, examId: currentExamId } })}
                         style={{ width: '100%' }}
                     />
                 </View>

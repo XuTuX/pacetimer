@@ -4,11 +4,12 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ScreenHeader } from "../../../components/ui/ScreenHeader";
-import type { Database } from "../../../lib/db-types";
-import { useSupabase } from "../../../lib/supabase";
-import { formatSupabaseError } from "../../../lib/supabaseError";
-import { COLORS } from "../../../lib/theme";
+import { ParticipantRow } from "../../../../components/ui/ParticipantRow";
+import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
+import type { Database } from "../../../../lib/db-types";
+import { useSupabase } from "../../../../lib/supabase";
+import { formatSupabaseError } from "../../../../lib/supabaseError";
+import { COLORS } from "../../../../lib/theme";
 
 type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
 type RoomMemberRow = Database["public"]["Tables"]["room_members"]["Row"];
@@ -16,7 +17,10 @@ type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
 type AttemptRow = Database["public"]["Tables"]["attempts"]["Row"];
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 
-interface ParticipantWithData extends RoomMemberRow {
+interface ParticipantWithData {
+    user_id: string;
+    room_id: string;
+    role: string;
     profile?: ProfileRow;
     attempt?: AttemptRow;
 }
@@ -36,6 +40,7 @@ export default function RoomHomeScreen() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [joining, setJoining] = useState(false);
+    const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
 
     const loadData = useCallback(async () => {
         if (!roomId) return;
@@ -97,6 +102,11 @@ export default function RoomHomeScreen() {
 
             setParticipants(participantsWithData);
 
+            if (userId) {
+                const currentMember = participantsWithData.find(p => p.user_id === userId);
+                setCurrentUserRole(currentMember?.role ?? null);
+            }
+
         } catch (err: any) {
             setError(formatSupabaseError(err));
         } finally {
@@ -110,10 +120,16 @@ export default function RoomHomeScreen() {
         }, [loadData])
     );
 
+    const isOwner = room?.owner_id === userId;
+    const canCreateExam = useMemo(() => {
+        if (isOwner) return true;
+        if (!currentUserRole) return false;
+        const normalizedRole = currentUserRole.toLowerCase();
+        return normalizedRole === "host" || normalizedRole === "owner";
+    }, [currentUserRole, isOwner]);
+
     const isMember = useMemo(() => participants.some(p => p.user_id === userId), [participants, userId]);
-    // const selectedExam = useMemo(() => exams.find(e => e.id === selectedExamId), [exams, selectedExamId]); // Redundant if we just use exams[0] or selectedExamId logic properly
-    // Let's stick to the active one for now
-    const selectedExam = useMemo(() => exams.find(e => e.id === selectedExamId), [exams, selectedExamId]);
+    const selectedExam = useMemo(() => exams.find(e => e.id === selectedExamId) || exams[0], [exams, selectedExamId]);
     const myAttempt = useMemo(() => participants.find(p => p.user_id === userId)?.attempt, [participants, userId]);
 
     // Split participants
@@ -183,9 +199,9 @@ export default function RoomHomeScreen() {
         }
 
         if (myAttempt?.ended_at) {
-            router.push(`/(tabs)/rooms/${roomId}/exam/${selectedExam.id}`);
+            router.push(`/room/${roomId}/exam/${selectedExam.id}`);
         } else {
-            router.push(`/(tabs)/rooms/${roomId}/exam/${selectedExam.id}/run`);
+            router.push(`/room/${roomId}/exam/${selectedExam.id}/run`);
         }
     };
 
@@ -206,6 +222,11 @@ export default function RoomHomeScreen() {
                 showBack={false}
                 rightElement={
                     <View style={styles.headerActions}>
+                        {canCreateExam && (
+                            <Pressable onPress={() => router.push(`/room/${roomId}/add-exam`)} style={styles.headerBtn}>
+                                <Ionicons name="add" size={22} color={COLORS.text} />
+                            </Pressable>
+                        )}
                         <Pressable onPress={handleShare} style={styles.headerBtn}>
                             <Ionicons name="share-outline" size={20} color={COLORS.text} />
                         </Pressable>
@@ -224,45 +245,99 @@ export default function RoomHomeScreen() {
                     <Text style={styles.roomDesc}>함께 공부하며 목표를 달성해봐요.</Text>
                 </View>
 
-                {/* Main Action / Active Challenge Removed - Moved to Mock Exam Tab */}
+                {/* Main Action / Active Challenge */}
+                <View style={styles.mainSection}>
+                    <Text style={styles.sectionLabel}>진행 중인 시험</Text>
+                    {selectedExam ? (
+                        <Pressable onPress={openExamRunner} style={styles.challengeCard}>
+                            <View style={styles.challengeIconBox}>
+                                <Ionicons name="rocket" size={24} color={COLORS.primary} />
+                            </View>
+                            <View style={styles.challengeDetails}>
+                                <Text style={styles.challengeTitle} numberOfLines={1}>{selectedExam.title}</Text>
+                                <View style={styles.challengeMeta}>
+                                    <View style={styles.metaBadge}>
+                                        <Ionicons name="time-outline" size={14} color={COLORS.textMuted} />
+                                        <Text style={styles.metaText}>{selectedExam.total_minutes}분</Text>
+                                    </View>
+                                    <View style={styles.metaBadge}>
+                                        <Ionicons name="document-text-outline" size={14} color={COLORS.textMuted} />
+                                        <Text style={styles.metaText}>{selectedExam.total_questions}문제</Text>
+                                    </View>
+                                </View>
+                            </View>
+                            <View style={styles.startBtn}>
+                                <Text style={styles.startBtnText}>
+                                    {myAttempt?.ended_at ? '결과보기' : (myAttempt ? '이어하기' : '시작하기')}
+                                </Text>
+                                <Ionicons name="chevron-forward" size={16} color={COLORS.white} />
+                            </View>
+                        </Pressable>
+                    ) : (
+                        <View style={styles.emptyChallenge}>
+                            <Ionicons name="document-text-outline" size={32} color={COLORS.textMuted} opacity={0.5} />
+                            <Text style={styles.emptyChallengeText}>진행 중인 시험이 없습니다.</Text>
+                            {canCreateExam && (
+                                <Pressable
+                                    onPress={() => router.push(`/room/${roomId}/add-exam`)}
+                                    style={styles.inlineCreateBtn}
+                                >
+                                    <Text style={styles.inlineCreateText}>첫 시험 만들기</Text>
+                                </Pressable>
+                            )}
+                        </View>
+                    )}
+                </View>
 
                 {/* Participants */}
                 <View style={styles.participantsSection}>
                     <View style={styles.sectionHeader}>
                         <Text style={styles.sectionLabel}>참여 중인 멤버</Text>
-                        <Text style={styles.countBadge}>{participants.length}</Text>
+                        <View style={styles.countBadgeContainer}>
+                            <Text style={styles.countBadgeText}>{participants.length}</Text>
+                        </View>
                     </View>
-                    <View style={styles.participantsGrid}>
-                        {participants.map((p) => {
-                            const isStudying = p.attempt && !p.attempt.ended_at;
-                            return (
-                                <View key={p.user_id} style={styles.participantItem}>
-                                    <View style={[styles.avatarContainer, isStudying && styles.activeAvatar]}>
-                                        <View style={styles.avatarInner}>
-                                            <Ionicons
-                                                name={isStudying ? "flash" : "person"}
-                                                size={22}
-                                                color={isStudying ? COLORS.primary : COLORS.textMuted}
-                                            />
-                                        </View>
-                                        {isStudying && (
-                                            <View style={styles.statusRing}>
-                                                <View style={styles.statusDot} />
-                                            </View>
-                                        )}
-                                    </View>
-                                    <Text style={[styles.participantName, isStudying && styles.activeText]} numberOfLines={1}>
-                                        {p.user_id === userId ? "나" : (p.profile?.display_name || "사용자")}
-                                    </Text>
-                                    {isStudying && <Text style={styles.activeLabel}>공부중</Text>}
-                                </View>
-                            );
-                        })}
-                        {participants.length === 0 && (
+
+                    {participants.map((p) => {
+                        const isStudying = p.attempt && !p.attempt.ended_at;
+                        return (
+                            <ParticipantRow
+                                key={p.user_id}
+                                name={p.user_id === userId ? `${p.profile?.display_name} (나)` : (p.profile?.display_name || "사용자")}
+                                status={isStudying ? "IN_PROGRESS" : (p.attempt?.ended_at ? "COMPLETED" : "NOT_STARTED")}
+                                isMe={p.user_id === userId}
+                                progress={isStudying ? "집중하는 중" : (p.attempt?.ended_at ? "완료" : "대기 중")}
+                            />
+                        );
+                    })}
+
+                    {participants.length === 0 && (
+                        <View style={styles.emptyState}>
                             <Text style={styles.emptyText}>참여 중인 멤버가 없습니다.</Text>
-                        )}
-                    </View>
+                        </View>
+                    )}
                 </View>
+
+                {/* All Exams Section */}
+                {exams.length > 1 && (
+                    <View style={styles.section}>
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionLabel}>모든 시험</Text>
+                        </View>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.examsHorizontal}>
+                            {exams.map(exam => (
+                                <Pressable
+                                    key={exam.id}
+                                    onPress={() => setSelectedExamId(exam.id)}
+                                    style={[styles.miniExamCard, selectedExamId === exam.id && styles.selectedMiniCard]}
+                                >
+                                    <Text style={styles.miniExamTitle} numberOfLines={1}>{exam.title}</Text>
+                                    <Text style={styles.miniExamMeta}>{exam.total_questions}문제 · {exam.total_minutes}분</Text>
+                                </Pressable>
+                            ))}
+                        </ScrollView>
+                    </View>
+                )}
 
                 {/* Footer Actions */}
                 <View style={styles.footerActions}>
@@ -541,5 +616,67 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: COLORS.textMuted,
         fontStyle: 'italic',
+    },
+    inlineCreateBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 999,
+        backgroundColor: COLORS.primaryLight,
+        marginTop: 12,
+    },
+    inlineCreateText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: COLORS.primary,
+    },
+    countBadgeContainer: {
+        backgroundColor: COLORS.surfaceVariant,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 10,
+    },
+    countBadgeText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: COLORS.textMuted,
+    },
+    emptyState: {
+        padding: 40,
+        alignItems: 'center',
+    },
+    section: {
+        paddingHorizontal: 20,
+        marginTop: 24,
+    },
+    examsHorizontal: {
+        paddingRight: 20,
+        gap: 12,
+        paddingBottom: 8,
+    },
+    miniExamCard: {
+        width: 160,
+        backgroundColor: COLORS.surface,
+        borderRadius: 16,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    selectedMiniCard: {
+        borderColor: COLORS.primary,
+        backgroundColor: COLORS.primaryLight,
+    },
+    miniExamTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: COLORS.text,
+        marginBottom: 4,
+    },
+    miniExamMeta: {
+        fontSize: 11,
+        color: COLORS.textMuted,
+        fontWeight: '600',
     },
 });

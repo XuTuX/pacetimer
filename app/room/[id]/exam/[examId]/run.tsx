@@ -14,10 +14,10 @@ import {
     View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { Database } from "../../../../../../lib/db-types";
-import { useSupabase } from "../../../../../../lib/supabase";
-import { formatSupabaseError } from "../../../../../../lib/supabaseError";
-import { COLORS } from "../../../../../../lib/theme";
+import type { Database } from "../../../../../lib/db-types";
+import { useSupabase } from "../../../../../lib/supabase";
+import { formatSupabaseError } from "../../../../../lib/supabaseError";
+import { COLORS } from "../../../../../lib/theme";
 
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
 type AttemptRow = Database["public"]["Tables"]["attempts"]["Row"];
@@ -84,7 +84,7 @@ export default function ExamRunScreen() {
             let records: AttemptRecordRow[] = [];
             const { data: recordData, error: recordError } = await supabase
                 .from("attempt_records")
-                .select("id, question_no, duration_ms")
+                .select("*")
                 .eq("attempt_id", attempt.id)
                 .order("question_no", { ascending: true });
 
@@ -135,7 +135,7 @@ export default function ExamRunScreen() {
                         [
                             {
                                 text: "확인",
-                                onPress: () => router.replace(`/(tabs)/rooms/${roomId}/exam/${currentExamId}`)
+                                onPress: () => router.replace(`/room/${roomId}/exam/${currentExamId}`)
                             }
                         ]
                     );
@@ -173,7 +173,7 @@ export default function ExamRunScreen() {
                             .maybeSingle();
                         if (retryError) throw retryError;
                         if (retryAttempt?.ended_at) {
-                            router.replace(`/(tabs)/rooms/${roomId}/exam/${currentExamId}`);
+                            router.replace(`/room/${roomId}/exam/${currentExamId}`);
                             return;
                         }
                         if (retryAttempt) {
@@ -266,7 +266,7 @@ export default function ExamRunScreen() {
                             duration_ms: durationMs,
                         }).eq("id", attemptId);
 
-                        router.replace(`/(tabs)/rooms/${roomId}/exam/${currentExamId}`);
+                        router.replace(`/room/${roomId}/exam/${currentExamId}`);
                     } catch (e) {
                         Alert.alert("오류", "결과 저장에 실패했습니다.");
                         setLoading(false);

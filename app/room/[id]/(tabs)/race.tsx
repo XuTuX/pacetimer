@@ -3,13 +3,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { ExamCard } from "../../../components/rooms/ExamCard";
-import { PrimaryButton } from "../../../components/ui/PrimaryButton";
-import { ScreenHeader } from "../../../components/ui/ScreenHeader";
-import type { Database } from "../../../lib/db-types";
-import { useSupabase } from "../../../lib/supabase";
-import { formatSupabaseError } from "../../../lib/supabaseError";
-import { COLORS } from "../../../lib/theme";
+import { ExamCard } from "../../../../components/rooms/ExamCard";
+import { PrimaryButton } from "../../../../components/ui/PrimaryButton";
+import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
+import type { Database } from "../../../../lib/db-types";
+import { useSupabase } from "../../../../lib/supabase";
+import { formatSupabaseError } from "../../../../lib/supabaseError";
+import { COLORS } from "../../../../lib/theme";
 
 type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
@@ -178,6 +178,18 @@ export default function RaceScreen() {
         }
     }, [roomId, selectedExamId, supabase, userId]);
 
+    const handleShare = async () => {
+        if (!room) return;
+        try {
+            const { Share } = require('react-native');
+            await Share.share({
+                message: `Pacetime에서 "${room.name}" 스터디 룸에 참여하세요! 룸 ID: ${room.id}`,
+            });
+        } catch (error) {
+            // ignore
+        }
+    };
+
     useFocusEffect(
         useCallback(() => {
             loadData();
@@ -269,6 +281,9 @@ export default function RaceScreen() {
                                 <Ionicons name="add" size={22} color={COLORS.text} />
                             </Pressable>
                         )}
+                        <Pressable onPress={handleShare} style={styles.headerBtn}>
+                            <Ionicons name="share-outline" size={20} color={COLORS.text} />
+                        </Pressable>
                         <Pressable onPress={() => router.replace('/(tabs)/rooms')} style={styles.headerBtn}>
                             <Ionicons name="close" size={24} color={COLORS.text} />
                         </Pressable>
@@ -296,7 +311,7 @@ export default function RaceScreen() {
 
                         {myResult?.status !== 'COMPLETED' ? (
                             <Pressable
-                                onPress={() => router.push(`/(tabs)/rooms/${roomId}/exam/${exam.id}/run`)}
+                                onPress={() => router.push(`/room/${roomId}/exam/${exam.id}/run`)}
                                 style={({ pressed }) => [
                                     styles.mainStartBtn,
                                     pressed && { opacity: 0.9, transform: [{ scale: 0.98 }] }
