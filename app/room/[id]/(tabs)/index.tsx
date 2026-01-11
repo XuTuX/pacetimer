@@ -3,7 +3,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { ParticipantRow } from "../../../../components/ui/ParticipantRow";
 import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
 import type { Database } from "../../../../lib/db-types";
@@ -13,7 +12,6 @@ import { COLORS } from "../../../../lib/theme";
 
 type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
 type RoomMemberRow = Database["public"]["Tables"]["room_members"]["Row"];
-type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
 type AttemptRow = Database["public"]["Tables"]["attempts"]["Row"];
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 
@@ -22,7 +20,6 @@ interface ParticipantWithData {
     room_id: string;
     role: string;
     profile?: ProfileRow;
-    attempt?: AttemptRow;
 }
 
 export default function RoomHomeScreen() {
@@ -35,11 +32,8 @@ export default function RoomHomeScreen() {
 
     const [room, setRoom] = useState<RoomRow | null>(null);
     const [participants, setParticipants] = useState<ParticipantWithData[]>([]);
-    const [exams, setExams] = useState<RoomExamRow[]>([]);
-    const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [joining, setJoining] = useState(false);
     const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
 
     const loadData = useCallback(async () => {
@@ -56,23 +50,7 @@ export default function RoomHomeScreen() {
             if (roomError) throw roomError;
             setRoom(roomData);
 
-            // 2. Fetch Exams
-            const { data: examData, error: examError } = await supabase
-                .from("room_exams")
-                .select("*")
-                .eq("room_id", roomId)
-                .order("created_at", { ascending: false });
-            if (examError) throw examError;
-            const fetchedExams = examData ?? [];
-            setExams(fetchedExams);
-
-            let currentExamId = selectedExamId;
-            if (fetchedExams.length > 0 && !currentExamId) {
-                currentExamId = fetchedExams[0].id;
-                setSelectedExamId(currentExamId);
-            }
-
-            // 3. Fetch Participants with Profiles
+            // 2. Fetch Participants with Profiles
             const { data: partData, error: partError } = await supabase
                 .from("room_members")
                 .select(`
@@ -84,22 +62,6 @@ export default function RoomHomeScreen() {
             if (partError) throw partError;
 
             let participantsWithData: ParticipantWithData[] = (partData as any) ?? [];
-
-            // 4. Fetch Attempts for the selected exam
-            if (currentExamId) {
-                const { data: attemptData, error: attemptError } = await supabase
-                    .from("attempts")
-                    .select("*")
-                    .eq("exam_id", currentExamId);
-
-                if (!attemptError && attemptData) {
-                    participantsWithData = participantsWithData.map(p => ({
-                        ...p,
-                        attempt: attemptData.find(a => a.user_id === p.user_id)
-                    }));
-                }
-            }
-
             setParticipants(participantsWithData);
 
             if (userId) {
@@ -112,7 +74,7 @@ export default function RoomHomeScreen() {
         } finally {
             setLoading(false);
         }
-    }, [roomId, selectedExamId, supabase]);
+    }, [roomId, supabase, userId]);
 
     useFocusEffect(
         useCallback(() => {
@@ -120,27 +82,8 @@ export default function RoomHomeScreen() {
         }, [loadData])
     );
 
-    const isOwner = room?.owner_id === userId;
-    const canCreateExam = useMemo(() => {
-        if (isOwner) return true;
-        if (!currentUserRole) return false;
-        const normalizedRole = currentUserRole.toLowerCase();
-        return normalizedRole === "host" || normalizedRole === "owner";
-    }, [currentUserRole, isOwner]);
-
     const isMember = useMemo(() => participants.some(p => p.user_id === userId), [participants, userId]);
-    const selectedExam = useMemo(() => exams.find(e => e.id === selectedExamId) || exams[0], [exams, selectedExamId]);
-    const myAttempt = useMemo(() => participants.find(p => p.user_id === userId)?.attempt, [participants, userId]);
-
-    // Split participants
-    const activeParticipants = useMemo(() =>
-        participants.filter(p => p.attempt && !p.attempt.ended_at),
-        [participants]);
-
-    const finishedParticipants = useMemo(() =>
-        participants.filter(p => p.attempt && p.attempt.ended_at)
-            .sort((a, b) => (a.attempt?.duration_ms || 0) - (b.attempt?.duration_ms || 0)),
-        [participants]);
+    const host = useMemo(() => participants.find(p => p.user_id === room?.owner_id), [participants, room?.owner_id]);
 
     const handleLeaveRoom = async () => {
         if (!roomId || !userId) return;
@@ -157,22 +100,6 @@ export default function RoomHomeScreen() {
         }
     };
 
-    const handleJoin = async () => {
-        if (!roomId || !userId) return;
-        setJoining(true);
-        try {
-            const { error } = await supabase
-                .from("room_members")
-                .insert({ room_id: roomId, user_id: userId });
-            if (error) throw error;
-            await loadData();
-        } catch (err) {
-            setError(formatSupabaseError(err));
-        } finally {
-            setJoining(false);
-        }
-    };
-
     const handleShare = async () => {
         if (!room) return;
         try {
@@ -184,34 +111,13 @@ export default function RoomHomeScreen() {
         }
     };
 
-    const openExamRunner = async () => {
-        if (!selectedExam) return;
-
-        // Auto-join if not member
-        if (!isMember && roomId && userId) {
-            try {
-                await supabase
-                    .from("room_members")
-                    .insert({ room_id: roomId, user_id: userId });
-            } catch (err) {
-                console.error("Auto-join failed:", err);
-            }
-        }
-
-        if (myAttempt?.ended_at) {
-            router.push(`/room/${roomId}/exam/${selectedExam.id}`);
-        } else {
-            router.push(`/room/${roomId}/exam/${selectedExam.id}/run`);
-        }
-    };
-
     if (loading && !room) {
         return (
-            <SafeAreaView style={styles.container}>
+            <View style={styles.container}>
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color={COLORS.primary} />
                 </View>
-            </SafeAreaView>
+            </View>
         );
     }
 
@@ -222,11 +128,6 @@ export default function RoomHomeScreen() {
                 showBack={false}
                 rightElement={
                     <View style={styles.headerActions}>
-                        {canCreateExam && (
-                            <Pressable onPress={() => router.push(`/room/${roomId}/add-exam`)} style={styles.headerBtn}>
-                                <Ionicons name="add" size={22} color={COLORS.text} />
-                            </Pressable>
-                        )}
                         <Pressable onPress={handleShare} style={styles.headerBtn}>
                             <Ionicons name="share-outline" size={20} color={COLORS.text} />
                         </Pressable>
@@ -238,78 +139,89 @@ export default function RoomHomeScreen() {
             />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                {/* Hero Section */}
+                {/* Hero section with glassmorphism feel */}
                 <View style={styles.heroSection}>
-                    <Text style={styles.welcomeText}>안녕하세요!</Text>
-                    <Text style={styles.roomName}>{room?.name || "스터디 룸"}</Text>
-                    <Text style={styles.roomDesc}>함께 공부하며 목표를 달성해봐요.</Text>
+                    <View style={styles.heroContent}>
+                        <Text style={styles.welcomeTitle}>Welcome to</Text>
+                        <Text style={styles.roomNameLarge}>{room?.name}</Text>
+                        <View style={styles.divider} />
+                        <Text style={styles.roomDescLarge}>함께 목표를 향해 달리는 스터디 공간입니다.</Text>
+                    </View>
                 </View>
 
-                {/* Main Action / Active Challenge */}
-                <View style={styles.mainSection}>
-                    <Text style={styles.sectionLabel}>진행 중인 시험</Text>
-                    {selectedExam ? (
-                        <Pressable onPress={openExamRunner} style={styles.challengeCard}>
-                            <View style={styles.challengeIconBox}>
-                                <Ionicons name="rocket" size={24} color={COLORS.primary} />
+                {/* Host Info Section */}
+                <View style={styles.hostSection}>
+                    <Text style={styles.sectionTitle}>방장</Text>
+                    <View style={styles.hostCard}>
+                        <View style={styles.hostAvatar}>
+                            <Ionicons name="person" size={24} color={COLORS.primary} />
+                            <View style={styles.ownerBadge}>
+                                <Ionicons name="star" size={10} color={COLORS.white} />
                             </View>
-                            <View style={styles.challengeDetails}>
-                                <Text style={styles.challengeTitle} numberOfLines={1}>{selectedExam.title}</Text>
-                                <View style={styles.challengeMeta}>
-                                    <View style={styles.metaBadge}>
-                                        <Ionicons name="time-outline" size={14} color={COLORS.textMuted} />
-                                        <Text style={styles.metaText}>{selectedExam.total_minutes}분</Text>
-                                    </View>
-                                    <View style={styles.metaBadge}>
-                                        <Ionicons name="document-text-outline" size={14} color={COLORS.textMuted} />
-                                        <Text style={styles.metaText}>{selectedExam.total_questions}문제</Text>
-                                    </View>
-                                </View>
-                            </View>
-                            <View style={styles.startBtn}>
-                                <Text style={styles.startBtnText}>
-                                    {myAttempt?.ended_at ? '결과보기' : (myAttempt ? '이어하기' : '시작하기')}
-                                </Text>
-                                <Ionicons name="chevron-forward" size={16} color={COLORS.white} />
-                            </View>
-                        </Pressable>
-                    ) : (
-                        <View style={styles.emptyChallenge}>
-                            <Ionicons name="document-text-outline" size={32} color={COLORS.textMuted} opacity={0.5} />
-                            <Text style={styles.emptyChallengeText}>진행 중인 시험이 없습니다.</Text>
-                            {canCreateExam && (
-                                <Pressable
-                                    onPress={() => router.push(`/room/${roomId}/add-exam`)}
-                                    style={styles.inlineCreateBtn}
-                                >
-                                    <Text style={styles.inlineCreateText}>첫 시험 만들기</Text>
-                                </Pressable>
-                            )}
                         </View>
-                    )}
+                        <View style={styles.hostDetails}>
+                            <Text style={styles.hostName}>{host?.profile?.display_name || "방장"}</Text>
+                            <Text style={styles.hostRole}>스터디 마스터</Text>
+                        </View>
+                        <View style={styles.hostStatusBadge}>
+                            <Text style={styles.hostStatusText}>온라인</Text>
+                        </View>
+                    </View>
                 </View>
 
-                {/* Participants */}
+                {/* Stats Summary Card */}
+                <View style={styles.summaryCard}>
+                    <View style={styles.statItem}>
+                        <Text style={styles.statValue}>{participants.length}</Text>
+                        <Text style={styles.statLabel}>참여자</Text>
+                    </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statItem}>
+                        <Text style={styles.statValue}>LIVE</Text>
+                        <Text style={styles.statLabel}>방 상태</Text>
+                    </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statItem}>
+                        <Text style={styles.statValue}>{new Date(room?.created_at || '').toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</Text>
+                        <Text style={styles.statLabel}>개설일</Text>
+                    </View>
+                </View>
+
+                {/* Participants List */}
                 <View style={styles.participantsSection}>
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionLabel}>참여 중인 멤버</Text>
-                        <View style={styles.countBadgeContainer}>
-                            <Text style={styles.countBadgeText}>{participants.length}</Text>
+                        <Text style={styles.sectionTitle}>참여 중인 멤버</Text>
+                        <View style={styles.memberCount}>
+                            <Text style={styles.memberCountText}>{participants.length}명</Text>
                         </View>
                     </View>
 
-                    {participants.map((p) => {
-                        const isStudying = p.attempt && !p.attempt.ended_at;
-                        return (
-                            <ParticipantRow
-                                key={p.user_id}
-                                name={p.user_id === userId ? `${p.profile?.display_name} (나)` : (p.profile?.display_name || "사용자")}
-                                status={isStudying ? "IN_PROGRESS" : (p.attempt?.ended_at ? "COMPLETED" : "NOT_STARTED")}
-                                isMe={p.user_id === userId}
-                                progress={isStudying ? "집중하는 중" : (p.attempt?.ended_at ? "완료" : "대기 중")}
-                            />
-                        );
-                    })}
+                    <View style={styles.participantsList}>
+                        {participants.map((p) => {
+                            const isHost = p.user_id === room?.owner_id;
+                            return (
+                                <ParticipantRow
+                                    key={p.user_id}
+                                    name={p.profile?.display_name || "사용자"}
+                                    status="NOT_STARTED" // Dummy, overridden by customRightElement
+                                    isMe={p.user_id === userId}
+                                    customRightElement={
+                                        <View style={[
+                                            styles.roleBadge,
+                                            isHost ? styles.roleBadgeHost : styles.roleBadgeMember
+                                        ]}>
+                                            <Text style={[
+                                                styles.roleBadgeText,
+                                                isHost ? styles.roleBadgeTextHost : styles.roleBadgeTextMember
+                                            ]}>
+                                                {isHost ? "호스트" : "멤버"}
+                                            </Text>
+                                        </View>
+                                    }
+                                />
+                            );
+                        })}
+                    </View>
 
                     {participants.length === 0 && (
                         <View style={styles.emptyState}>
@@ -318,32 +230,11 @@ export default function RoomHomeScreen() {
                     )}
                 </View>
 
-                {/* All Exams Section */}
-                {exams.length > 1 && (
-                    <View style={styles.section}>
-                        <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionLabel}>모든 시험</Text>
-                        </View>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.examsHorizontal}>
-                            {exams.map(exam => (
-                                <Pressable
-                                    key={exam.id}
-                                    onPress={() => setSelectedExamId(exam.id)}
-                                    style={[styles.miniExamCard, selectedExamId === exam.id && styles.selectedMiniCard]}
-                                >
-                                    <Text style={styles.miniExamTitle} numberOfLines={1}>{exam.title}</Text>
-                                    <Text style={styles.miniExamMeta}>{exam.total_questions}문제 · {exam.total_minutes}분</Text>
-                                </Pressable>
-                            ))}
-                        </ScrollView>
-                    </View>
-                )}
-
                 {/* Footer Actions */}
                 <View style={styles.footerActions}>
-                    {isMember && (
+                    {isMember && userId !== room?.owner_id && (
                         <Pressable onPress={handleLeaveRoom} style={styles.leaveRoomBtn}>
-                            <Ionicons name="exit-outline" size={16} color={COLORS.textMuted} />
+                            <Ionicons name="exit-outline" size={16} color={COLORS.error} />
                             <Text style={styles.leaveRoomText}>룸에서 나가기</Text>
                         </Pressable>
                     )}
@@ -375,48 +266,63 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     headerBtn: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
         backgroundColor: COLORS.surface,
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 1,
+        borderWidth: 1,
+        borderColor: COLORS.border,
     },
     scrollContent: {
-        paddingBottom: 40,
+        paddingBottom: 60,
     },
     heroSection: {
         padding: 24,
-        paddingTop: 12,
+        paddingBottom: 32,
     },
-    welcomeText: {
+    heroContent: {
+        backgroundColor: COLORS.primary,
+        borderRadius: 32,
+        padding: 32,
+        shadowColor: COLORS.primary,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.2,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    welcomeTitle: {
         fontSize: 14,
-        fontWeight: '600',
-        color: COLORS.primary,
-        marginBottom: 4,
+        fontWeight: '700',
+        color: 'rgba(255, 255, 255, 0.7)',
+        textTransform: 'uppercase',
+        letterSpacing: 1.5,
+        marginBottom: 8,
     },
-    roomName: {
-        fontSize: 28,
+    roomNameLarge: {
+        fontSize: 32,
         fontWeight: '900',
-        color: COLORS.text,
-        letterSpacing: -1,
+        color: COLORS.white,
+        letterSpacing: -0.5,
     },
-    roomDesc: {
-        fontSize: 14,
-        color: COLORS.textMuted,
-        marginTop: 4,
+    divider: {
+        height: 2,
+        width: 40,
+        backgroundColor: 'rgba(255, 255, 255, 0.3)',
+        marginVertical: 16,
+    },
+    roomDescLarge: {
+        fontSize: 16,
+        color: 'rgba(255, 255, 255, 0.9)',
         fontWeight: '500',
+        lineHeight: 24,
     },
-    mainSection: {
-        paddingHorizontal: 20,
-        marginBottom: 32,
+    hostSection: {
+        paddingHorizontal: 24,
+        marginBottom: 24,
     },
-    sectionLabel: {
+    sectionTitle: {
         fontSize: 13,
         fontWeight: '800',
         color: COLORS.textMuted,
@@ -424,259 +330,183 @@ const styles = StyleSheet.create({
         letterSpacing: 1,
         marginBottom: 16,
     },
-    challengeCard: {
-        backgroundColor: COLORS.surface,
-        borderRadius: 24,
-        padding: 20,
+    hostCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.1,
-        shadowRadius: 15,
-        elevation: 5,
+        backgroundColor: COLORS.surface,
+        padding: 20,
+        borderRadius: 24,
         borderWidth: 1,
         borderColor: COLORS.border,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.03,
+        shadowRadius: 8,
+        elevation: 2,
     },
-    challengeIconBox: {
-        width: 48,
-        height: 48,
-        borderRadius: 16,
+    hostAvatar: {
+        width: 56,
+        height: 56,
+        borderRadius: 22,
         backgroundColor: COLORS.primaryLight,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: 16,
-    },
-    challengeDetails: {
-        flex: 1,
-    },
-    challengeTitle: {
-        fontSize: 17,
-        fontWeight: '800',
-        color: COLORS.text,
-        marginBottom: 6,
-    },
-    challengeMeta: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    metaBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-    },
-    metaText: {
-        fontSize: 12,
-        color: COLORS.textMuted,
-        fontWeight: '600',
-    },
-    startBtn: {
-        backgroundColor: COLORS.primary,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 14,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-    },
-    startBtnText: {
-        color: COLORS.white,
-        fontSize: 13,
-        fontWeight: '800',
-    },
-    emptyChallenge: {
-        backgroundColor: COLORS.surfaceVariant,
-        borderRadius: 24,
-        padding: 40,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        borderStyle: 'dashed',
-    },
-    emptyChallengeText: {
-        marginTop: 12,
-        fontSize: 14,
-        color: COLORS.textMuted,
-        fontWeight: '600',
-    },
-    participantsSection: {
-        paddingHorizontal: 20,
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        marginBottom: 16,
-    },
-    countBadge: {
-        backgroundColor: COLORS.surfaceVariant,
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 10,
-        fontSize: 11,
-        fontWeight: '700',
-        color: COLORS.textMuted,
-        marginBottom: 16,
-    },
-    participantsGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 20,
-    },
-    participantItem: {
-        width: 70,
-        alignItems: 'center',
-    },
-    avatarContainer: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        padding: 3,
-        backgroundColor: COLORS.bg,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        marginBottom: 8,
         position: 'relative',
     },
-    activeAvatar: {
-        borderColor: COLORS.primary,
-        borderWidth: 2,
-    },
-    avatarInner: {
-        flex: 1,
-        borderRadius: 27,
-        backgroundColor: COLORS.surface,
+    ownerBadge: {
+        position: 'absolute',
+        bottom: -4,
+        right: -4,
+        backgroundColor: COLORS.primary,
+        width: 20,
+        height: 20,
+        borderRadius: 10,
         alignItems: 'center',
         justifyContent: 'center',
-    },
-    statusRing: {
-        position: 'absolute',
-        top: -2,
-        right: -2,
-        backgroundColor: COLORS.bg,
-        borderRadius: 10,
-        padding: 2,
-    },
-    statusDot: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        backgroundColor: COLORS.primary,
         borderWidth: 2,
         borderColor: COLORS.surface,
     },
-    participantName: {
-        fontSize: 12,
-        fontWeight: '600',
+    hostDetails: {
+        flex: 1,
+        marginLeft: 16,
+    },
+    hostName: {
+        fontSize: 18,
+        fontWeight: '800',
         color: COLORS.text,
-        textAlign: 'center',
+        marginBottom: 2,
     },
-    activeText: {
+    hostRole: {
+        fontSize: 13,
         color: COLORS.primary,
+        fontWeight: '700',
+    },
+    hostStatusBadge: {
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 8,
+        backgroundColor: '#E8F5E9',
+    },
+    hostStatusText: {
+        fontSize: 11,
+        fontWeight: '800',
+        color: '#2E7D32',
+    },
+    summaryCard: {
+        flexDirection: 'row',
+        marginHorizontal: 24,
+        marginBottom: 32,
+        backgroundColor: COLORS.surface,
+        borderRadius: 24,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        justifyContent: 'space-around',
+        alignItems: 'center',
+    },
+    statItem: {
+        alignItems: 'center',
+    },
+    statValue: {
+        fontSize: 18,
+        fontWeight: '900',
+        color: COLORS.text,
+        marginBottom: 4,
+    },
+    statLabel: {
+        fontSize: 11,
+        color: COLORS.textMuted,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+    },
+    statDivider: {
+        width: 1,
+        height: 24,
+        backgroundColor: COLORS.border,
+    },
+    participantsSection: {
+        paddingHorizontal: 24,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    memberCount: {
+        backgroundColor: COLORS.surfaceVariant,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 10,
+    },
+    memberCountText: {
+        fontSize: 11,
+        fontWeight: '800',
+        color: COLORS.textMuted,
+    },
+    participantsList: {
+        gap: 12,
+    },
+    roleBadge: {
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 10,
+    },
+    roleBadgeHost: {
+        backgroundColor: COLORS.primaryLight,
+    },
+    roleBadgeMember: {
+        backgroundColor: COLORS.surfaceVariant,
+    },
+    roleBadgeText: {
+        fontSize: 11,
         fontWeight: '800',
     },
-    activeLabel: {
-        fontSize: 9,
-        fontWeight: '800',
+    roleBadgeTextHost: {
         color: COLORS.primary,
-        marginTop: 2,
+    },
+    roleBadgeTextMember: {
+        color: COLORS.textMuted,
     },
     footerActions: {
-        marginTop: 48,
+        marginTop: 40,
         alignItems: 'center',
     },
     leaveRoomBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        padding: 12,
+        gap: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 12,
     },
     leaveRoomText: {
-        fontSize: 13,
-        color: COLORS.textMuted,
-        fontWeight: '600',
-    },
-    errorContainer: {
-        position: 'absolute',
-        bottom: 20,
-        left: 20,
-        right: 20,
-        padding: 16,
-        backgroundColor: COLORS.errorLight,
-        borderRadius: 16,
-        alignItems: 'center',
-    },
-    errorText: {
-        color: COLORS.error,
         fontSize: 14,
-        fontWeight: '600',
-    },
-    emptyText: {
-        fontSize: 13,
-        color: COLORS.textMuted,
-        fontStyle: 'italic',
-    },
-    inlineCreateBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 999,
-        backgroundColor: COLORS.primaryLight,
-        marginTop: 12,
-    },
-    inlineCreateText: {
-        fontSize: 12,
+        color: COLORS.error,
         fontWeight: '700',
-        color: COLORS.primary,
-    },
-    countBadgeContainer: {
-        backgroundColor: COLORS.surfaceVariant,
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 10,
-    },
-    countBadgeText: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: COLORS.textMuted,
     },
     emptyState: {
         padding: 40,
         alignItems: 'center',
     },
-    section: {
-        paddingHorizontal: 20,
-        marginTop: 24,
-    },
-    examsHorizontal: {
-        paddingRight: 20,
-        gap: 12,
-        paddingBottom: 8,
-    },
-    miniExamCard: {
-        width: 160,
-        backgroundColor: COLORS.surface,
-        borderRadius: 16,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-    },
-    selectedMiniCard: {
-        borderColor: COLORS.primary,
-        backgroundColor: COLORS.primaryLight,
-    },
-    miniExamTitle: {
+    emptyText: {
         fontSize: 14,
-        fontWeight: '700',
-        color: COLORS.text,
-        marginBottom: 4,
-    },
-    miniExamMeta: {
-        fontSize: 11,
         color: COLORS.textMuted,
+        fontStyle: 'italic',
+    },
+    errorContainer: {
+        position: 'absolute',
+        bottom: 24,
+        left: 24,
+        right: 24,
+        padding: 16,
+        backgroundColor: '#FFEBEE',
+        borderRadius: 16,
+        alignItems: 'center',
+    },
+    errorText: {
+        color: '#D32F2F',
+        fontSize: 14,
         fontWeight: '600',
     },
 });
