@@ -135,7 +135,10 @@ export default function ExamRunScreen() {
                         [
                             {
                                 text: "확인",
-                                onPress: () => router.replace(`/room/${roomId}/exam/${currentExamId}`)
+                                onPress: () => router.replace({
+                                    pathname: `/room/${roomId}/analysis` as any,
+                                    params: { initialExamId: currentExamId }
+                                })
                             }
                         ]
                     );
@@ -173,7 +176,10 @@ export default function ExamRunScreen() {
                             .maybeSingle();
                         if (retryError) throw retryError;
                         if (retryAttempt?.ended_at) {
-                            router.replace(`/room/${roomId}/exam/${currentExamId}`);
+                            router.replace({
+                                pathname: `/room/${roomId}/analysis` as any,
+                                params: { initialExamId: currentExamId }
+                            });
                             return;
                         }
                         if (retryAttempt) {
@@ -266,7 +272,10 @@ export default function ExamRunScreen() {
                             duration_ms: durationMs,
                         }).eq("id", attemptId);
 
-                        router.replace(`/room/${roomId}/exam/${currentExamId}`);
+                        router.replace({
+                            pathname: `/room/${roomId}/analysis` as any,
+                            params: { initialExamId: currentExamId }
+                        });
                     } catch (e) {
                         Alert.alert("오류", "결과 저장에 실패했습니다.");
                         setLoading(false);

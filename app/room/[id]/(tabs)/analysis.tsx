@@ -1,7 +1,7 @@
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Svg, { Line, Rect } from "react-native-svg";
 import { CompareRow } from "../../../../components/ui/CompareRow";
@@ -46,6 +46,13 @@ export default function AnalysisScreen() {
     const [loading, setLoading] = useState(true);
     const [participants, setParticipants] = useState<ParticipantResult[]>([]);
     const [error, setError] = useState<string | null>(null);
+
+    // React to param changes (e.g. from Race tab)
+    useEffect(() => {
+        if (initialExamId) {
+            setSelectedExamId(initialExamId);
+        }
+    }, [initialExamId]);
 
     const loadExams = useCallback(async () => {
         if (!roomId) {

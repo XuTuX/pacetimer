@@ -1,7 +1,7 @@
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,7 +14,7 @@ export default function AddExamScreen() {
     const supabase = useSupabase();
     const router = useRouter();
     const { userId } = useAuth();
-    const { id } = useLocalSearchParams<{ id: string }>();
+    const { id } = useGlobalSearchParams<{ id: string }>();
     const roomId = Array.isArray(id) ? id[0] : id;
 
     const [title, setTitle] = useState("");
@@ -30,8 +30,9 @@ export default function AddExamScreen() {
         !!userId;
 
     const handleCreate = async () => {
-        if (!canSave || !roomId || !userId) {
+        if (!canSave || !roomId || roomId === 'undefined' || !userId) {
             if (!userId) setError("모의고사를 만들려면 로그인해 주세요.");
+            if (!roomId || roomId === 'undefined') setError("룸 정보를 찾을 수 없습니다. 다시 시도해 주세요.");
             return;
         }
         setSaving(true);

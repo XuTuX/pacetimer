@@ -1,6 +1,6 @@
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ExamCard } from "../../../../components/rooms/ExamCard";
@@ -27,7 +27,7 @@ export default function RaceScreen() {
     const supabase = useSupabase();
     const router = useRouter();
     const { userId } = useAuth();
-    const { id } = useLocalSearchParams<{ id: string }>();
+    const { id } = useGlobalSearchParams<{ id: string }>();
     const roomId = Array.isArray(id) ? id[0] : id;
 
     const [room, setRoom] = useState<RoomRow | null>(null);
@@ -141,7 +141,13 @@ export default function RaceScreen() {
                 rightElement={
                     canCreateExam ? (
                         <Pressable
-                            onPress={() => router.push(`/room/${roomId}/add-exam`)}
+                            onPress={() => {
+                                if (roomId && roomId !== 'undefined') {
+                                    router.push(`/room/${roomId}/add-exam`);
+                                } else {
+                                    console.error("Room ID is missing in RaceScreen");
+                                }
+                            }}
                             style={styles.headerAddBtn}
                         >
                             <Ionicons name="add" size={28} color={COLORS.text} />
@@ -155,7 +161,13 @@ export default function RaceScreen() {
                 {canCreateExam && exams.length === 0 && (
                     <View style={styles.createSection}>
                         <Pressable
-                            onPress={() => router.push(`/room/${roomId}/add-exam`)}
+                            onPress={() => {
+                                if (roomId && roomId !== 'undefined') {
+                                    router.push(`/room/${roomId}/add-exam`);
+                                } else {
+                                    console.error("Room ID is missing in RaceScreenPrompt");
+                                }
+                            }}
                             style={styles.createPromptCard}
                         >
                             <View style={styles.createIconBox}>
