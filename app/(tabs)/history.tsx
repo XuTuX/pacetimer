@@ -63,13 +63,26 @@ export default function HistoryScreen() {
     const markedDates = useMemo(() => {
         const marks: any = {};
         for (const day of dayList) {
-            const totalSeconds = day.durationMs / 1000;
-            if (totalSeconds <= 0) continue;
+            const totalMinutes = day.durationMs / 60000;
+            if (totalMinutes <= 0) continue;
 
             let color = COLORS.primaryLight;
-            if (totalSeconds > 10800) color = COLORS.primary; // 3h+
-            else if (totalSeconds > 3600) color = '#70E8C1'; // medium mint
-            else color = '#B2F2DE'; // light mint
+            let textColor = COLORS.text;
+
+            if (totalMinutes >= 540) { // 9h+ (Stage 5)
+                color = COLORS.primary;
+                textColor = COLORS.white;
+            } else if (totalMinutes >= 360) { // 6-9h (Stage 4)
+                color = '#3CD6A3';
+                textColor = COLORS.white;
+            } else if (totalMinutes >= 180) { // 3-6h (Stage 3)
+                color = '#86E8CC';
+                textColor = COLORS.white;
+            } else if (totalMinutes >= 60) { // 1-3h (Stage 2)
+                color = '#C1F2E4';
+            } else { // < 1h (Stage 1)
+                color = COLORS.primaryLight;
+            }
 
             marks[day.date] = {
                 customStyles: {
@@ -78,7 +91,7 @@ export default function HistoryScreen() {
                         borderRadius: 8,
                     },
                     text: {
-                        color: totalSeconds > 3600 ? COLORS.white : COLORS.text,
+                        color: textColor,
                         fontWeight: '700',
                     },
                 },
@@ -169,6 +182,22 @@ export default function HistoryScreen() {
                                 }}
                                 enableSwipeMonths={true}
                             />
+
+                            {/* Color Legend */}
+                            <View style={styles.legendContainer}>
+                                <Text style={styles.legendLabel}>학습 강도</Text>
+                                <View style={styles.legendStages}>
+                                    <View style={[styles.legendBox, { backgroundColor: COLORS.primaryLight }]} />
+                                    <View style={[styles.legendBox, { backgroundColor: '#C1F2E4' }]} />
+                                    <View style={[styles.legendBox, { backgroundColor: '#86E8CC' }]} />
+                                    <View style={[styles.legendBox, { backgroundColor: '#3CD6A3' }]} />
+                                    <View style={[styles.legendBox, { backgroundColor: COLORS.primary }]} />
+                                </View>
+                                <View style={styles.legendTimeLabels}>
+                                    <Text style={styles.legendTimeText}>0h</Text>
+                                    <Text style={styles.legendTimeText}>9h+</Text>
+                                </View>
+                            </View>
                         </View>
 
                         <View style={styles.selectedDateHeader}>
@@ -328,4 +357,42 @@ const styles = StyleSheet.create({
     },
     overlayTitle: { fontSize: 18, fontWeight: '900', color: COLORS.text },
     overlaySub: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginTop: 2 },
+
+    // Legend Styles
+    legendContainer: {
+        paddingHorizontal: 20,
+        paddingBottom: 16,
+        paddingTop: 8,
+    },
+    legendLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: COLORS.textMuted,
+        marginBottom: 8,
+        textAlign: 'right',
+    },
+    legendStages: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 4,
+    },
+    legendBox: {
+        width: 14,
+        height: 14,
+        borderRadius: 4,
+    },
+    legendTimeLabels: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        marginTop: 4,
+        width: '100%',
+        paddingLeft: '60%', // Align with the boxes
+    },
+    legendTimeText: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: COLORS.textMuted,
+        flex: 1,
+        textAlign: 'right',
+    },
 });

@@ -1,8 +1,7 @@
 import { Image } from 'expo-image';
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
-import { COLORS } from '../lib/theme';
+import Animated, { useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
 interface SproutVisualProps {
     totalMinutes: number;
@@ -18,22 +17,25 @@ export default function SproutVisual({ totalMinutes }: SproutVisualProps) {
         return () => clearInterval(interval);
     }, []);
 
-    // Growth by study time (milestones: 1h, 5h, 9h+):
-    // < 1h: stage 0 (seedling)
-    // 1h - 4h59: stage 1 (sprout)
-    // 5h - 8h59: stage 2 (growing)
-    // 9h+: stage 3 (flower)
-    let stage = 0;
-    if (totalMinutes >= 540) stage = 3;
-    else if (totalMinutes >= 300) stage = 2;
-    else if (totalMinutes >= 60) stage = 1;
+    // Growth by study time:
+    // 0-60min: Stage 1
+    // 1h-3h: Stage 2
+    // 3h-6h: Stage 3
+    // 6h-9h: Stage 4
+    // 9h+: Stage 5 (Tree)
+    let stage = 1;
+    if (totalMinutes >= 540) stage = 5;
+    else if (totalMinutes >= 360) stage = 4;
+    else if (totalMinutes >= 180) stage = 3;
+    else if (totalMinutes >= 60) stage = 2;
 
     const getStageImage = (s: number) => {
         switch (s) {
+            case 5: return require('../assets/images/sprout_stage_5.png');
+            case 4: return require('../assets/images/sprout_stage_4.png');
             case 3: return require('../assets/images/sprout_stage_3.png');
             case 2: return require('../assets/images/sprout_stage_2.png');
-            case 1: return require('../assets/images/sprout_stage_1.png');
-            default: return require('../assets/images/sprout_stage_0.png');
+            default: return require('../assets/images/sprout_stage_1.png');
         }
     };
 
@@ -52,15 +54,14 @@ export default function SproutVisual({ totalMinutes }: SproutVisualProps) {
     const vibe = getTimeVibe();
 
     const animatedStyle = useAnimatedStyle(() => {
-        const scale = 1 + (stage % 4) * 0.05;
-        const translateY = -(stage % 4) * 4;
+        const scale = 1 + (stage % 6) * 0.05;
+        const translateY = -(stage % 6) * 2;
         return {
             transform: [
                 { scale: withSpring(scale) },
                 { translateY: withSpring(translateY) },
             ],
-            backgroundColor: withTiming(vibe.bg),
-            borderColor: withTiming(vibe.border),
+            // Removed background and border for transparent look as requested
         };
     });
 
@@ -82,25 +83,17 @@ const styles = StyleSheet.create({
     container: {
         alignItems: 'center',
         justifyContent: 'center',
-        height: 220,
+        height: 240,
         width: '100%',
     },
     imageWrapper: {
-        width: 220,
-        height: 220,
-        borderRadius: 40,
+        width: 240,
+        height: 240,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 2,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.1,
-        shadowRadius: 20,
-        elevation: 5,
-        backgroundColor: COLORS.white,
     },
     image: {
-        width: '90%',
-        height: '90%',
+        width: '100%',
+        height: '100%',
     },
 });
