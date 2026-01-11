@@ -1,6 +1,7 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { COLORS } from '../../lib/theme';
+import { StyleSheet, View } from 'react-native';
+import { COLORS, SPACING } from '../../lib/design-system';
+import { Typography } from './Typography';
 
 interface CompareRowProps {
     label: string;
@@ -18,10 +19,10 @@ export function CompareRow({ label, myValue, avgValue, isFaster, diffPercent = 0
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.label}>{label}</Text>
+                <Typography.Subtitle2 bold>{label}</Typography.Subtitle2>
                 <View style={styles.values}>
-                    <Text style={[styles.value, styles.myValue]}>{myValue}</Text>
-                    <Text style={styles.valueMuted}> / 평균 {avgValue}</Text>
+                    <Typography.Body2 bold color={COLORS.primary}>{myValue}</Typography.Body2>
+                    <Typography.Caption color={COLORS.textMuted}> / 평균 {avgValue}</Typography.Caption>
                 </View>
             </View>
 
@@ -38,9 +39,9 @@ export function CompareRow({ label, myValue, avgValue, isFaster, diffPercent = 0
                         styles.bar,
                         { width: `${Math.max(barWidth, 5)}%`, backgroundColor: barColor }
                     ]} />
-                    <Text style={[styles.diffText, { color: barColor }]}>
+                    <Typography.Label bold color={barColor}>
                         {isFaster ? '-' : '+'}{Math.abs(diffPercent).toFixed(0)}%
-                    </Text>
+                    </Typography.Label>
                 </View>
             </View>
         </View>
@@ -49,34 +50,16 @@ export function CompareRow({ label, myValue, avgValue, isFaster, diffPercent = 0
 
 const styles = StyleSheet.create({
     container: {
-        marginBottom: 16,
+        marginBottom: SPACING.md,
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 8,
-    },
-    label: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: COLORS.text,
+        marginBottom: SPACING.xs,
     },
     values: {
         flexDirection: 'row',
         alignItems: 'baseline',
-    },
-    value: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: COLORS.text,
-        fontVariant: ['tabular-nums'],
-    },
-    myValue: {
-        color: COLORS.primary,
-    },
-    valueMuted: {
-        fontSize: 12,
-        color: COLORS.textMuted,
     },
     visualContainer: {
         height: 24,
@@ -111,9 +94,5 @@ const styles = StyleSheet.create({
     bar: {
         height: 8,
         borderRadius: 4,
-    },
-    diffText: {
-        fontSize: 11,
-        fontWeight: '700',
     },
 });

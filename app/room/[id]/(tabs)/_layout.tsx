@@ -3,8 +3,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { Tabs, useGlobalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Platform } from "react-native";
+import { COLORS, SHADOWS } from "../../../../lib/design-system";
 import { useSupabase } from "../../../../lib/supabase";
-import { COLORS } from "../../../../lib/theme";
 
 export default function RoomTabsLayout() {
     const { id: roomId } = useGlobalSearchParams();
@@ -78,6 +78,7 @@ export default function RoomTabsLayout() {
             supabase.removeChannel(attemptChannel);
         };
     }, [roomId, userId, supabase]);
+
     return (
         <Tabs
             screenOptions={{
@@ -92,11 +93,7 @@ export default function RoomTabsLayout() {
                 tabBarStyle: {
                     backgroundColor: COLORS.surface,
                     borderTopColor: 'transparent',
-                    elevation: 0,
-                    shadowColor: "#000",
-                    shadowOffset: { width: 0, height: -2 },
-                    shadowOpacity: 0.05,
-                    shadowRadius: 10,
+                    ...SHADOWS.medium,
                     height: Platform.OS === "ios" ? 88 : 68,
                     paddingTop: 8,
                 },
@@ -106,7 +103,7 @@ export default function RoomTabsLayout() {
                 name="index"
                 options={{
                     title: "로비",
-                    tabBarIcon: ({ color, size, focused }) => (
+                    tabBarIcon: ({ color, focused }) => (
                         <Ionicons name={focused ? "home" : "home-outline"} size={26} color={color} />
                     ),
                 }}
@@ -115,7 +112,7 @@ export default function RoomTabsLayout() {
                 name="race"
                 options={{
                     title: "모의고사",
-                    tabBarIcon: ({ color, size, focused }) => (
+                    tabBarIcon: ({ color, focused }) => (
                         <Ionicons name={focused ? "document-text" : "document-text-outline"} size={26} color={color} />
                     ),
                     tabBarBadge: unsolvedCount > 0 ? unsolvedCount : undefined,
@@ -131,7 +128,7 @@ export default function RoomTabsLayout() {
                 name="analysis"
                 options={{
                     title: "분석",
-                    tabBarIcon: ({ color, size, focused }) => (
+                    tabBarIcon: ({ color, focused }) => (
                         <Ionicons name={focused ? "analytics" : "analytics-outline"} size={26} color={color} />
                     ),
                 }}

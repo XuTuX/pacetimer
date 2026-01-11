@@ -1,8 +1,10 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { COLORS } from '../../lib/theme';
+import { StyleSheet, View } from 'react-native';
+import { COLORS, RADIUS, SPACING } from '../../lib/design-system';
+import { Card } from './Card';
 import { RankBadge } from './RankBadge';
 import { StatusBadge, StatusType } from './StatusBadge';
+import { Typography } from './Typography';
 
 interface ParticipantRowProps {
     name: string;
@@ -17,7 +19,15 @@ interface ParticipantRowProps {
 
 export function ParticipantRow({ name, status, progress, lastUpdated, isMe, rank, customRightElement }: ParticipantRowProps) {
     return (
-        <View style={[styles.container, isMe && styles.meContainer]}>
+        <Card
+            variant={isMe ? "flat" : "outline"}
+            padding="md"
+            radius="xl"
+            style={[
+                styles.container,
+                isMe && { backgroundColor: COLORS.primaryLight, borderColor: COLORS.primary }
+            ]}
+        >
             <View style={styles.leftSection}>
                 {rank ? (
                     <View style={styles.rankContainer}>
@@ -26,17 +36,21 @@ export function ParticipantRow({ name, status, progress, lastUpdated, isMe, rank
                 ) : (
                     <View style={styles.avatarContainer}>
                         <View style={styles.avatar}>
-                            <Text style={styles.avatarText}>{name.charAt(0).toUpperCase()}</Text>
+                            <Typography.Subtitle2 bold>{name.charAt(0).toUpperCase()}</Typography.Subtitle2>
                         </View>
                         {isMe && <View style={styles.meIndicator} />}
                     </View>
                 )}
 
                 <View style={styles.textContainer}>
-                    <Text style={styles.name} numberOfLines={1}>
-                        {name} {isMe && <Text style={styles.meLabel}>(나)</Text>}
-                    </Text>
-                    {lastUpdated && <Text style={styles.subtitle}>{lastUpdated}</Text>}
+                    <Typography.Body2 bold numberOfLines={1}>
+                        {name} {isMe && <Typography.Caption bold color={COLORS.primary}>(나)</Typography.Caption>}
+                    </Typography.Body2>
+                    {lastUpdated && (
+                        <Typography.Caption color={COLORS.textMuted} style={{ marginTop: 2 }}>
+                            {lastUpdated}
+                        </Typography.Caption>
+                    )}
                 </View>
             </View>
 
@@ -44,11 +58,15 @@ export function ParticipantRow({ name, status, progress, lastUpdated, isMe, rank
                 {customRightElement || (
                     <>
                         <StatusBadge status={status} />
-                        {progress && <Text style={styles.progressText}>{progress}</Text>}
+                        {progress && (
+                            <Typography.Caption bold style={styles.progressText}>
+                                {progress}
+                            </Typography.Caption>
+                        )}
                     </>
                 )}
             </View>
-        </View>
+        </Card>
     );
 }
 
@@ -56,33 +74,23 @@ const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        backgroundColor: COLORS.surface,
-        borderRadius: 16,
-        marginBottom: 8,
-        borderWidth: 1,
-        borderColor: COLORS.border,
+        marginBottom: SPACING.xs,
         justifyContent: 'space-between',
-    },
-    meContainer: {
-        backgroundColor: COLORS.primaryLight,
-        borderColor: COLORS.primary,
     },
     leftSection: {
         flexDirection: 'row',
         alignItems: 'center',
         flex: 1,
-        marginRight: 12,
+        marginRight: SPACING.md,
     },
     rankContainer: {
         width: 40,
         alignItems: 'center',
-        marginRight: 12,
+        marginRight: SPACING.md,
     },
     avatarContainer: {
         position: 'relative',
-        marginRight: 12,
+        marginRight: SPACING.md,
     },
     avatar: {
         width: 40,
@@ -92,18 +100,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    avatarText: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: COLORS.text,
-    },
     meIndicator: {
         position: 'absolute',
         bottom: 0,
         right: 0,
         width: 12,
         height: 12,
-        borderRadius: 6,
+        borderRadius: RADIUS.full,
         backgroundColor: COLORS.primary,
         borderWidth: 2,
         borderColor: COLORS.surface,
@@ -111,29 +114,11 @@ const styles = StyleSheet.create({
     textContainer: {
         flex: 1,
     },
-    name: {
-        fontSize: 15,
-        fontWeight: '600',
-        color: COLORS.text,
-    },
-    meLabel: {
-        color: COLORS.primary,
-        fontSize: 13,
-        fontWeight: '700',
-    },
-    subtitle: {
-        fontSize: 12,
-        color: COLORS.textMuted,
-        marginTop: 2,
-    },
     rightContent: {
         alignItems: 'flex-end',
         gap: 4,
     },
     progressText: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: COLORS.text,
         fontVariant: ['tabular-nums'],
     },
 });

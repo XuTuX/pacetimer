@@ -1,7 +1,8 @@
 import * as Haptics from 'expo-haptics';
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { COLORS } from '../../lib/theme';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { COLORS, RADIUS, SHADOWS, SPACING } from '../../lib/design-system';
+import { Typography } from './Typography';
 
 interface SegmentedTabsProps {
     tabs: string[];
@@ -30,12 +31,12 @@ export function SegmentedTabs({ tabs, activeTab, onChange }: SegmentedTabsProps)
                             isActive && styles.activeTab
                         ]}
                     >
-                        <Text style={[
-                            styles.tabText,
-                            isActive && styles.activeTabText
-                        ]}>
+                        <Typography.Label
+                            bold={isActive}
+                            color={isActive ? COLORS.text : COLORS.textMuted}
+                        >
                             {tab}
-                        </Text>
+                        </Typography.Label>
                     </Pressable>
                 );
             })}
@@ -47,33 +48,20 @@ const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',
         backgroundColor: COLORS.surfaceVariant,
-        borderRadius: 12,
+        borderRadius: RADIUS.md,
         padding: 4,
-        marginHorizontal: 16,
-        marginVertical: 8,
+        marginHorizontal: SPACING.xl,
+        marginVertical: SPACING.sm,
     },
     tab: {
         flex: 1,
         paddingVertical: 8,
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: 10,
+        borderRadius: RADIUS.sm,
     },
     activeTab: {
         backgroundColor: COLORS.surface,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    tabText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: COLORS.textMuted,
-    },
-    activeTabText: {
-        color: COLORS.text,
-        fontWeight: '700',
+        ...SHADOWS.small,
     },
 });

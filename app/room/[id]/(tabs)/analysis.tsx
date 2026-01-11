@@ -4,13 +4,16 @@ import { useFocusEffect, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Svg, { Line, Rect } from "react-native-svg";
+import { Card } from "../../../../components/ui/Card";
 import { CompareRow } from "../../../../components/ui/CompareRow";
 import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
+import { Section } from "../../../../components/ui/Section";
 import { StatCard } from "../../../../components/ui/StatCard";
+import { Typography } from "../../../../components/ui/Typography";
 import type { Database } from "../../../../lib/db-types";
+import { COLORS, SPACING } from "../../../../lib/design-system";
 import { useSupabase } from "../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../lib/supabaseError";
-import { COLORS } from "../../../../lib/theme";
 
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
 type RecordRow = Database["public"]["Tables"]["attempt_records"]["Row"];
@@ -312,7 +315,7 @@ export default function AnalysisScreen() {
                                     onPress={() => setSelectedSubject(s)}
                                     style={[styles.chip, selectedSubject === s && styles.activeChip]}
                                 >
-                                    <Text style={[styles.chipText, selectedSubject === s && styles.activeChipText]}>{s}</Text>
+                                    <Typography.Label bold color={selectedSubject === s ? COLORS.white : COLORS.textMuted}>{s}</Typography.Label>
                                 </Pressable>
                             ))}
                         </ScrollView>
@@ -320,8 +323,7 @@ export default function AnalysisScreen() {
                 )}
 
                 {/* Exam Selector */}
-                <View style={styles.selectorSection}>
-                    <Text style={styles.sectionLabel}>시험 선택</Text>
+                <Section title="시험 선택" style={styles.selectorSection}>
                     <ScrollView
                         horizontal
                         showsHorizontalScrollIndicator={false}
@@ -336,50 +338,44 @@ export default function AnalysisScreen() {
                                     selectedExamId === e.id && styles.selectedExamTab
                                 ]}
                             >
-                                <Text style={[
-                                    styles.examTabText,
-                                    selectedExamId === e.id && styles.selectedExamTabText
-                                ]} numberOfLines={1}>
+                                <Typography.Body2 bold color={selectedExamId === e.id ? COLORS.white : COLORS.text} numberOfLines={1}>
                                     {e.title.replace(/^(\[.*?\]\s*|.*?•\s*)+/, "")}
-                                </Text>
-                                <Text style={[
-                                    styles.examTabDate,
-                                    selectedExamId === e.id && styles.selectedExamTabDate
-                                ]}>
+                                </Typography.Body2>
+                                <Typography.Caption color={selectedExamId === e.id ? 'rgba(255, 255, 255, 0.7)' : COLORS.textMuted}>
                                     {new Date(e.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
-                                </Text>
+                                </Typography.Caption>
                             </Pressable>
                         ))}
                     </ScrollView>
                     {filteredExams.length === 0 && exams.length > 0 && (
-                        <Text style={styles.emptyFilterText}>해당 과목에 등록된 시험이 없습니다.</Text>
+                        <Typography.Caption align="center" style={styles.emptyFilterText}>해당 과목에 등록된 시험이 없습니다.</Typography.Caption>
                     )}
-                </View>
+                </Section>
 
                 {/* Subject Performance Comparison */}
                 {subjectStats.length > 1 && (
-                    <View style={styles.section}>
-                        <View style={styles.sectionHeaderRow}>
-                            <Text style={styles.sectionLabel}>과목별 페이스 비교 (문항당 소요)</Text>
-                            <Ionicons name="trending-up" size={18} color={COLORS.primary} />
-                        </View>
-                        <View style={styles.statsList}>
+                    <Section
+                        title="과목별 페이스 비교"
+                        description="문항당 소요 시간 기준"
+                        rightElement={<Ionicons name="trending-up" size={18} color={COLORS.primary} />}
+                    >
+                        <Card padding="md" radius="xl" style={styles.statsList}>
                             {subjectStats.map((s, idx) => (
                                 <View key={s.subject} style={styles.subStatRow}>
                                     <View style={styles.subStatInfo}>
                                         <View style={[styles.rankBadge, idx === 0 && styles.rankBadgeFirst]}>
-                                            <Text style={[styles.rankBadgeText, idx === 0 && styles.rankBadgeTextFirst]}>{idx + 1}</Text>
+                                            <Typography.Label bold color={idx === 0 ? COLORS.white : COLORS.textMuted}>{idx + 1}</Typography.Label>
                                         </View>
-                                        <Text style={styles.subStatName}>{s.subject}</Text>
+                                        <Typography.Body1 bold>{s.subject}</Typography.Body1>
                                     </View>
                                     <View style={styles.subStatValueBox}>
-                                        <Text style={styles.subStatValue}>{formatDuration(s.avgPerQ)}</Text>
-                                        <Text style={styles.subStatUnit}>/문항</Text>
+                                        <Typography.Body1 bold color={COLORS.primary}>{formatDuration(s.avgPerQ)}</Typography.Body1>
+                                        <Typography.Caption color={COLORS.textMuted}>/문항</Typography.Caption>
                                     </View>
                                 </View>
                             ))}
-                        </View>
-                    </View>
+                        </Card>
+                    </Section>
                 )}
 
                 {loading ? (
@@ -389,18 +385,18 @@ export default function AnalysisScreen() {
                 ) : exam ? (
                     <>
                         {/* Summary Header */}
-                        <View style={styles.headerInfo}>
+                        <Card padding="xl" radius="xxl" style={styles.headerInfo}>
                             <View style={styles.examIconBox}>
                                 <Ionicons name="analytics" size={32} color={COLORS.primary} />
                             </View>
-                            <Text style={styles.examTitle}>{exam.title.replace(/^(\[.*?\]\s*|.*?•\s*)+/, "")}</Text>
+                            <Typography.H2 align="center" bold>{exam.title.replace(/^(\[.*?\]\s*|.*?•\s*)+/, "")}</Typography.H2>
                             <View style={styles.badgeRow}>
                                 <View style={styles.statusBadge}>
-                                    <Text style={styles.statusBadgeText}>완료됨</Text>
+                                    <Typography.Label bold color="#2E7D32">완료됨</Typography.Label>
                                 </View>
-                                <Text style={styles.examDate}>{new Date(exam.created_at).toLocaleString()}</Text>
+                                <Typography.Caption color={COLORS.textMuted}>{new Date(exam.created_at).toLocaleString()}</Typography.Caption>
                             </View>
-                        </View>
+                        </Card>
 
                         {/* Stats Dashboard */}
                         <View style={styles.dashboard}>
@@ -415,23 +411,18 @@ export default function AnalysisScreen() {
                         </View>
 
                         {/* Pace Analysis Section */}
-                        <View style={styles.section}>
-                            <View style={styles.sectionHeaderRow}>
-                                <Text style={styles.sectionLabel}>문항별 페이스 분석</Text>
-                                <Ionicons name="help-circle-outline" size={16} color={COLORS.textMuted} />
-                            </View>
-
+                        <Section title="문항별 페이스 분석" rightElement={<Ionicons name="help-circle-outline" size={16} color={COLORS.textMuted} />}>
                             {myResult?.status === "COMPLETED" && myRecords.length > 0 ? (
                                 <>
-                                    <View style={styles.chartCard}>
+                                    <Card padding="md" radius="xl" style={styles.chartCard}>
                                         <View style={styles.chartLegend}>
                                             <View style={styles.legendItem}>
                                                 <View style={[styles.legendDot, { backgroundColor: COLORS.primary }]} />
-                                                <Text style={styles.legendText}>평균보다 빠름</Text>
+                                                <Typography.Label color={COLORS.textMuted} bold>평균보다 빠름</Typography.Label>
                                             </View>
                                             <View style={styles.legendItem}>
                                                 <View style={[styles.legendDot, { backgroundColor: COLORS.error }]} />
-                                                <Text style={styles.legendText}>평균보다 느림</Text>
+                                                <Typography.Label color={COLORS.textMuted} bold>평균보다 느림</Typography.Label>
                                             </View>
                                         </View>
 
@@ -475,17 +466,19 @@ export default function AnalysisScreen() {
                                                 </Svg>
                                                 <View style={[styles.chartLabelRow, { width: chartWidth }]}>
                                                     {myRecords.map((r, index) => (
-                                                        <Text
+                                                        <Typography.Label
                                                             key={`${r.id}-label`}
-                                                            style={[styles.chartLabel, { width: chartStep }]}
+                                                            color={COLORS.textMuted}
+                                                            align="center"
+                                                            style={{ width: chartStep, fontSize: 10 }}
                                                         >
                                                             {index % chartLabelStep === 0 ? `Q${r.question_no}` : ""}
-                                                        </Text>
+                                                        </Typography.Label>
                                                     ))}
                                                 </View>
                                             </View>
                                         </ScrollView>
-                                    </View>
+                                    </Card>
 
                                     <View style={styles.compareList}>
                                         {myRecords.map(r => {
@@ -506,12 +499,14 @@ export default function AnalysisScreen() {
                                     </View>
                                 </>
                             ) : (
-                                <View style={styles.emptyDetailCard}>
+                                <Card variant="outline" padding="massive" radius="xl" style={styles.emptyDetailCard}>
                                     <Ionicons name="lock-closed-outline" size={32} color={COLORS.textMuted} />
-                                    <Text style={styles.emptyDetailText}>시험을 완료해야 자세한 분석을 볼 수 있습니다.</Text>
-                                </View>
+                                    <Typography.Body2 align="center" color={COLORS.textMuted} bold style={styles.emptyDetailText}>
+                                        시험을 완료해야 자세한 분석을 볼 수 있습니다.
+                                    </Typography.Body2>
+                                </Card>
                             )}
-                        </View>
+                        </Section>
                     </>
                 ) : (
                     <View style={styles.emptyContainer}>
@@ -539,16 +534,16 @@ const styles = StyleSheet.create({
         paddingBottom: 40,
     },
     selectorSection: {
-        marginTop: 12,
-        marginBottom: 8,
+        marginTop: SPACING.md,
+        marginBottom: 0,
     },
     examSelectorScroll: {
-        paddingHorizontal: 20,
-        gap: 12,
-        paddingBottom: 16,
+        paddingHorizontal: SPACING.xl,
+        gap: SPACING.md,
+        paddingBottom: SPACING.lg,
     },
     examTab: {
-        paddingHorizontal: 16,
+        paddingHorizontal: SPACING.lg,
         paddingVertical: 12,
         backgroundColor: COLORS.surface,
         borderRadius: 16,
@@ -560,32 +555,10 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.primary,
         borderColor: COLORS.primary,
     },
-    examTabText: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: COLORS.text,
-        marginBottom: 2,
-    },
-    selectedExamTabText: {
-        color: COLORS.white,
-    },
-    examTabDate: {
-        fontSize: 11,
-        color: COLORS.textMuted,
-        fontWeight: '600',
-    },
-    selectedExamTabDate: {
-        color: 'rgba(255, 255, 255, 0.7)',
-    },
     headerInfo: {
-        padding: 24,
         alignItems: "center",
-        backgroundColor: COLORS.surface,
-        marginHorizontal: 20,
-        borderRadius: 32,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        marginBottom: 20,
+        marginHorizontal: SPACING.xl,
+        marginBottom: SPACING.xl,
     },
     examIconBox: {
         width: 64,
@@ -594,19 +567,13 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.primaryLight,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 16,
-    },
-    examTitle: {
-        fontSize: 20,
-        fontWeight: "900",
-        color: COLORS.text,
-        marginBottom: 8,
-        textAlign: 'center',
+        marginBottom: SPACING.lg,
     },
     badgeRow: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
+        marginTop: SPACING.sm,
     },
     statusBadge: {
         backgroundColor: '#E8F5E9',
@@ -614,36 +581,25 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
         borderRadius: 6,
     },
-    statusBadgeText: {
-        fontSize: 10,
-        fontWeight: '800',
-        color: '#2E7D32',
-    },
-    examDate: {
-        fontSize: 12,
-        color: COLORS.textMuted,
-        fontWeight: '500',
-    },
     dashboard: {
-        paddingHorizontal: 20,
-        gap: 12,
-        marginBottom: 24,
+        paddingHorizontal: SPACING.xl,
+        gap: SPACING.md,
+        marginBottom: SPACING.xxl,
     },
     statGrid: {
         flexDirection: 'row',
-        gap: 12,
+        gap: SPACING.md,
     },
-    // Subject Chips
     chipSection: {
-        marginTop: 16,
-        marginBottom: 8,
+        marginTop: SPACING.lg,
+        marginBottom: 0,
     },
     chipScroll: {
-        paddingHorizontal: 20,
-        gap: 8,
+        paddingHorizontal: SPACING.xl,
+        gap: SPACING.sm,
     },
     chip: {
-        paddingHorizontal: 16,
+        paddingHorizontal: SPACING.lg,
         paddingVertical: 8,
         borderRadius: 20,
         backgroundColor: COLORS.white,
@@ -654,43 +610,22 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.primary,
         borderColor: COLORS.primary,
     },
-    chipText: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: COLORS.textMuted,
-    },
-    activeChipText: {
-        color: COLORS.white,
-    },
-    section: {
-        paddingHorizontal: 20,
-        marginBottom: 24,
-    },
     emptyFilterText: {
-        textAlign: 'center',
-        fontSize: 13,
-        color: COLORS.textMuted,
-        marginTop: 8,
+        marginTop: SPACING.sm,
     },
-    // Subject Performance Styles
     statsList: {
-        backgroundColor: COLORS.surface,
-        borderRadius: 24,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        gap: 12,
+        gap: SPACING.md,
     },
     subStatRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: 8,
+        paddingVertical: SPACING.sm,
     },
     subStatInfo: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: SPACING.md,
     },
     rankBadge: {
         width: 24,
@@ -703,62 +638,20 @@ const styles = StyleSheet.create({
     rankBadgeFirst: {
         backgroundColor: COLORS.primary,
     },
-    rankBadgeText: {
-        fontSize: 12,
-        fontWeight: '900',
-        color: COLORS.textMuted,
-    },
-    rankBadgeTextFirst: {
-        color: COLORS.white,
-    },
-    subStatName: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: COLORS.text,
-    },
     subStatValueBox: {
         flexDirection: 'row',
         alignItems: 'baseline',
         gap: 2,
     },
-    subStatValue: {
-        fontSize: 15,
-        fontWeight: '800',
-        color: COLORS.primary,
-    },
-    subStatUnit: {
-        fontSize: 11,
-        color: COLORS.textMuted,
-        fontWeight: '600',
-    },
-    sectionHeaderRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 16,
-    },
-    sectionLabel: {
-        fontSize: 13,
-        fontWeight: "800",
-        color: COLORS.textMuted,
-        textTransform: "uppercase",
-        letterSpacing: 1,
-        marginLeft: 20,
-        marginBottom: 12,
-    },
     chartCard: {
-        backgroundColor: COLORS.surface,
-        borderRadius: 24,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        paddingVertical: 20,
-        marginBottom: 16,
+        paddingVertical: SPACING.xl,
+        marginBottom: SPACING.lg,
     },
     chartLegend: {
         flexDirection: 'row',
         justifyContent: 'center',
         gap: 20,
-        marginBottom: 20,
+        marginBottom: SPACING.xl,
     },
     legendItem: {
         flexDirection: 'row',
@@ -770,41 +663,19 @@ const styles = StyleSheet.create({
         height: 8,
         borderRadius: 4,
     },
-    legendText: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: COLORS.textMuted,
-    },
     chartLabelRow: {
         flexDirection: "row",
         alignItems: "center",
-        marginTop: 12,
-    },
-    chartLabel: {
-        fontSize: 10,
-        fontWeight: "700",
-        color: COLORS.textMuted,
-        textAlign: "center",
+        marginTop: SPACING.md,
     },
     compareList: {
-        gap: 8,
+        gap: SPACING.sm,
     },
     emptyDetailCard: {
-        padding: 40,
-        backgroundColor: COLORS.surfaceVariant,
-        borderRadius: 24,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: COLORS.border,
         borderStyle: 'dashed',
     },
     emptyDetailText: {
-        marginTop: 12,
-        fontSize: 13,
-        color: COLORS.textMuted,
-        fontWeight: '600',
-        textAlign: 'center',
+        marginTop: SPACING.md,
     },
     emptyContainer: {
         padding: 60,
@@ -812,17 +683,16 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     emptyText: {
-        marginTop: 16,
         fontSize: 18,
-        fontWeight: '800',
+        fontWeight: '900',
         color: COLORS.text,
+        marginTop: 20,
     },
     emptySub: {
-        marginTop: 8,
         fontSize: 14,
         color: COLORS.textMuted,
+        marginTop: 8,
         textAlign: 'center',
-        lineHeight: 20,
     },
     centerLoading: {
         padding: 40,

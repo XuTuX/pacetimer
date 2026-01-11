@@ -1,18 +1,21 @@
 import { useAuth } from "@clerk/clerk-expo";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
+import { Button } from "../../../../../components/ui/Button";
+import { Card } from "../../../../../components/ui/Card";
 import { CompareRow } from "../../../../../components/ui/CompareRow";
 import { ParticipantRow } from "../../../../../components/ui/ParticipantRow";
-import { PrimaryButton } from "../../../../../components/ui/PrimaryButton";
 import { ProgressBar } from "../../../../../components/ui/ProgressBar";
 import { ScreenHeader } from "../../../../../components/ui/ScreenHeader";
+import { Section } from "../../../../../components/ui/Section";
 import { SegmentedTabs } from "../../../../../components/ui/SegmentedTabs";
 import { StatCard } from "../../../../../components/ui/StatCard";
+import { Typography } from "../../../../../components/ui/Typography";
 import type { Database } from "../../../../../lib/db-types";
+import { COLORS, SPACING } from "../../../../../lib/design-system";
 import { useSupabase } from "../../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../../lib/supabaseError";
-import { COLORS } from "../../../../../lib/theme";
 
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
 type RecordRow = Database["public"]["Tables"]["attempt_records"]["Row"];
@@ -178,7 +181,7 @@ export default function ExamDetailScreen() {
 
     if (loading && !exam) {
         return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={COLORS.primary} />
             </View>
         );
@@ -214,8 +217,7 @@ export default function ExamDetailScreen() {
                             />
                         </View>
 
-                        <View style={styles.section}>
-                            <Text style={styles.sectionLabel}>레이스 현황</Text>
+                        <Section title="레이스 현황" style={styles.section}>
                             {sortedByProgress.map(p => {
                                 const progressPct = Math.min(p.progressCount / totalQuestions, 1);
                                 return (
@@ -227,15 +229,15 @@ export default function ExamDetailScreen() {
                                         customRightElement={
                                             <View style={{ width: 100, alignItems: 'flex-end', gap: 4 }}>
                                                 <ProgressBar progress={progressPct} color={p.status === 'COMPLETED' ? COLORS.primary : COLORS.warning} />
-                                                <Text style={{ fontSize: 10, color: COLORS.textMuted, fontWeight: '700' }}>
+                                                <Typography.Caption bold color={COLORS.textMuted} style={{ fontSize: 10 }}>
                                                     {Math.round(progressPct * 100)}%
-                                                </Text>
+                                                </Typography.Caption>
                                             </View>
                                         }
                                     />
                                 );
                             })}
-                        </View>
+                        </Section>
                     </View>
                 )}
 
@@ -243,21 +245,20 @@ export default function ExamDetailScreen() {
                 {activeTab === 1 && (
                     <View style={styles.tabContent}>
                         {myResult?.status === 'COMPLETED' ? (
-                            <View style={styles.myRankCard}>
-                                <Text style={styles.myRankTitle}>내 순위</Text>
-                                <Text style={styles.myRankValue}>#{myRank}</Text>
-                                <Text style={styles.myRankSub}>
+                            <Card padding="xl" radius="xxl" variant="elevated" style={styles.myRankCard}>
+                                <Typography.Label bold color={COLORS.textMuted}>내 순위</Typography.Label>
+                                <Typography.H1 bold color={COLORS.primary} style={styles.myRankValue}>#{myRank}</Typography.H1>
+                                <Typography.Body2 bold>
                                     시간: {formatDuration(myResult.durationMs)}
-                                </Text>
-                            </View>
+                                </Typography.Body2>
+                            </Card>
                         ) : (
-                            <View style={styles.infoCard}>
-                                <Text style={styles.infoText}>완주하면 순위가 표시됩니다!</Text>
-                            </View>
+                            <Card padding="xl" radius="xl" variant="flat" style={styles.infoCard}>
+                                <Typography.Body2 bold color={COLORS.textMuted}>완주하면 순위가 표시됩니다!</Typography.Body2>
+                            </Card>
                         )}
 
-                        <View style={styles.section}>
-                            <Text style={styles.sectionLabel}>완료자</Text>
+                        <Section title="완료자" style={styles.section}>
                             {sortedByTime.map((p, index) => (
                                 <ParticipantRow
                                     key={p.userId}
@@ -269,9 +270,11 @@ export default function ExamDetailScreen() {
                                 />
                             ))}
                             {sortedByTime.length === 0 && (
-                                <Text style={styles.emptyText}>아직 완료자가 없어요. 첫 완료자가 되어보세요!</Text>
+                                <Typography.Body2 color={COLORS.textMuted} style={styles.emptyText}>
+                                    아직 완료자가 없어요. 첫 완료자가 되어보세요!
+                                </Typography.Body2>
                             )}
-                        </View>
+                        </Section>
                     </View>
                 )}
 
@@ -280,11 +283,12 @@ export default function ExamDetailScreen() {
                     <View style={styles.tabContent}>
                         {myResult?.status === 'COMPLETED' && myResult.records.length > 0 ? (
                             <>
-                                <View style={styles.infoCard}>
-                                    <Text style={styles.infoText}>초록 막대는 평균보다 빠름, 빨강은 느림을 의미합니다.</Text>
-                                </View>
-                                <View style={styles.section}>
-                                    <Text style={styles.sectionLabel}>문항별 분석</Text>
+                                <Card padding="xl" radius="xl" variant="flat" style={styles.infoCard}>
+                                    <Typography.Body2 bold color={COLORS.textMuted} style={{ textAlign: 'center' }}>
+                                        초록 막대는 평균보다 빠름, 빨강은 느림을 의미합니다.
+                                    </Typography.Body2>
+                                </Card>
+                                <Section title="문항별 분석" style={styles.section}>
                                     {myResult.records.map(r => {
                                         const avg = roomAvgPerQuestion[r.question_no] || r.duration_ms;
                                         const diff = r.duration_ms - avg;
@@ -300,12 +304,12 @@ export default function ExamDetailScreen() {
                                             />
                                         );
                                     })}
-                                </View>
+                                </Section>
                             </>
                         ) : (
-                            <View style={styles.infoCard}>
-                                <Text style={styles.infoText}>시험 완료 후 페이스 분석을 볼 수 있어요.</Text>
-                            </View>
+                            <Card padding="xl" radius="xl" variant="flat" style={styles.infoCard}>
+                                <Typography.Body2 bold color={COLORS.textMuted}>시험 완료 후 페이스 분석을 볼 수 있어요.</Typography.Body2>
+                            </Card>
                         )}
                     </View>
                 )}
@@ -313,10 +317,10 @@ export default function ExamDetailScreen() {
 
             {myResult && myResult.status !== 'COMPLETED' && (
                 <View style={styles.bottomBar}>
-                    <PrimaryButton
+                    <Button
                         label="레이스 참여"
                         onPress={() => router.push({ pathname: "/room/[id]/exam/[examId]/run", params: { id: roomId, examId: currentExamId } })}
-                        style={{ width: '100%' }}
+                        size="lg"
                     />
                 </View>
             )}
@@ -329,85 +333,47 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: COLORS.bg,
     },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     scrollContent: {
         paddingBottom: 40,
     },
     tabContent: {
-        marginTop: 16,
+        marginTop: SPACING.md,
     },
     statRow: {
         flexDirection: 'row',
-        paddingHorizontal: 20,
-        gap: 12,
-        marginBottom: 20,
+        paddingHorizontal: SPACING.xl,
+        gap: SPACING.md,
+        marginBottom: SPACING.xl,
     },
     section: {
-        paddingHorizontal: 20,
-        marginTop: 24,
-    },
-    sectionLabel: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: COLORS.textMuted,
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-        marginBottom: 12,
+        paddingHorizontal: SPACING.xl,
+        marginTop: SPACING.xl,
     },
     myRankCard: {
-        marginHorizontal: 20,
-        padding: 24,
-        backgroundColor: COLORS.surface,
-        borderRadius: 20,
+        marginHorizontal: SPACING.xl,
         alignItems: 'center',
-        borderWidth: 1,
         borderColor: COLORS.primary,
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
-        elevation: 4,
-        marginBottom: 24,
-    },
-    myRankTitle: {
-        fontSize: 14,
-        color: COLORS.textMuted,
-        fontWeight: '600',
-        marginBottom: 4,
+        borderWidth: 1,
+        marginBottom: SPACING.xl,
     },
     myRankValue: {
-        fontSize: 36,
-        fontWeight: '900',
-        color: COLORS.primary,
-        marginBottom: 4,
-    },
-    myRankSub: {
-        fontSize: 14,
-        color: COLORS.text,
-        fontWeight: '500',
+        marginVertical: SPACING.xs,
     },
     infoCard: {
-        margin: 20,
-        padding: 24,
-        backgroundColor: COLORS.surface,
-        borderRadius: 20,
+        margin: SPACING.xl,
         alignItems: 'center',
-        borderWidth: 1,
-        borderColor: COLORS.border,
-    },
-    infoText: {
-        fontSize: 14,
-        color: COLORS.textMuted,
-        textAlign: 'center',
-        fontWeight: '500',
     },
     emptyText: {
-        fontSize: 14,
-        color: COLORS.textMuted,
         textAlign: 'center',
-        marginTop: 20,
+        marginTop: SPACING.xl,
     },
     bottomBar: {
-        padding: 20,
+        padding: SPACING.xl,
         paddingBottom: 32,
         backgroundColor: COLORS.bg,
     },

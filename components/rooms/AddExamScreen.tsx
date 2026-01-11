@@ -1,15 +1,17 @@
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Button } from "../../components/ui/Button";
+import { Card } from "../../components/ui/Card";
 import { ScreenHeader } from "../../components/ui/ScreenHeader";
+import { Typography } from "../../components/ui/Typography";
+import { COLORS, RADIUS, SHADOWS, SPACING } from "../../lib/design-system";
 import { useAppStore } from "../../lib/store";
 import { useSupabase } from "../../lib/supabase";
 import { formatSupabaseError } from "../../lib/supabaseError";
-import { COLORS } from "../../lib/theme";
 
 export default function AddExamScreen() {
     const supabase = useSupabase();
@@ -88,9 +90,14 @@ export default function AddExamScreen() {
                 title="시험 추가"
                 onBack={() => router.back()}
                 rightElement={
-                    <Pressable onPress={() => router.back()} style={styles.closeBtn}>
-                        <Ionicons name="close" size={24} color={COLORS.textMuted} />
-                    </Pressable>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        leftIcon="close"
+                        onPress={() => router.back()}
+                        style={styles.closeBtn}
+                        fullWidth={false}
+                    />
                 }
             />
 
@@ -105,23 +112,23 @@ export default function AddExamScreen() {
                 >
                     <View style={styles.formContainer}>
                         <View style={styles.headerInfo}>
-                            <Text style={styles.headerTitle}>새 모의고사 등록</Text>
-                            <Text style={styles.headerSubtitle}>룸 멤버들과 공유할 시험 정보를 입력해 주세요.</Text>
+                            <Typography.H2 bold>새 모의고사 등록</Typography.H2>
+                            <Typography.Body2 color={COLORS.textMuted} style={{ marginTop: 4 }}>룸 멤버들과 공유할 시험 정보를 입력해 주세요.</Typography.Body2>
                         </View>
 
                         {/* Subject Selection (Unified Picker) */}
                         <View style={styles.fieldSection}>
                             <View style={styles.fieldHeader}>
                                 <Ionicons name="library" size={18} color={COLORS.primary} />
-                                <Text style={styles.fieldLabel}>과목</Text>
+                                <Typography.Subtitle2 bold>과목</Typography.Subtitle2>
                             </View>
                             <Pressable
                                 style={[styles.modernInput, isPickerOpen && styles.modernInputActive]}
                                 onPress={() => setIsPickerOpen(true)}
                             >
-                                <Text style={[styles.modernValue, !selectedSubjectId && styles.placeholderText]}>
+                                <Typography.Body1 bold style={[styles.modernValue, !selectedSubjectId && { color: COLORS.textMuted }]}>
                                     {activeSubjects.find(s => s.id === selectedSubjectId)?.name || "과목 선택"}
-                                </Text>
+                                </Typography.Body1>
                                 <Ionicons name="chevron-down" size={18} color={COLORS.textMuted} />
                             </Pressable>
                         </View>
@@ -130,7 +137,7 @@ export default function AddExamScreen() {
                         <View style={styles.fieldSection}>
                             <View style={styles.fieldHeader}>
                                 <Ionicons name="bookmark" size={18} color={COLORS.primary} />
-                                <Text style={styles.fieldLabel}>시험 제목</Text>
+                                <Typography.Subtitle2 bold>시험 제목</Typography.Subtitle2>
                             </View>
                             <View style={styles.modernInput}>
                                 <TextInput
@@ -148,7 +155,7 @@ export default function AddExamScreen() {
                             <View style={[styles.fieldSection, { flex: 1 }]}>
                                 <View style={styles.fieldHeader}>
                                     <Ionicons name="list" size={18} color={COLORS.primary} />
-                                    <Text style={styles.fieldLabel}>문항 수</Text>
+                                    <Typography.Subtitle2 bold>문항 수</Typography.Subtitle2>
                                 </View>
                                 <View style={styles.modernInput}>
                                     <TextInput
@@ -159,14 +166,14 @@ export default function AddExamScreen() {
                                         placeholderTextColor={COLORS.textMuted}
                                         style={styles.textInput}
                                     />
-                                    <Text style={styles.unitText}>문항</Text>
+                                    <Typography.Label bold color={COLORS.textMuted}>문항</Typography.Label>
                                 </View>
                             </View>
 
                             <View style={[styles.fieldSection, { flex: 1 }]}>
                                 <View style={styles.fieldHeader}>
                                     <Ionicons name="time" size={18} color={COLORS.primary} />
-                                    <Text style={styles.fieldLabel}>제한 시간</Text>
+                                    <Typography.Subtitle2 bold>제한 시간</Typography.Subtitle2>
                                 </View>
                                 <View style={styles.modernInput}>
                                     <TextInput
@@ -177,52 +184,39 @@ export default function AddExamScreen() {
                                         placeholderTextColor={COLORS.textMuted}
                                         style={styles.textInput}
                                     />
-                                    <Text style={styles.unitText}>분</Text>
+                                    <Typography.Label bold color={COLORS.textMuted}>분</Typography.Label>
                                 </View>
                             </View>
                         </View>
 
                         {error ? (
-                            <View style={styles.errorAlert}>
+                            <Card variant="flat" padding="md" radius="xl" style={styles.errorAlert}>
                                 <Ionicons name="warning" size={16} color={COLORS.error} />
-                                <Text style={styles.errorAlertText}>{error}</Text>
-                            </View>
+                                <Typography.Label bold color={COLORS.error}>{error}</Typography.Label>
+                            </Card>
                         ) : null}
 
-                        <View style={styles.tipBox}>
+                        <Card variant="flat" padding="md" radius="xl" style={styles.tipBox}>
                             <View style={styles.tipIcon}>
                                 <Ionicons name="bulb" size={14} color={COLORS.white} />
                             </View>
-                            <Text style={styles.tipText}>
+                            <Typography.Caption bold color={COLORS.textMuted} style={{ flex: 1 }}>
                                 생성 후 모든 멤버의 Race 탭에 바로 표시됩니다.
-                            </Text>
-                        </View>
+                            </Typography.Caption>
+                        </Card>
                     </View>
                 </ScrollView>
 
                 {/* Bottom Action Bar */}
                 <View style={styles.bottomBar}>
-                    <Pressable
+                    <Button
+                        label={saving ? "등록 중..." : "모의고사 만들기"}
                         onPress={handleCreate}
                         disabled={!canSave}
-                        style={({ pressed }) => [
-                            styles.primaryBtn,
-                            !canSave && styles.primaryBtnDisabled,
-                            pressed && canSave && { opacity: 0.9, transform: [{ scale: 0.98 }] },
-                        ]}
-                    >
-                        <LinearGradient
-                            colors={canSave ? [COLORS.primary, '#00C88C'] : [COLORS.border, COLORS.border]}
-                            style={styles.primaryBtnGradient}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                        >
-                            <Text style={styles.primaryBtnText}>
-                                {saving ? "등록 중..." : "모의고사 만들기"}
-                            </Text>
-                            {!saving && <Ionicons name="chevron-forward" size={20} color={COLORS.white} />}
-                        </LinearGradient>
-                    </Pressable>
+                        loading={saving}
+                        size="lg"
+                        rightIcon={!saving ? "chevron-forward" : undefined}
+                    />
                 </View>
 
                 {/* Unified Subject Picker & Manager Popover */}
@@ -236,19 +230,21 @@ export default function AddExamScreen() {
                                 setNewSubjectName("");
                             }}
                         />
-                        <View style={styles.pickerCard}>
+                        <Card padding="xl" radius="xxl" style={styles.pickerCard}>
                             <View style={styles.pickerHeader}>
-                                <Text style={styles.pickerTitle}>과목 선택</Text>
-                                <Pressable
+                                <Typography.Subtitle1 bold>과목 선택</Typography.Subtitle1>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    leftIcon="close"
                                     onPress={() => {
                                         setIsPickerOpen(false);
                                         setEditingSubjectId(null);
                                         setNewSubjectName("");
                                     }}
                                     style={styles.pickerCloseBtn}
-                                >
-                                    <Ionicons name="close" size={18} color={COLORS.textMuted} />
-                                </Pressable>
+                                    fullWidth={false}
+                                />
                             </View>
 
                             <ScrollView
@@ -294,9 +290,9 @@ export default function AddExamScreen() {
                                                         setIsPickerOpen(false);
                                                     }}
                                                 >
-                                                    <Text style={[styles.pickerItemText, selectedSubjectId === s.id && styles.selectedItemText]}>
+                                                    <Typography.Body1 bold color={selectedSubjectId === s.id ? COLORS.primary : COLORS.text}>
                                                         {s.name}
-                                                    </Text>
+                                                    </Typography.Body1>
                                                     {selectedSubjectId === s.id && <Ionicons name="checkmark" size={18} color={COLORS.primary} />}
                                                 </Pressable>
 
@@ -353,7 +349,7 @@ export default function AddExamScreen() {
                                     ) : null}
                                 </View>
                             </ScrollView>
-                        </View>
+                        </Card>
                     </View>
                 )}
             </KeyboardAvoidingView>
@@ -367,40 +363,25 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.bg,
     },
     scrollContent: {
-        paddingTop: 12,
-        paddingBottom: 20,
+        paddingTop: SPACING.md,
+        paddingBottom: SPACING.xl,
     },
     closeBtn: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        alignItems: 'center',
-        justifyContent: 'center',
         backgroundColor: COLORS.white,
         borderWidth: 1,
         borderColor: COLORS.border,
+        width: 36,
+        paddingHorizontal: 0,
     },
     formContainer: {
-        paddingHorizontal: 20,
-        gap: 24,
+        paddingHorizontal: SPACING.xl,
+        gap: SPACING.xl,
     },
     headerInfo: {
-        marginBottom: 8,
-    },
-    headerTitle: {
-        fontSize: 22,
-        fontWeight: '900',
-        color: COLORS.text,
-        letterSpacing: -0.8,
-        marginBottom: 4,
-    },
-    headerSubtitle: {
-        fontSize: 14,
-        color: COLORS.textMuted,
-        fontWeight: '500',
+        marginBottom: SPACING.sm,
     },
     fieldSection: {
-        gap: 12,
+        gap: SPACING.sm,
     },
     fieldHeader: {
         flexDirection: 'row',
@@ -408,38 +389,22 @@ const styles = StyleSheet.create({
         gap: 6,
         paddingLeft: 4,
     },
-    fieldLabel: {
-        fontSize: 14,
-        fontWeight: '800',
-        color: COLORS.text,
-    },
     modernInput: {
         height: 60,
         backgroundColor: COLORS.white,
-        borderRadius: 20,
+        borderRadius: RADIUS.xl,
         borderWidth: 1.5,
         borderColor: COLORS.border,
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 18,
+        paddingHorizontal: SPACING.lg,
     },
     modernInputActive: {
         borderColor: COLORS.primary,
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
-        elevation: 2,
+        ...SHADOWS.small,
     },
     modernValue: {
         flex: 1,
-        fontSize: 16,
-        color: COLORS.text,
-        fontWeight: '700',
-    },
-    placeholderText: {
-        color: COLORS.textMuted,
-        fontWeight: '500',
     },
     textInput: {
         flex: 1,
@@ -448,38 +413,21 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         height: '100%',
     },
-    unitText: {
-        fontSize: 14,
-        fontWeight: '800',
-        color: COLORS.textMuted,
-        marginLeft: 8,
-    },
     statsRow: {
         flexDirection: 'row',
-        gap: 16,
+        gap: SPACING.md,
     },
     errorAlert: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        backgroundColor: '#FFF5F5',
-        padding: 16,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 0, 0, 0.05)',
-    },
-    errorAlertText: {
-        fontSize: 13,
-        color: COLORS.error,
-        fontWeight: '700',
+        gap: SPACING.sm,
+        backgroundColor: COLORS.errorLight,
     },
     tipBox: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
-        backgroundColor: '#F8F9FA',
-        padding: 16,
-        borderRadius: 20,
+        gap: SPACING.md,
+        backgroundColor: COLORS.surfaceVariant,
     },
     tipIcon: {
         width: 24,
@@ -489,43 +437,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    tipText: {
-        flex: 1,
-        fontSize: 12,
-        color: COLORS.textMuted,
-        fontWeight: '700',
-        lineHeight: 18,
-    },
     bottomBar: {
-        padding: 20,
-        paddingBottom: Platform.OS === 'ios' ? 0 : 20,
+        padding: SPACING.xl,
+        paddingBottom: Platform.OS === 'ios' ? 0 : SPACING.xl,
         backgroundColor: COLORS.white,
         borderTopWidth: 1,
         borderTopColor: COLORS.border,
-    },
-    primaryBtn: {
-        borderRadius: 24,
-        overflow: 'hidden',
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.2,
-        shadowRadius: 12,
-        elevation: 6,
-    },
-    primaryBtnDisabled: {
-        opacity: 0.5,
-    },
-    primaryBtnGradient: {
-        height: 64,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 10,
-    },
-    primaryBtnText: {
-        fontSize: 18,
-        fontWeight: '900',
-        color: COLORS.white,
     },
     // Popover / Picker Styling
     popoverOverlay: {
@@ -534,55 +451,36 @@ const styles = StyleSheet.create({
         zIndex: 5000,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 30,
+        padding: SPACING.xl,
     },
     popoverBackdrop: {
         ...StyleSheet.absoluteFillObject,
     },
     pickerCard: {
         width: '100%',
-        maxWidth: 300,
+        maxWidth: 320,
         backgroundColor: 'rgba(255, 255, 255, 0.98)',
-        borderRadius: 36,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 20 },
-        shadowOpacity: 0.12,
-        shadowRadius: 40,
-        elevation: 15,
-        overflow: 'hidden',
-        paddingBottom: 20,
+        maxHeight: '80%',
     },
     pickerHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: 24,
-        paddingTop: 24,
-        paddingBottom: 16,
-    },
-    pickerTitle: {
-        fontSize: 17,
-        fontWeight: '900',
-        color: COLORS.text,
-        letterSpacing: -0.5,
+        marginBottom: SPACING.md,
     },
     pickerCloseBtn: {
         width: 28,
         height: 28,
-        borderRadius: 14,
-        backgroundColor: '#F3F4F6',
-        alignItems: 'center',
-        justifyContent: 'center',
+        backgroundColor: COLORS.surfaceVariant,
+        paddingHorizontal: 0,
     },
     pickerScroll: {
-        maxHeight: 350,
-        paddingHorizontal: 16,
+        paddingHorizontal: 0,
     },
     pickerItemRow: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 12,
-        paddingHorizontal: 8,
         borderBottomWidth: 1,
         borderBottomColor: 'rgba(0,0,0,0.03)',
     },
@@ -592,15 +490,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         marginRight: 8,
-    },
-    pickerItemText: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: COLORS.text,
-    },
-    selectedItemText: {
-        color: COLORS.primary,
-        fontWeight: '900',
     },
     pickerItemActions: {
         flexDirection: 'row',
@@ -617,14 +506,13 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 16,
-        paddingHorizontal: 12,
         marginTop: 4,
     },
     addIconCircle: {
         width: 24,
         height: 24,
         borderRadius: 12,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: COLORS.surfaceVariant,
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: 10,
@@ -664,7 +552,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 8,
-        backgroundColor: '#F3F4F6',
+        backgroundColor: COLORS.surfaceVariant,
         alignItems: 'center',
         justifyContent: 'center',
     },

@@ -3,12 +3,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Dimensions, ScrollView, StyleSheet, View } from "react-native";
+import { Button } from "../../../../components/ui/Button";
+import { Card } from "../../../../components/ui/Card";
 import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
+import { Section } from "../../../../components/ui/Section";
+import { Typography } from "../../../../components/ui/Typography";
 import type { Database } from "../../../../lib/db-types";
+import { COLORS, SPACING } from "../../../../lib/design-system";
 import { useSupabase } from "../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../lib/supabaseError";
-import { COLORS } from "../../../../lib/theme";
 
 type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
@@ -118,16 +122,18 @@ export default function RaceScreen() {
                 showBack={false}
                 rightElement={
                     canCreateExam ? (
-                        <Pressable
+                        <Button
+                            label=""
+                            variant="ghost"
+                            leftIcon="add"
                             onPress={() => {
                                 if (roomId && roomId !== 'undefined') {
                                     router.push(`/room/${roomId}/add-exam`);
                                 }
                             }}
-                            style={styles.headerAddBtn}
-                        >
-                            <Ionicons name="add" size={28} color={COLORS.text} />
-                        </Pressable>
+                            style={{ width: 44, height: 44, borderRadius: 22 }}
+                            fullWidth={false}
+                        />
                     ) : undefined
                 }
             />
@@ -135,32 +141,33 @@ export default function RaceScreen() {
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 {exams.length === 0 ? (
                     <View style={styles.emptyExamsContainer}>
-                        <View style={styles.emptyExams}>
-                            <Ionicons name="document-text-outline" size={48} color={COLORS.border} />
-                            <Text style={styles.emptyExamsText}>등록된 시험이 없습니다.</Text>
+                        <Card variant="outline" padding="huge" style={styles.emptyExams}>
+                            <Ionicons name="document-text-outline" size={48} color={COLORS.borderDark} />
+                            <Typography.Body1 bold color={COLORS.textMuted} style={styles.emptyExamsText}>
+                                등록된 시험이 없습니다.
+                            </Typography.Body1>
                             {canCreateExam && (
-                                <Pressable
+                                <Button
+                                    label="첫 시험 만들기"
                                     onPress={() => router.push(`/room/${roomId}/add-exam`)}
                                     style={styles.emptyCreateBtn}
-                                >
-                                    <Text style={styles.emptyCreateBtnText}>첫 시험 만들기</Text>
-                                </Pressable>
+                                    fullWidth={false}
+                                />
                             )}
-                        </View>
+                        </Card>
                     </View>
                 ) : (
                     (Object.entries(groupedExams) as [string, RoomExamRow[]][]).map(([subject, subjectExams]) => (
-                        <View key={subject} style={styles.subjectSection}>
-                            <View style={styles.subjectHeader}>
-                                <View style={styles.subjectBadge}>
-                                    <View style={styles.badgeDot} />
-                                    <Text style={styles.subjectTitle}>{subject}</Text>
-                                    <View style={styles.subjectCounter}>
-                                        <Text style={styles.subjectCounterText}>{subjectExams.length}</Text>
-                                    </View>
+                        <Section
+                            key={subject}
+                            title={subject}
+                            style={styles.subjectSection}
+                            rightElement={
+                                <View style={styles.subjectCounter}>
+                                    <Typography.Label color={COLORS.textMuted}>{subjectExams.length}</Typography.Label>
                                 </View>
-                            </View>
-
+                            }
+                        >
                             <View style={styles.gridContainer}>
                                 {subjectExams.map((item) => {
                                     const attempt = myAttempts.find(a => a.exam_id === item.id);
@@ -168,7 +175,7 @@ export default function RaceScreen() {
                                     const isInProgress = !!attempt && !attempt.ended_at;
 
                                     return (
-                                        <Pressable
+                                        <Card
                                             key={item.id}
                                             onPress={() => {
                                                 if (isCompleted) {
@@ -180,9 +187,11 @@ export default function RaceScreen() {
                                                     router.push(`/room/${roomId}/exam/${item.id}/run`);
                                                 }
                                             }}
-                                            style={({ pressed }) => [
+                                            padding="md"
+                                            radius="xl"
+                                            variant={isCompleted ? "flat" : "elevated"}
+                                            style={[
                                                 styles.gridItem,
-                                                pressed && { opacity: 0.9, transform: [{ scale: 0.97 }] },
                                                 isCompleted && styles.gridItemCompleted
                                             ]}
                                         >
@@ -198,16 +207,16 @@ export default function RaceScreen() {
                                             </LinearGradient>
 
                                             <View style={styles.itemContent}>
-                                                <Text style={styles.itemTitle} numberOfLines={2}>
+                                                <Typography.Body2 bold numberOfLines={2}>
                                                     {item.title.replace(/^(\[.*?\]\s*|.*?•\s*)+/, "")}
-                                                </Text>
-                                                <Text style={styles.itemMeta}>{item.total_questions}문항</Text>
+                                                </Typography.Body2>
+                                                <Typography.Label color={COLORS.textMuted}>{item.total_questions}문항</Typography.Label>
                                             </View>
 
                                             <View style={styles.itemFooter}>
                                                 {isCompleted ? (
                                                     <View style={styles.analysisBadge}>
-                                                        <Text style={styles.analysisBadgeText}>분석</Text>
+                                                        <Typography.Label color={COLORS.primary} bold>분석</Typography.Label>
                                                         <Ionicons name="chevron-forward" size={10} color={COLORS.primary} />
                                                     </View>
                                                 ) : isInProgress ? (
@@ -215,19 +224,19 @@ export default function RaceScreen() {
                                                         <View style={styles.progressBarBg}>
                                                             <View style={[styles.progressBarFill, { width: '45%' }]} />
                                                         </View>
-                                                        <Text style={styles.progressText}>진행중</Text>
+                                                        <Typography.Label color={COLORS.warning} bold align="center">진행중</Typography.Label>
                                                     </View>
                                                 ) : (
                                                     <View style={styles.startBadge}>
-                                                        <Text style={styles.startBadgeText}>시작</Text>
+                                                        <Typography.Label color={COLORS.textMuted} bold>시작</Typography.Label>
                                                     </View>
                                                 )}
                                             </View>
-                                        </Pressable>
+                                        </Card>
                                     );
                                 })}
                             </View>
-                        </View>
+                        </Section>
                     ))
                 )}
             </ScrollView>
@@ -248,94 +257,30 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     scrollContent: {
-        paddingBottom: 40,
-    },
-    headerAddBtn: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: COLORS.white,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
+        paddingBottom: SPACING.massive,
     },
     subjectSection: {
-        paddingTop: 32,
-    },
-    subjectHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        marginBottom: 16,
-    },
-    subjectBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: COLORS.white,
-        paddingLeft: 10,
-        paddingRight: 10,
-        paddingVertical: 8,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        gap: 8,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.03,
-        shadowRadius: 8,
-    },
-    badgeDot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: COLORS.primary,
-    },
-    subjectTitle: {
-        fontSize: 14,
-        fontWeight: '800',
-        color: COLORS.text,
-        letterSpacing: -0.3,
+        paddingTop: SPACING.md,
+        marginVertical: 0,
     },
     subjectCounter: {
-        backgroundColor: COLORS.bg,
-        paddingHorizontal: 8,
+        backgroundColor: COLORS.surfaceVariant,
+        paddingHorizontal: SPACING.sm,
         paddingVertical: 2,
         borderRadius: 8,
-    },
-    subjectCounterText: {
-        fontSize: 11,
-        fontWeight: '900',
-        color: COLORS.textMuted,
     },
     gridContainer: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        paddingHorizontal: 16,
-        gap: 10,
+        paddingHorizontal: SPACING.xl,
+        gap: SPACING.md,
     },
     gridItem: {
-        width: (width - 32 - 20) / 3, // Precise 3-column split
-        backgroundColor: COLORS.white,
-        borderRadius: 28,
-        padding: 12,
-        marginBottom: 4,
-        borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.02)',
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.03,
-        shadowRadius: 12,
-        justifyContent: 'space-between',
+        width: (width - SPACING.xl * 2 - SPACING.md * 2) / 3, // Precise 3-column split
         minHeight: 160,
     },
     gridItemCompleted: {
-        backgroundColor: '#F8F9FA',
-        shadowOpacity: 0.01,
+        backgroundColor: COLORS.bg,
     },
     iconBoxGradient: {
         width: 44,
@@ -343,24 +288,11 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 12,
+        marginBottom: SPACING.md,
     },
     itemContent: {
         flex: 1,
-        marginBottom: 12,
-    },
-    itemTitle: {
-        fontSize: 14,
-        fontWeight: '800',
-        color: COLORS.text,
-        lineHeight: 18,
-        letterSpacing: -0.5,
-        marginBottom: 6,
-    },
-    itemMeta: {
-        fontSize: 11,
-        fontWeight: '600',
-        color: COLORS.textMuted,
+        marginBottom: SPACING.md,
     },
     itemFooter: {
         marginTop: 'auto',
@@ -373,11 +305,6 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.primaryLight,
         paddingVertical: 6,
         borderRadius: 12,
-    },
-    analysisBadgeText: {
-        fontSize: 11,
-        fontWeight: '900',
-        color: COLORS.primary,
     },
     progressContainer: {
         gap: 6,
@@ -393,53 +320,25 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.warning,
         borderRadius: 2,
     },
-    progressText: {
-        fontSize: 10,
-        fontWeight: '800',
-        color: COLORS.warning,
-        textAlign: 'center',
-    },
     startBadge: {
-        backgroundColor: '#F0F0F3',
+        backgroundColor: COLORS.surfaceVariant,
         paddingVertical: 6,
         borderRadius: 12,
         alignItems: 'center',
     },
-    startBadgeText: {
-        fontSize: 11,
-        fontWeight: '800',
-        color: COLORS.textMuted,
-    },
     emptyExamsContainer: {
-        padding: 20,
-        paddingTop: 40,
+        padding: SPACING.xl,
+        paddingTop: SPACING.massive,
     },
     emptyExams: {
-        padding: 60,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: COLORS.white,
-        borderRadius: 32,
-        borderWidth: 1,
-        borderColor: COLORS.border,
         borderStyle: 'dashed',
     },
     emptyExamsText: {
-        marginTop: 16,
-        fontSize: 15,
-        color: COLORS.textMuted,
-        fontWeight: '600',
+        marginTop: SPACING.lg,
     },
     emptyCreateBtn: {
-        marginTop: 20,
-        backgroundColor: COLORS.primary,
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        borderRadius: 12,
-    },
-    emptyCreateBtnText: {
-        color: COLORS.white,
-        fontWeight: '800',
-        fontSize: 14,
+        marginTop: SPACING.xl,
     },
 });

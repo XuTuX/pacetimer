@@ -1,6 +1,7 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { COLORS } from '../../lib/theme';
+import { StyleSheet, View } from 'react-native';
+import { COLORS, RADIUS, SPACING } from '../../lib/design-system';
+import { Typography } from './Typography';
 
 export type StatusType = 'COMPLETED' | 'IN_PROGRESS' | 'NOT_STARTED' | 'ABANDONED';
 
@@ -15,14 +16,15 @@ export function StatusBadge({ status }: StatusBadgeProps) {
         NOT_STARTED: '시작 전',
         ABANDONED: '중단',
     };
+
     const getStyles = () => {
         switch (status) {
             case 'COMPLETED':
-                return { bg: '#E6F9F4', text: '#00D094' }; // Using primary colors
+                return { bg: COLORS.primaryLight, text: COLORS.primary };
             case 'IN_PROGRESS':
-                return { bg: '#FFF9E5', text: '#FFCC00' }; // Warning colors
+                return { bg: COLORS.warningLight, text: COLORS.warning };
             case 'ABANDONED':
-                return { bg: '#FFE9E8', text: '#FF3B30' }; // Error colors
+                return { bg: COLORS.errorLight, text: COLORS.error };
             default:
                 return { bg: COLORS.surfaceVariant, text: COLORS.textMuted };
         }
@@ -32,21 +34,22 @@ export function StatusBadge({ status }: StatusBadgeProps) {
 
     return (
         <View style={[styles.container, { backgroundColor: bg }]}>
-            <Text style={[styles.text, { color: text }]}>{statusLabels[status]}</Text>
+            <Typography.Label bold style={[styles.text, { color: text }]}>
+                {statusLabels[status]}
+            </Typography.Label>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
-        paddingHorizontal: 8,
+        paddingHorizontal: SPACING.sm,
         paddingVertical: 4,
-        borderRadius: 8,
+        borderRadius: RADIUS.sm,
         alignSelf: 'flex-start',
     },
     text: {
         fontSize: 10,
-        fontWeight: '800',
         letterSpacing: 0.2,
     },
 });

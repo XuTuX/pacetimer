@@ -4,11 +4,15 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Animated, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { Button } from "../../../../components/ui/Button";
+import { Card } from "../../../../components/ui/Card";
 import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
+import { Section } from "../../../../components/ui/Section";
+import { Typography } from "../../../../components/ui/Typography";
 import type { Database } from "../../../../lib/db-types";
+import { COLORS, SHADOWS, SPACING } from "../../../../lib/design-system";
 import { useSupabase } from "../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../lib/supabaseError";
-import { COLORS } from "../../../../lib/theme";
 
 type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
 type RoomMemberRow = Database["public"]["Tables"]["room_members"]["Row"];
@@ -160,9 +164,14 @@ export default function RoomHomeScreen() {
                         <Pressable onPress={handleShare} style={styles.headerBtn}>
                             <Ionicons name="share-outline" size={20} color={COLORS.text} />
                         </Pressable>
-                        <Pressable onPress={() => router.replace('/(tabs)/rooms')} style={styles.headerBtn}>
-                            <Ionicons name="close" size={24} color={COLORS.text} />
-                        </Pressable>
+                        <Button
+                            label=""
+                            variant="ghost"
+                            leftIcon="close"
+                            onPress={() => router.replace('/(tabs)/rooms')}
+                            style={{ width: 44, height: 44, borderRadius: 22 }}
+                            fullWidth={false}
+                        />
                     </View>
                 }
             />
@@ -179,21 +188,21 @@ export default function RoomHomeScreen() {
                         <View style={styles.heroHeader}>
                             <View style={styles.heroLabelBox}>
                                 <Ionicons name="flash" size={10} color={COLORS.primary} />
-                                <Text style={styles.heroLabel}>LIVE SESSION</Text>
+                                <Typography.Label style={styles.heroLabel}>LIVE SESSION</Typography.Label>
                             </View>
                             <View style={styles.heroBadge}>
                                 <Animated.View style={[styles.pulseDot, { transform: [{ scale: pulseAnim }], opacity: pulseAnim.interpolate({ inputRange: [1, 1.5], outputRange: [1, 0.4] }) }]} />
                                 <View style={[styles.pulseDot, { position: 'absolute', left: 12, top: 12 }]} />
-                                <Text style={styles.heroBadgeText}>ACTIVE</Text>
+                                <Typography.Label style={styles.heroBadgeText}>ACTIVE</Typography.Label>
                             </View>
                         </View>
 
                         <View style={styles.titleContainer}>
-                            <Text style={styles.roomNameLarge}>{room?.name}</Text>
+                            <Typography.H1 color={COLORS.white}>{room?.name}</Typography.H1>
                             <View style={styles.tagRow}>
-                                <Text style={styles.tagText}>#스터디</Text>
-                                <Text style={styles.tagText}>#실시간</Text>
-                                <Text style={styles.tagText}>#경쟁</Text>
+                                <Typography.Caption color="rgba(255,255,255,0.4)" bold>#스터디</Typography.Caption>
+                                <Typography.Caption color="rgba(255,255,255,0.4)" bold>#실시간</Typography.Caption>
+                                <Typography.Caption color="rgba(255,255,255,0.4)" bold>#경쟁</Typography.Caption>
                             </View>
                         </View>
 
@@ -210,9 +219,9 @@ export default function RoomHomeScreen() {
                                             ]}
                                         >
                                             <View style={[styles.avatarCircle, isHost && styles.hostAvatarCircle]}>
-                                                <Text style={[styles.avatarText, isHost && styles.hostAvatarText]}>
+                                                <Typography.Subtitle2 color={isHost ? COLORS.white : "rgba(255,255,255,0.6)"} bold>
                                                     {p.profile?.display_name?.charAt(0).toUpperCase() || "?"}
-                                                </Text>
+                                                </Typography.Subtitle2>
                                             </View>
                                             {isHost && (
                                                 <View style={styles.hostCrown}>
@@ -225,15 +234,15 @@ export default function RoomHomeScreen() {
                                 {participants.length > 5 && (
                                     <View style={[styles.stackedAvatar, { marginLeft: -12, zIndex: 0 }]}>
                                         <View style={styles.moreAvatar}>
-                                            <Text style={styles.moreText}>+{participants.length - 5}</Text>
+                                            <Typography.Label color="rgba(255,255,255,0.5)">+{participants.length - 5}</Typography.Label>
                                         </View>
                                     </View>
                                 )}
                             </View>
                             <View style={styles.guestInfo}>
-                                <Text style={styles.guestCountText}>
-                                    <Text style={styles.highlightText}>{participants.length}명</Text>의 메이트와 함께
-                                </Text>
+                                <Typography.Caption color="rgba(255,255,255,0.3)" bold>
+                                    <Typography.Caption color={COLORS.primary} bold>{participants.length}명</Typography.Caption>의 메이트와 함께
+                                </Typography.Caption>
                             </View>
                         </View>
                     </LinearGradient>
@@ -241,63 +250,64 @@ export default function RoomHomeScreen() {
 
                 {/* Main Action / Stats Grid */}
                 <View style={styles.statsGrid}>
-                    <View style={styles.statCard}>
+                    <Card variant="outline" padding="md" style={styles.statCard}>
                         <View style={[styles.statIconBox, { backgroundColor: COLORS.primaryLight }]}>
                             <Ionicons name="calendar" size={18} color={COLORS.primary} />
                         </View>
                         <View style={styles.statTexts}>
-                            <Text style={styles.statLabel}>개설일</Text>
-                            <Text style={styles.statValue}>
+                            <Typography.Label color={COLORS.textMuted}>개설일</Typography.Label>
+                            <Typography.Subtitle2 bold>
                                 {new Date(room?.created_at || '').toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
-                            </Text>
+                            </Typography.Subtitle2>
                         </View>
-                    </View>
+                    </Card>
 
-                    <View style={styles.statCard}>
-                        <View style={[styles.statIconBox, { backgroundColor: '#FFF9E5' }]}>
-                            <Ionicons name="ribbon" size={18} color="#FFCC00" />
+                    <Card variant="outline" padding="md" style={styles.statCard}>
+                        <View style={[styles.statIconBox, { backgroundColor: COLORS.warningLight }]}>
+                            <Ionicons name="ribbon" size={18} color={COLORS.warning} />
                         </View>
                         <View style={styles.statTexts}>
-                            <Text style={styles.statLabel}>스터디 마스터</Text>
-                            <Text style={styles.statValue} numberOfLines={1}>{host?.profile?.display_name || "방장"}</Text>
+                            <Typography.Label color={COLORS.textMuted}>스터디 마스터</Typography.Label>
+                            <Typography.Subtitle2 bold numberOfLines={1}>{host?.profile?.display_name || "방장"}</Typography.Subtitle2>
                         </View>
-                    </View>
+                    </Card>
                 </View>
 
                 {/* Live Member Status Section */}
-                <View style={styles.liveSection}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>메이트 현황</Text>
+                <Section
+                    title="메이트 현황"
+                    rightElement={
                         <View style={styles.liveIndicator}>
                             <View style={styles.liveIndicatorDot} />
-                            <Text style={styles.liveIndicatorText}>LIVE</Text>
+                            <Typography.Label color={COLORS.error}>LIVE</Typography.Label>
                         </View>
-                    </View>
-                    <View style={styles.liveList}>
+                    }
+                >
+                    <Card padding="sm" style={styles.liveListContainer}>
                         {participants.length === 0 ? (
                             <View style={styles.emptyLive}>
-                                <Text style={styles.emptyLiveText}>참여 중인 메이트가 없습니다.</Text>
+                                <Typography.Body2 color={COLORS.textMuted} bold>참여 중인 메이트가 없습니다.</Typography.Body2>
                             </View>
                         ) : (
                             participants.map((p) => (
                                 <View key={p.user_id} style={styles.liveRow}>
                                     <View style={styles.liveAvatarBox}>
-                                        <Text style={styles.liveAvatarText}>{p.profile?.display_name?.charAt(0).toUpperCase() || '?'}</Text>
+                                        <Typography.Subtitle2 bold color={COLORS.textMuted}>{p.profile?.display_name?.charAt(0).toUpperCase() || '?'}</Typography.Subtitle2>
                                     </View>
                                     <View style={styles.liveInfo}>
-                                        <Text style={styles.liveName}>{p.profile?.display_name}</Text>
-                                        <Text style={styles.liveAction}>준비 중</Text>
+                                        <Typography.Body1 bold>{p.profile?.display_name}</Typography.Body1>
+                                        <Typography.Caption>준비 중</Typography.Caption>
                                     </View>
                                     <View style={styles.liveBadge}>
-                                        <Text style={styles.liveBadgeText}>IDLE</Text>
+                                        <Typography.Label color={COLORS.textMuted}>IDLE</Typography.Label>
                                     </View>
                                 </View>
                             ))
                         )}
-                    </View>
-                </View>
+                    </Card>
+                </Section>
 
-                <View style={styles.noticeSection}>
+                <Section>
                     <LinearGradient
                         colors={[COLORS.white, '#FDFDFD']}
                         style={styles.noticeCard}
@@ -306,64 +316,69 @@ export default function RoomHomeScreen() {
                             <View style={styles.noticeIconBox}>
                                 <Ionicons name="megaphone" size={14} color={COLORS.white} />
                             </View>
-                            <Text style={styles.noticeTitle}>공지사항</Text>
+                            <Typography.Subtitle2 bold>공지사항</Typography.Subtitle2>
                         </View>
                         <View style={styles.noticeList}>
                             <View style={styles.noticeRow}>
                                 <View style={styles.noticeDot} />
-                                <Text style={styles.noticeText}>이곳에서 모의고사 경쟁에 참여할 수 있습니다.</Text>
+                                <Typography.Body2 color={COLORS.textMuted} bold>이곳에서 모의고사 경쟁에 참여할 수 있습니다.</Typography.Body2>
                             </View>
                             <View style={styles.noticeRow}>
                                 <View style={styles.noticeDot} />
-                                <Text style={styles.noticeText}>Race 탭에서 멤버들이 등록한 시험을 확인하세요.</Text>
+                                <Typography.Body2 color={COLORS.textMuted} bold>Race 탭에서 멤버들이 등록한 시험을 확인하세요.</Typography.Body2>
                             </View>
                         </View>
                     </LinearGradient>
-                </View>
+                </Section>
 
                 {/* Footer Controls */}
                 <View style={styles.footerControls}>
-                    <Pressable onPress={handleShare} style={({ pressed }) => [
-                        styles.invitationBtn,
-                        pressed && { transform: [{ scale: 0.98 }], opacity: 0.9 }
-                    ]}>
-                        <LinearGradient
-                            colors={[COLORS.primary, '#00C88C']}
-                            style={styles.invitationGradient}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                        >
-                            <Ionicons name="share-social" size={20} color={COLORS.white} />
-                            <Text style={styles.invitationText}>친구 초대하기</Text>
-                        </LinearGradient>
-                    </Pressable>
+                    <Button
+                        label="친구 초대하기"
+                        onPress={handleShare}
+                        leftIcon="share-social"
+                        variant="primary"
+                        size="lg"
+                    />
 
                     {isMember && userId !== room?.owner_id && (
-                        <Pressable onPress={handleLeaveRoom} style={styles.exitBtn}>
-                            <Ionicons name="log-out-outline" size={16} color={COLORS.textMuted} />
-                            <Text style={styles.exitText}>스터디 룸 퇴장</Text>
-                        </Pressable>
+                        <Button
+                            label="스터디 룸 퇴장"
+                            onPress={handleLeaveRoom}
+                            leftIcon="log-out-outline"
+                            variant="ghost"
+                            size="sm"
+                            fullWidth={false}
+                        />
                     )}
                 </View>
 
                 {/* Join Overlay (Conditional) */}
                 {!isMember && (
                     <View style={styles.joinOverlay}>
-                        <View style={styles.joinCard}>
+                        <Card padding="massive" radius="xxl" style={styles.joinCard}>
                             <View style={styles.joinHeaderIcon}>
                                 <Ionicons name="sparkles" size={32} color={COLORS.primary} />
                             </View>
-                            <Text style={styles.joinMainTitle}>새로운 스터디 공간</Text>
-                            <Text style={styles.joinSubTitle}>
+                            <Typography.H2 align="center" style={styles.joinMainTitle}>새로운 스터디 공간</Typography.H2>
+                            <Typography.Body1 align="center" color={COLORS.textMuted} style={styles.joinSubTitle}>
                                 "{room?.name}" 룸에서 친구들과 함께 실전 감각을 키워보세요.
-                            </Text>
-                            <Pressable onPress={handleJoinRoom} style={styles.joinBtn}>
-                                <Text style={styles.joinBtnText}>시작하기</Text>
-                            </Pressable>
-                            <Pressable onPress={() => router.replace('/(tabs)/rooms')} style={styles.joinLater}>
-                                <Text style={styles.joinLaterText}>나중에 둘러보기</Text>
-                            </Pressable>
-                        </View>
+                            </Typography.Body1>
+
+                            <Button
+                                label="시작하기"
+                                onPress={handleJoinRoom}
+                                size="lg"
+                                style={styles.joinActionBtn}
+                            />
+
+                            <Button
+                                label="나중에 둘러보기"
+                                variant="ghost"
+                                onPress={() => router.replace('/(tabs)/rooms')}
+                                style={styles.joinLater}
+                            />
+                        </Card>
                     </View>
                 )}
             </ScrollView>
@@ -391,7 +406,7 @@ const styles = StyleSheet.create({
     headerActions: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: SPACING.sm,
     },
     headerBtn: {
         width: 44,
@@ -407,46 +422,39 @@ const styles = StyleSheet.create({
         paddingBottom: 80,
     },
     heroSection: {
-        paddingHorizontal: 20,
-        paddingTop: 16,
-        paddingBottom: 24,
+        paddingHorizontal: SPACING.xl,
+        paddingTop: SPACING.lg,
+        paddingBottom: SPACING.xxl,
     },
     heroContent: {
         borderRadius: 36,
-        padding: 32,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 15 },
-        shadowOpacity: 0.25,
-        shadowRadius: 25,
-        elevation: 12,
+        padding: SPACING.massive,
+        ...SHADOWS.heavy,
     },
     heroHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 24,
+        marginBottom: SPACING.xxl,
     },
     heroLabelBox: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
         backgroundColor: 'rgba(255,255,255,0.08)',
-        paddingHorizontal: 12,
+        paddingHorizontal: SPACING.md,
         paddingVertical: 6,
         borderRadius: 12,
     },
     heroLabel: {
-        fontSize: 10,
-        fontWeight: '900',
         color: 'rgba(255,255,255,0.7)',
-        letterSpacing: 1.5,
     },
     heroBadge: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
         backgroundColor: 'rgba(0, 208, 148, 0.12)',
-        paddingHorizontal: 12,
+        paddingHorizontal: SPACING.md,
         paddingVertical: 6,
         borderRadius: 12,
         borderWidth: 1,
@@ -457,35 +465,20 @@ const styles = StyleSheet.create({
         height: 6,
         borderRadius: 3,
         backgroundColor: COLORS.primary,
+        ...SHADOWS.small,
         shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 0.8,
-        shadowRadius: 5,
     },
     heroBadgeText: {
-        fontSize: 10,
-        fontWeight: '900',
         color: COLORS.primary,
-        letterSpacing: 0.5,
     },
     titleContainer: {
-        marginBottom: 32,
-    },
-    roomNameLarge: {
-        fontSize: 32,
-        fontWeight: '900',
-        color: COLORS.white,
-        letterSpacing: -1,
-        marginBottom: 10,
+        marginBottom: SPACING.huge,
     },
     tagRow: {
         flexDirection: 'row',
-        gap: 8,
-    },
-    tagText: {
-        fontSize: 12,
-        color: 'rgba(255,255,255,0.4)',
-        fontWeight: '700',
+        gap: SPACING.sm,
+        marginTop: SPACING.sm,
     },
     participantOverview: {
         flexDirection: 'row',
@@ -520,19 +513,11 @@ const styles = StyleSheet.create({
     hostAvatarCircle: {
         backgroundColor: COLORS.primary,
     },
-    avatarText: {
-        fontSize: 15,
-        fontWeight: '900',
-        color: 'rgba(255,255,255,0.6)',
-    },
-    hostAvatarText: {
-        color: COLORS.white,
-    },
     hostCrown: {
         position: 'absolute',
         top: -1,
         right: -1,
-        backgroundColor: '#FFCC00',
+        backgroundColor: COLORS.warning,
         width: 16,
         height: 16,
         borderRadius: 8,
@@ -548,43 +533,17 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    moreText: {
-        fontSize: 12,
-        fontWeight: '900',
-        color: 'rgba(255,255,255,0.5)',
-    },
     guestInfo: {
         alignItems: 'flex-end',
     },
-    guestCountText: {
-        fontSize: 13,
-        color: 'rgba(255,255,255,0.3)',
-        fontWeight: '600',
-    },
-    highlightText: {
-        color: COLORS.primary,
-        fontWeight: '900',
-    },
     statsGrid: {
         flexDirection: 'row',
-        paddingHorizontal: 20,
-        gap: 12,
-        marginBottom: 24,
+        paddingHorizontal: SPACING.xl,
+        gap: SPACING.md,
+        marginBottom: SPACING.xxl,
     },
     statCard: {
         flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: COLORS.white,
-        padding: 18,
-        borderRadius: 28,
-        gap: 14,
-        borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.02)',
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 5 },
-        shadowOpacity: 0.03,
-        shadowRadius: 12,
     },
     statIconBox: {
         width: 42,
@@ -592,45 +551,17 @@ const styles = StyleSheet.create({
         borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
+        marginBottom: SPACING.sm,
     },
     statTexts: {
         flex: 1,
-    },
-    statLabel: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: COLORS.textMuted,
-        marginBottom: 2,
-    },
-    statValue: {
-        fontSize: 15,
-        fontWeight: '900',
-        color: COLORS.text,
-        letterSpacing: -0.5,
-    },
-    liveSection: {
-        paddingHorizontal: 20,
-        marginBottom: 32,
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 16,
-        paddingHorizontal: 4,
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: '900',
-        color: COLORS.text,
-        letterSpacing: -0.5,
     },
     liveIndicator: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        backgroundColor: '#FFE5E5',
-        paddingHorizontal: 8,
+        backgroundColor: COLORS.errorLight,
+        paddingHorizontal: SPACING.sm,
         paddingVertical: 4,
         borderRadius: 8,
     },
@@ -640,97 +571,53 @@ const styles = StyleSheet.create({
         borderRadius: 3,
         backgroundColor: COLORS.error,
     },
-    liveIndicatorText: {
-        fontSize: 10,
-        fontWeight: '900',
-        color: COLORS.error,
-    },
-    liveList: {
+    liveListContainer: {
         backgroundColor: COLORS.white,
-        borderRadius: 32,
-        padding: 12,
         borderWidth: 1,
         borderColor: 'rgba(0,0,0,0.02)',
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.02,
-        shadowRadius: 10,
     },
     liveRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 12,
+        padding: SPACING.md,
         borderRadius: 20,
-        backgroundColor: '#F9F9FB',
-        marginBottom: 8,
+        backgroundColor: COLORS.surfaceVariant,
+        marginBottom: SPACING.sm,
     },
     liveAvatarBox: {
         width: 40,
         height: 40,
         borderRadius: 14,
-        backgroundColor: '#EEE',
+        backgroundColor: COLORS.borderDark,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: 12,
-    },
-    liveAvatarText: {
-        fontSize: 16,
-        fontWeight: '800',
-        color: COLORS.textMuted,
+        marginRight: SPACING.md,
     },
     liveInfo: {
         flex: 1,
-    },
-    liveName: {
-        fontSize: 15,
-        fontWeight: '800',
-        color: COLORS.text,
-        marginBottom: 2,
-    },
-    liveAction: {
-        fontSize: 12,
-        color: COLORS.textMuted,
-        fontWeight: '600',
     },
     liveBadge: {
         paddingHorizontal: 10,
         paddingVertical: 5,
         borderRadius: 10,
-        backgroundColor: '#EEEEF2',
-    },
-    liveBadgeText: {
-        fontSize: 10,
-        fontWeight: '800',
-        color: COLORS.textMuted,
+        backgroundColor: COLORS.border,
     },
     emptyLive: {
-        padding: 32,
+        padding: SPACING.huge,
         alignItems: 'center',
-    },
-    emptyLiveText: {
-        fontSize: 14,
-        color: COLORS.textMuted,
-        fontWeight: '600',
-    },
-    noticeSection: {
-        paddingHorizontal: 20,
-        marginBottom: 40,
     },
     noticeCard: {
         borderRadius: 32,
-        padding: 24,
+        padding: SPACING.xxl,
         borderWidth: 1,
         borderColor: 'rgba(0,0,0,0.02)',
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.02,
-        shadowRadius: 15,
+        ...SHADOWS.small,
     },
     noticeHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
-        marginBottom: 16,
+        marginBottom: SPACING.lg,
     },
     noticeIconBox: {
         width: 28,
@@ -740,14 +627,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    noticeTitle: {
-        fontSize: 16,
-        fontWeight: '900',
-        color: COLORS.text,
-        letterSpacing: -0.5,
-    },
     noticeList: {
-        gap: 12,
+        gap: SPACING.md,
     },
     noticeRow: {
         flexDirection: 'row',
@@ -760,51 +641,10 @@ const styles = StyleSheet.create({
         borderRadius: 2.5,
         backgroundColor: COLORS.border,
     },
-    noticeText: {
-        fontSize: 13,
-        color: COLORS.textMuted,
-        fontWeight: '600',
-        lineHeight: 18,
-    },
     footerControls: {
-        paddingHorizontal: 20,
-        gap: 16,
+        paddingHorizontal: SPACING.xl,
+        gap: SPACING.lg,
         alignItems: 'center',
-    },
-    invitationBtn: {
-        width: '100%',
-        borderRadius: 28,
-        overflow: 'hidden',
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.2,
-        shadowRadius: 15,
-        elevation: 8,
-    },
-    invitationGradient: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 20,
-        gap: 10,
-    },
-    invitationText: {
-        fontSize: 18,
-        fontWeight: '900',
-        color: COLORS.white,
-        letterSpacing: -0.3,
-    },
-    exitBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        paddingVertical: 10,
-    },
-    exitText: {
-        fontSize: 14,
-        color: COLORS.textMuted,
-        fontWeight: '700',
-        textDecorationLine: 'underline',
     },
     joinOverlay: {
         position: 'absolute',
@@ -814,19 +654,12 @@ const styles = StyleSheet.create({
         bottom: 0,
         backgroundColor: 'rgba(0,0,0,0.65)',
         zIndex: 2000,
-        padding: 24,
+        padding: SPACING.xxl,
         justifyContent: 'center',
     },
     joinCard: {
-        backgroundColor: COLORS.white,
-        borderRadius: 44,
-        padding: 40,
         alignItems: 'center',
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 25 },
-        shadowOpacity: 0.35,
-        shadowRadius: 45,
-        elevation: 20,
+        ...SHADOWS.heavy,
     },
     joinHeaderIcon: {
         width: 80,
@@ -835,47 +668,20 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.primaryLight,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 28,
+        marginBottom: SPACING.huge,
     },
     joinMainTitle: {
-        fontSize: 26,
-        fontWeight: '900',
-        color: COLORS.text,
-        marginBottom: 14,
-        letterSpacing: -0.8,
+        marginBottom: SPACING.md,
     },
     joinSubTitle: {
-        fontSize: 15,
-        color: COLORS.textMuted,
-        textAlign: 'center',
         lineHeight: 22,
-        marginBottom: 36,
-        fontWeight: '500',
+        marginBottom: SPACING.huge,
     },
-    joinBtn: {
-        backgroundColor: COLORS.primary,
-        width: '100%',
-        paddingVertical: 20,
-        borderRadius: 24,
-        alignItems: 'center',
-        marginBottom: 14,
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 15,
-    },
-    joinBtnText: {
-        color: COLORS.white,
-        fontSize: 18,
-        fontWeight: '900',
+    joinActionBtn: {
+        marginBottom: SPACING.md,
     },
     joinLater: {
-        paddingVertical: 12,
-    },
-    joinLaterText: {
-        color: COLORS.textMuted,
-        fontSize: 15,
-        fontWeight: '600',
+        paddingVertical: SPACING.sm,
     },
     toast: {
         position: 'absolute',
@@ -883,22 +689,17 @@ const styles = StyleSheet.create({
         left: 20,
         right: 20,
         padding: 18,
-        backgroundColor: '#FFE5E5',
+        backgroundColor: COLORS.errorLight,
         borderRadius: 24,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
         borderWidth: 1,
         borderColor: 'rgba(255,0,0,0.15)',
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.05,
-        shadowRadius: 15,
+        ...SHADOWS.medium,
     },
     toastText: {
         color: COLORS.error,
-        fontSize: 13,
-        fontWeight: '700',
         flex: 1,
     },
 });
