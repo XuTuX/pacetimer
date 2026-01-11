@@ -1,6 +1,6 @@
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Svg, { Line, Rect } from "react-native-svg";
@@ -37,7 +37,7 @@ export default function AnalysisScreen() {
     const supabase = useSupabase();
     const router = useRouter();
     const { userId } = useAuth();
-    const { id, initialExamId } = useLocalSearchParams<{ id: string, initialExamId?: string }>();
+    const { id, initialExamId } = useGlobalSearchParams<{ id: string, initialExamId?: string }>();
     const roomId = Array.isArray(id) ? id[0] : id;
     const { width } = useWindowDimensions();
 
@@ -54,8 +54,8 @@ export default function AnalysisScreen() {
         }
     }, [initialExamId]);
 
-    const loadExams = useCallback(async () => {
-        if (!roomId) {
+    const loadExams = useCallback(async (shouldSelectDefault = true) => {
+        if (!roomId || roomId === 'undefined') {
             setLoading(false);
             return;
         }
@@ -71,17 +71,20 @@ export default function AnalysisScreen() {
             setExams(fetchedExams);
 
             if (fetchedExams.length > 0) {
-                if (!selectedExamId) {
+                if (shouldSelectDefault && !selectedExamId) {
                     setSelectedExamId(fetchedExams[0].id);
+                } else if (!shouldSelectDefault && !selectedExamId) {
+                    // Even if not selecting default, we need to stop loading if no ID is set
+                    setLoading(false);
                 }
             } else {
                 setLoading(false);
             }
         } catch (err: any) {
-            console.error(err);
+            console.error("loadExams error:", err);
             setLoading(false);
         }
-    }, [roomId, supabase]);
+    }, [roomId, supabase, selectedExamId]);
 
     const loadExamData = useCallback(async (examId: string) => {
         setLoading(true);
@@ -144,16 +147,21 @@ export default function AnalysisScreen() {
 
     useFocusEffect(
         useCallback(() => {
-            loadExams();
-        }, [loadExams])
-    );
-
-    useFocusEffect(
-        useCallback(() => {
-            if (selectedExamId) {
-                loadExamData(selectedExamId);
-            }
-        }, [selectedExamId, loadExamData])
+            const init = async () => {
+                // If we don't even have exams list, fetch it first
+                if (exams.length === 0) {
+                    setLoading(true);
+                    await loadExams();
+                } else if (selectedExamId) {
+                    // If we have exams and a selected one, load its data
+                    await loadExamData(selectedExamId);
+                } else {
+                    // No exams or no selection
+                    setLoading(false);
+                }
+            };
+            init();
+        }, [roomId, selectedExamId, exams.length, loadExams, loadExamData])
     );
 
     const exam = useMemo(() => exams.find(e => e.id === selectedExamId), [exams, selectedExamId]);
