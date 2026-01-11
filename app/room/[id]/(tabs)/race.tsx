@@ -1,7 +1,7 @@
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useGlobalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
 import type { Database } from "../../../../lib/db-types";
@@ -83,6 +83,21 @@ export default function RaceScreen() {
         }, [loadData])
     );
 
+    const getSubject = (title: string) => {
+        const match = title.match(/^\[(.*?)\]/);
+        return match ? match[1] : "기타";
+    };
+
+    const groupedExams = useMemo(() => {
+        const groups: Record<string, RoomExamRow[]> = {};
+        exams.forEach(exam => {
+            const subject = getSubject(exam.title);
+            if (!groups[subject]) groups[subject] = [];
+            groups[subject].push(exam);
+        });
+        return groups;
+    }, [exams]);
+
     const canCreateExam = true;
 
     if (loading && exams.length === 0) {
@@ -117,14 +132,8 @@ export default function RaceScreen() {
             />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                {/* Exam Grid Section */}
-                <View style={styles.gridSection}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionLabel}>시험 목록</Text>
-                        <Text style={styles.gridCount}>{exams.length}건</Text>
-                    </View>
-
-                    {exams.length === 0 ? (
+                {exams.length === 0 ? (
+                    <View style={styles.emptyExamsContainer}>
                         <View style={styles.emptyExams}>
                             <Ionicons name="document-text-outline" size={48} color={COLORS.border} />
                             <Text style={styles.emptyExamsText}>등록된 시험이 없습니다.</Text>
@@ -137,60 +146,76 @@ export default function RaceScreen() {
                                 </Pressable>
                             )}
                         </View>
-                    ) : (
-                        <View style={styles.gridContainer}>
-                            {exams.map((item) => {
-                                const attempt = myAttempts.find(a => a.exam_id === item.id);
-                                const isCompleted = !!attempt?.ended_at;
-                                const isInProgress = !!attempt && !attempt.ended_at;
+                    </View>
+                ) : (
+                    (Object.entries(groupedExams) as [string, RoomExamRow[]][]).map(([subject, subjectExams]) => (
+                        <View key={subject} style={styles.subjectSection}>
+                            <View style={styles.subjectHeader}>
+                                <View style={styles.subjectIconBox}>
+                                    <Ionicons name="library" size={16} color={COLORS.primary} />
+                                </View>
+                                <Text style={styles.subjectTitle}>{subject}</Text>
+                                <View style={styles.subjectCountBadge}>
+                                    <Text style={styles.subjectCountText}>{subjectExams.length}</Text>
+                                </View>
+                            </View>
 
-                                return (
-                                    <Pressable
-                                        key={item.id}
-                                        onPress={() => {
-                                            if (isCompleted) {
-                                                router.push({
-                                                    pathname: `/room/${roomId}/analysis` as any,
-                                                    params: { initialExamId: item.id }
-                                                });
-                                            } else {
-                                                router.push(`/room/${roomId}/exam/${item.id}/run`);
-                                            }
-                                        }}
-                                        style={({ pressed }) => [
-                                            styles.gridItem,
-                                            pressed && { opacity: 0.8, transform: [{ scale: 0.95 }] },
-                                            isCompleted && styles.gridItemCompleted
-                                        ]}
-                                    >
-                                        <View style={[
-                                            styles.iconBox,
-                                            isCompleted ? styles.iconBoxCompleted : (isInProgress ? styles.iconBoxProgress : null)
-                                        ]}>
-                                            <Ionicons
-                                                name={isCompleted ? "checkmark-circle" : (isInProgress ? "play" : "document-text")}
-                                                size={28}
-                                                color={isCompleted ? COLORS.success : (isInProgress ? COLORS.warning : COLORS.primary)}
-                                            />
-                                        </View>
-                                        <Text style={styles.itemTitle} numberOfLines={2}>{item.title}</Text>
-                                        <Text style={styles.itemMeta}>{item.total_questions}문항</Text>
+                            <View style={styles.gridContainer}>
+                                {subjectExams.map((item) => {
+                                    const attempt = myAttempts.find(a => a.exam_id === item.id);
+                                    const isCompleted = !!attempt?.ended_at;
+                                    const isInProgress = !!attempt && !attempt.ended_at;
 
-                                        {isCompleted ? (
-                                            <View style={styles.completedBadge}>
-                                                <Text style={styles.completedText}>분석보기</Text>
+                                    return (
+                                        <Pressable
+                                            key={item.id}
+                                            onPress={() => {
+                                                if (isCompleted) {
+                                                    router.push({
+                                                        pathname: `/room/${roomId}/analysis` as any,
+                                                        params: { initialExamId: item.id }
+                                                    });
+                                                } else {
+                                                    router.push(`/room/${roomId}/exam/${item.id}/run`);
+                                                }
+                                            }}
+                                            style={({ pressed }) => [
+                                                styles.gridItem,
+                                                pressed && { opacity: 0.8, transform: [{ scale: 0.95 }] },
+                                                isCompleted && styles.gridItemCompleted
+                                            ]}
+                                        >
+                                            <View style={[
+                                                styles.iconBox,
+                                                isCompleted ? styles.iconBoxCompleted : (isInProgress ? styles.iconBoxProgress : null)
+                                            ]}>
+                                                <Ionicons
+                                                    name={isCompleted ? "checkmark-circle" : (isInProgress ? "play" : "document-text")}
+                                                    size={24}
+                                                    color={isCompleted ? COLORS.success : (isInProgress ? COLORS.warning : COLORS.primary)}
+                                                />
                                             </View>
-                                        ) : isInProgress ? (
-                                            <View style={[styles.completedBadge, { borderColor: COLORS.warning }]}>
-                                                <Text style={[styles.completedText, { color: COLORS.warning }]}>진행중</Text>
-                                            </View>
-                                        ) : null}
-                                    </Pressable>
-                                );
-                            })}
+                                            <Text style={styles.itemTitle} numberOfLines={2}>
+                                                {item.title.replace(/^\[.*?\]\s*/, "")}
+                                            </Text>
+                                            <Text style={styles.itemMeta}>{item.total_questions}문항</Text>
+
+                                            {isCompleted ? (
+                                                <View style={styles.completedBadge}>
+                                                    <Text style={styles.completedText}>분석보기</Text>
+                                                </View>
+                                            ) : isInProgress ? (
+                                                <View style={[styles.completedBadge, { borderColor: COLORS.warning }]}>
+                                                    <Text style={[styles.completedText, { color: COLORS.warning }]}>진행중</Text>
+                                                </View>
+                                            ) : null}
+                                        </Pressable>
+                                    );
+                                })}
+                            </View>
                         </View>
-                    )}
-                </View>
+                    ))
+                )}
             </ScrollView>
         </View>
     );
@@ -212,26 +237,42 @@ const styles = StyleSheet.create({
     headerAddBtn: {
         padding: 4,
     },
-    gridSection: {
-        padding: 20,
+    subjectSection: {
+        paddingHorizontal: 20,
+        paddingTop: 24,
     },
-    sectionHeader: {
+    subjectHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 20,
-        paddingHorizontal: 4,
+        marginBottom: 16,
+        gap: 8,
     },
-    sectionLabel: {
-        fontSize: 15,
-        fontWeight: '800',
+    subjectIconBox: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        backgroundColor: COLORS.white,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    subjectTitle: {
+        fontSize: 16,
+        fontWeight: '900',
         color: COLORS.text,
         letterSpacing: -0.5,
     },
-    gridCount: {
-        fontSize: 13,
+    subjectCountBadge: {
+        backgroundColor: COLORS.surfaceVariant,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 10,
+    },
+    subjectCountText: {
+        fontSize: 11,
+        fontWeight: '800',
         color: COLORS.textMuted,
-        fontWeight: '600',
     },
     gridContainer: {
         flexDirection: 'row',
@@ -299,6 +340,10 @@ const styles = StyleSheet.create({
         fontSize: 8,
         fontWeight: '800',
         color: COLORS.textMuted,
+    },
+    emptyExamsContainer: {
+        padding: 20,
+        paddingTop: 40,
     },
     emptyExams: {
         padding: 60,

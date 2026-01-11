@@ -6,6 +6,7 @@ import React, { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenHeader } from "../../components/ui/ScreenHeader";
+import { useAppStore } from "../../lib/store";
 import { useSupabase } from "../../lib/supabase";
 import { formatSupabaseError } from "../../lib/supabaseError";
 import { COLORS } from "../../lib/theme";
@@ -17,11 +18,15 @@ export default function AddExamScreen() {
     const { id } = useGlobalSearchParams<{ id: string }>();
     const roomId = Array.isArray(id) ? id[0] : id;
 
+    const { subjects, activeSubjectId } = useAppStore();
+
     const [title, setTitle] = useState("");
     const [questions, setQuestions] = useState("30");
     const [minutes, setMinutes] = useState("100");
+    const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(activeSubjectId || (subjects.length > 0 ? subjects[0].id : null));
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isSubjectDropdownOpen, setIsSubjectDropdownOpen] = useState(false);
 
     const canSave = title.trim().length > 0 &&
         parseInt(questions) > 0 &&
@@ -48,11 +53,14 @@ export default function AddExamScreen() {
 
             if (memberError) throw memberError;
 
+            const subject = subjects.find(s => s.id === selectedSubjectId);
+            const finalTitle = subject ? `[${subject.name}] ${title.trim()}` : title.trim();
+
             const { error } = await supabase
                 .from("room_exams")
                 .insert({
                     room_id: roomId,
-                    title: title.trim(),
+                    title: finalTitle,
                     total_questions: parseInt(questions),
                     total_minutes: parseInt(minutes),
                     created_by: userId,
@@ -101,6 +109,50 @@ export default function AddExamScreen() {
                     </LinearGradient>
 
                     <View style={styles.formCard}>
+                        {/* Subject Selector */}
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>과목 선택</Text>
+                            <View style={{ zIndex: 10 }}>
+                                <Pressable
+                                    style={[styles.inputWrapper, isSubjectDropdownOpen && { borderColor: COLORS.primary }]}
+                                    onPress={() => setIsSubjectDropdownOpen(!isSubjectDropdownOpen)}
+                                >
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                        <Ionicons name="library-outline" size={20} color={COLORS.textMuted} style={styles.inputIcon} />
+                                        <Text style={[styles.input, !selectedSubjectId && { color: COLORS.textMuted }]}>
+                                            {subjects.find(s => s.id === selectedSubjectId)?.name || "과목을 선택하세요"}
+                                        </Text>
+                                    </View>
+                                    <Ionicons name={isSubjectDropdownOpen ? "chevron-up" : "chevron-down"} size={20} color={COLORS.textMuted} />
+                                </Pressable>
+
+                                {isSubjectDropdownOpen && (
+                                    <View style={styles.dropdownWindow}>
+                                        <ScrollView style={styles.dropdownScroll} bounces={false}>
+                                            {subjects.map(s => (
+                                                <Pressable
+                                                    key={s.id}
+                                                    style={styles.dropdownItem}
+                                                    onPress={() => {
+                                                        setSelectedSubjectId(s.id);
+                                                        setIsSubjectDropdownOpen(false);
+                                                    }}
+                                                >
+                                                    <Text style={[styles.dropdownItemText, selectedSubjectId === s.id && styles.activeItemText]}>{s.name}</Text>
+                                                    {selectedSubjectId === s.id && <Ionicons name="checkmark" size={16} color={COLORS.primary} />}
+                                                </Pressable>
+                                            ))}
+                                            {subjects.length === 0 && (
+                                                <View style={styles.dropdownItem}>
+                                                    <Text style={styles.dropdownItemText}>등록된 과목이 없습니다.</Text>
+                                                </View>
+                                            )}
+                                        </ScrollView>
+                                    </View>
+                                )}
+                            </View>
+                        </View>
+
                         {/* Title Input */}
                         <View style={styles.inputGroup}>
                             <Text style={styles.label}>시험 제목</Text>
@@ -347,5 +399,42 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: '800',
         color: COLORS.white,
+    },
+    // Subject Dropdown
+    dropdownWindow: {
+        position: 'absolute',
+        top: 62,
+        left: 0,
+        right: 0,
+        backgroundColor: COLORS.white,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: COLORS.primary,
+        maxHeight: 200,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 15,
+        elevation: 10,
+        zIndex: 1000,
+    },
+    dropdownScroll: {
+        padding: 8,
+    },
+    dropdownItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 14,
+        borderRadius: 12,
+    },
+    dropdownItemText: {
+        fontSize: 15,
+        color: COLORS.text,
+        fontWeight: '600',
+    },
+    activeItemText: {
+        color: COLORS.primary,
+        fontWeight: '800',
     },
 });

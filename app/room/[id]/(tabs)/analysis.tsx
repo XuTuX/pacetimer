@@ -43,8 +43,10 @@ export default function AnalysisScreen() {
 
     const [exams, setExams] = useState<RoomExamRow[]>([]);
     const [selectedExamId, setSelectedExamId] = useState<string | null>(initialExamId || null);
+    const [selectedSubject, setSelectedSubject] = useState<string>("전체");
     const [loading, setLoading] = useState(true);
     const [participants, setParticipants] = useState<ParticipantResult[]>([]);
+    const [subjectStats, setSubjectStats] = useState<{ subject: string; avgPerQ: number }[]>([]);
     const [error, setError] = useState<string | null>(null);
 
     // React to param changes (e.g. from Race tab)
@@ -85,6 +87,37 @@ export default function AnalysisScreen() {
             setLoading(false);
         }
     }, [roomId, supabase, selectedExamId]);
+
+    const loadRoomStats = useCallback(async () => {
+        try {
+            const { data, error } = await supabase
+                .from("attempts")
+                .select("duration_ms, exam_id, room_exams!inner(id, title, total_questions)")
+                .eq("room_exams.room_id", roomId);
+
+            if (error) throw error;
+
+            const stats: Record<string, { totalTime: number; totalQs: number }> = {};
+            (data as any[]).forEach(a => {
+                const sub = getSubject(a.room_exams.title);
+                if (!stats[sub]) stats[sub] = { totalTime: 0, totalQs: 0 };
+                stats[sub].totalTime += a.duration_ms || 0;
+                stats[sub].totalQs += a.room_exams.total_questions || 0;
+            });
+
+            const formattedStats = Object.entries(stats)
+                .map(([subject, data]) => ({
+                    subject,
+                    avgPerQ: data.totalQs > 0 ? data.totalTime / data.totalQs : 0
+                }))
+                .filter(s => s.avgPerQ > 0)
+                .sort((a, b) => a.avgPerQ - b.avgPerQ);
+
+            setSubjectStats(formattedStats);
+        } catch (err) {
+            console.error("loadRoomStats error:", err);
+        }
+    }, [roomId, supabase]);
 
     const loadExamData = useCallback(async (examId: string) => {
         setLoading(true);
@@ -152,6 +185,7 @@ export default function AnalysisScreen() {
                 if (exams.length === 0) {
                     setLoading(true);
                     await loadExams();
+                    await loadRoomStats();
                 } else if (selectedExamId) {
                     // If we have exams and a selected one, load its data
                     await loadExamData(selectedExamId);
@@ -163,6 +197,22 @@ export default function AnalysisScreen() {
             init();
         }, [roomId, selectedExamId, exams.length, loadExams, loadExamData])
     );
+
+    const getSubject = (title: string) => {
+        const match = title.match(/^\[(.*?)\]/);
+        return match ? match[1] : "기타";
+    };
+
+    const uniqueSubjects = useMemo(() => {
+        const set = new Set<string>();
+        exams.forEach(e => set.add(getSubject(e.title)));
+        return ["전체", ...Array.from(set)];
+    }, [exams]);
+
+    const filteredExams = useMemo(() => {
+        if (selectedSubject === "전체") return exams;
+        return exams.filter(e => getSubject(e.title) === selectedSubject);
+    }, [exams, selectedSubject]);
 
     const exam = useMemo(() => exams.find(e => e.id === selectedExamId), [exams, selectedExamId]);
 
@@ -249,6 +299,23 @@ export default function AnalysisScreen() {
             <ScreenHeader title="분석" showBack={false} />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                {/* Subject Filter Chips */}
+                {uniqueSubjects.length > 2 && (
+                    <View style={styles.chipSection}>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipScroll}>
+                            {uniqueSubjects.map(s => (
+                                <Pressable
+                                    key={s}
+                                    onPress={() => setSelectedSubject(s)}
+                                    style={[styles.chip, selectedSubject === s && styles.activeChip]}
+                                >
+                                    <Text style={[styles.chipText, selectedSubject === s && styles.activeChipText]}>{s}</Text>
+                                </Pressable>
+                            ))}
+                        </ScrollView>
+                    </View>
+                )}
+
                 {/* Exam Selector */}
                 <View style={styles.selectorSection}>
                     <Text style={styles.sectionLabel}>시험 선택</Text>
@@ -257,7 +324,7 @@ export default function AnalysisScreen() {
                         showsHorizontalScrollIndicator={false}
                         contentContainerStyle={styles.examSelectorScroll}
                     >
-                        {exams.map((e) => (
+                        {filteredExams.map((e) => (
                             <Pressable
                                 key={e.id}
                                 onPress={() => setSelectedExamId(e.id)}
@@ -281,7 +348,36 @@ export default function AnalysisScreen() {
                             </Pressable>
                         ))}
                     </ScrollView>
+                    {filteredExams.length === 0 && exams.length > 0 && (
+                        <Text style={styles.emptyFilterText}>해당 과목에 등록된 시험이 없습니다.</Text>
+                    )}
                 </View>
+
+                {/* Subject Performance Comparison */}
+                {subjectStats.length > 1 && (
+                    <View style={styles.section}>
+                        <View style={styles.sectionHeaderRow}>
+                            <Text style={styles.sectionLabel}>과목별 페이스 비교 (문항당 소요)</Text>
+                            <Ionicons name="trending-up" size={18} color={COLORS.primary} />
+                        </View>
+                        <View style={styles.statsList}>
+                            {subjectStats.map((s, idx) => (
+                                <View key={s.subject} style={styles.subStatRow}>
+                                    <View style={styles.subStatInfo}>
+                                        <View style={[styles.rankBadge, idx === 0 && styles.rankBadgeFirst]}>
+                                            <Text style={[styles.rankBadgeText, idx === 0 && styles.rankBadgeTextFirst]}>{idx + 1}</Text>
+                                        </View>
+                                        <Text style={styles.subStatName}>{s.subject}</Text>
+                                    </View>
+                                    <View style={styles.subStatValueBox}>
+                                        <Text style={styles.subStatValue}>{formatDuration(s.avgPerQ)}</Text>
+                                        <Text style={styles.subStatUnit}>/문항</Text>
+                                    </View>
+                                </View>
+                            ))}
+                        </View>
+                    </View>
+                )}
 
                 {loading ? (
                     <View style={styles.centerLoading}>
@@ -534,8 +630,103 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         gap: 12,
     },
+    // Subject Chips
+    chipSection: {
+        marginTop: 16,
+        marginBottom: 8,
+    },
+    chipScroll: {
+        paddingHorizontal: 20,
+        gap: 8,
+    },
+    chip: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: COLORS.white,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    activeChip: {
+        backgroundColor: COLORS.primary,
+        borderColor: COLORS.primary,
+    },
+    chipText: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: COLORS.textMuted,
+    },
+    activeChipText: {
+        color: COLORS.white,
+    },
     section: {
         paddingHorizontal: 20,
+        marginBottom: 24,
+    },
+    emptyFilterText: {
+        textAlign: 'center',
+        fontSize: 13,
+        color: COLORS.textMuted,
+        marginTop: 8,
+    },
+    // Subject Performance Styles
+    statsList: {
+        backgroundColor: COLORS.surface,
+        borderRadius: 24,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        gap: 12,
+    },
+    subStatRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 8,
+    },
+    subStatInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    rankBadge: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: COLORS.surfaceVariant,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    rankBadgeFirst: {
+        backgroundColor: COLORS.primary,
+    },
+    rankBadgeText: {
+        fontSize: 12,
+        fontWeight: '900',
+        color: COLORS.textMuted,
+    },
+    rankBadgeTextFirst: {
+        color: COLORS.white,
+    },
+    subStatName: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: COLORS.text,
+    },
+    subStatValueBox: {
+        flexDirection: 'row',
+        alignItems: 'baseline',
+        gap: 2,
+    },
+    subStatValue: {
+        fontSize: 15,
+        fontWeight: '800',
+        color: COLORS.primary,
+    },
+    subStatUnit: {
+        fontSize: 11,
+        color: COLORS.textMuted,
+        fontWeight: '600',
     },
     sectionHeaderRow: {
         flexDirection: 'row',
