@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet } from 'react-native';
-import { COLORS, SPACING } from '../../lib/design-system';
+import { COLORS, SPACING } from '../../lib/theme';
 import { Card } from './Card';
 import { Typography } from './Typography';
 

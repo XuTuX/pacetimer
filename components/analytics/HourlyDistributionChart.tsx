@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { DateRange } from '../../lib/analytics-utils';
 import { formatDurationMs } from '../../lib/studyDate';
-import { COLORS } from '../../lib/theme';
+import { COLORS, RADIUS, SPACING } from '../../lib/theme';
+import { Card } from '../ui/Card';
+import { ThemedText } from '../ui/ThemedText';
 
 interface Props {
     hourlyDuration: number[]; // 24 values (ms)
@@ -51,17 +53,17 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
     };
 
     return (
-        <View style={styles.container}>
+        <Card variant="outlined" padding="lg" radius="xxl" style={styles.container}>
             <View style={styles.header}>
                 <View style={{ flex: 1 }}>
-                    <Text style={styles.title}>시간대별 분포</Text>
+                    <ThemedText variant="h3">시간대별 분포</ThemedText>
                     {hasData && (
-                        <Text style={styles.subtitle}>
+                        <ThemedText variant="caption" color={COLORS.textMuted} style={styles.subtitle}>
                             {selectedHour !== null
                                 ? `${selectedHour}시: ${formatValue(data[selectedHour])}`
                                 : `${rangeText} ${peakHour}시에 가장 ${mode === 'time' ? '많이 집중했어요' : '많은 문제를 풀었어요'}`
                             }
-                        </Text>
+                        </ThemedText>
                     )}
                 </View>
                 <View style={styles.toggleContainer}>
@@ -72,7 +74,7 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
                             setSelectedHour(null);
                         }}
                     >
-                        <Text style={[styles.toggleText, mode === 'time' && styles.toggleTextActive]}>시간</Text>
+                        <ThemedText variant="label" color={mode === 'time' ? COLORS.primary : COLORS.textMuted}>시간</ThemedText>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.toggleButton, mode === 'questions' && styles.toggleButtonActive]}
@@ -81,7 +83,7 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
                             setSelectedHour(null);
                         }}
                     >
-                        <Text style={[styles.toggleText, mode === 'questions' && styles.toggleTextActive]}>문제</Text>
+                        <ThemedText variant="label" color={mode === 'questions' ? COLORS.primary : COLORS.textMuted}>문제</ThemedText>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -90,7 +92,7 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
                 {gridData.map((row, rowIndex) => (
                     <View key={rowIndex} style={styles.row}>
                         <View style={styles.rowLabelContainer}>
-                            <Text style={styles.rowLabel}>{row.label}</Text>
+                            <ThemedText variant="caption" bold color={COLORS.textMuted}>{row.label}</ThemedText>
                         </View>
                         <View style={styles.boxes}>
                             {row.hours.map((h) => {
@@ -107,14 +109,14 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
                                         ]}
                                         onPress={() => setSelectedHour(selectedHour === h ? null : h)}
                                     >
-                                        <Text
+                                        <ThemedText
                                             style={[
                                                 styles.hourText,
                                                 { color: getIntensityTextColor(val) }
                                             ]}
                                         >
                                             {h}
-                                        </Text>
+                                        </ThemedText>
                                     </TouchableOpacity>
                                 );
                             })}
@@ -124,7 +126,7 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
             </View>
 
             <View style={styles.legend}>
-                <Text style={styles.legendText}>적음</Text>
+                <ThemedText variant="caption" color={COLORS.textMuted} bold>적음</ThemedText>
                 <View style={styles.legendSteps}>
                     {[0, 0.2, 0.5, 0.9].map((lvl, i) => (
                         <View
@@ -136,54 +138,41 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
                         />
                     ))}
                 </View>
-                <Text style={styles.legendText}>많음</Text>
+                <ThemedText variant="caption" color={COLORS.textMuted} bold>많음</ThemedText>
             </View>
 
             {!hasData && (
                 <View style={styles.emptyOverlay}>
-                    <Text style={styles.emptyText}>학습 데이터가 없습니다</Text>
+                    <ThemedText variant="body2" color={COLORS.textMuted} bold>학습 데이터가 없습니다</ThemedText>
                 </View>
             )}
-        </View>
+        </Card>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
-        marginHorizontal: 24,
-        padding: 24,
-        backgroundColor: COLORS.white,
-        borderRadius: 32,
-        borderWidth: 1,
-        borderColor: COLORS.border,
+        // Handled by Card
     },
     header: {
-        marginBottom: 20,
+        marginBottom: SPACING.xl,
         flexDirection: 'row',
         alignItems: 'flex-start',
         justifyContent: 'space-between',
     },
-    title: {
-        fontSize: 18,
-        fontWeight: '900',
-        color: COLORS.text,
-    },
     subtitle: {
-        fontSize: 13,
-        color: COLORS.textMuted,
-        fontWeight: '600',
         marginTop: 4,
     },
     toggleContainer: {
         flexDirection: 'row',
         backgroundColor: COLORS.surfaceVariant,
         padding: 4,
-        borderRadius: 12,
+        borderRadius: RADIUS.md,
     },
     toggleButton: {
-        paddingHorizontal: 12,
+        paddingHorizontal: SPACING.md,
         paddingVertical: 6,
-        borderRadius: 8,
+        borderRadius: RADIUS.sm,
     },
     toggleButtonActive: {
         backgroundColor: COLORS.white,
@@ -193,29 +182,16 @@ const styles = StyleSheet.create({
         shadowRadius: 2,
         elevation: 1,
     },
-    toggleText: {
-        fontSize: 11,
-        fontWeight: '800',
-        color: COLORS.textMuted,
-    },
-    toggleTextActive: {
-        color: COLORS.primary,
-    },
     gridContainer: {
-        gap: 12,
+        gap: SPACING.md,
     },
     row: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: SPACING.md,
     },
     rowLabelContainer: {
         width: 32,
-    },
-    rowLabel: {
-        fontSize: 12,
-        fontWeight: '800',
-        color: COLORS.textMuted,
     },
     boxes: {
         flex: 1,
@@ -225,7 +201,7 @@ const styles = StyleSheet.create({
     box: {
         flex: 1,
         aspectRatio: 1,
-        borderRadius: 8,
+        borderRadius: RADIUS.sm,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -237,8 +213,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'flex-end',
-        marginTop: 20,
-        gap: 8,
+        marginTop: SPACING.xl,
+        gap: SPACING.sm,
     },
     legendSteps: {
         flexDirection: 'row',
@@ -249,22 +225,12 @@ const styles = StyleSheet.create({
         height: 12,
         borderRadius: 3,
     },
-    legendText: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: COLORS.textMuted,
-    },
     emptyOverlay: {
         ...StyleSheet.absoluteFillObject,
         backgroundColor: 'rgba(255,255,255,0.7)',
-        borderRadius: 32,
+        borderRadius: RADIUS.xxl,
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 10,
-    },
-    emptyText: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: COLORS.textMuted,
     },
 });

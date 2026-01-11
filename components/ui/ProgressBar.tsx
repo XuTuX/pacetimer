@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { COLORS, RADIUS } from '../../lib/design-system';
+import { COLORS, RADIUS } from '../../lib/theme';
 
 interface ProgressBarProps {
     progress: number; // 0 to 1

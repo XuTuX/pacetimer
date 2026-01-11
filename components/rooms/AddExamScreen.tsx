@@ -8,7 +8,7 @@ import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { ScreenHeader } from "../../components/ui/ScreenHeader";
 import { Typography } from "../../components/ui/Typography";
-import { COLORS, RADIUS, SHADOWS, SPACING } from "../../lib/design-system";
+import { COLORS, RADIUS, SHADOWS, SPACING } from "../../lib/theme";
 import { useAppStore } from "../../lib/store";
 import { useSupabase } from "../../lib/supabase";
 import { formatSupabaseError } from "../../lib/supabaseError";

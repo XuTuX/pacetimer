@@ -1,59 +1,41 @@
 import React from 'react';
-import { Pressable, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
-import { COLORS, RADIUS, SHADOWS, SPACING } from '../../lib/design-system';
+import { StyleProp, View, ViewProps, ViewStyle } from 'react-native';
+import { COLORS, RADIUS, SHADOWS, SPACING } from '../../lib/theme';
 
-interface CardProps {
-    children: React.ReactNode;
-    style?: StyleProp<ViewStyle>;
-    onPress?: () => void;
+interface CardProps extends ViewProps {
+    variant?: 'flat' | 'elevated' | 'outlined';
     padding?: keyof typeof SPACING;
-    radius?: keyof typeof RADIUS;
-    variant?: 'elevated' | 'flat' | 'outline';
-    backgroundColor?: string;
 }
 
 export function Card({
     children,
     style,
-    onPress,
-    padding = 'lg',
-    radius = 'lg',
     variant = 'elevated',
-    backgroundColor = COLORS.surface,
+    padding = 'lg',
+    ...rest
 }: CardProps) {
-    const Component = onPress ? Pressable : View;
+
+    const getStyle = (): StyleProp<ViewStyle> => {
+        const base: ViewStyle = {
+            backgroundColor: COLORS.surface,
+            borderRadius: RADIUS.xl, // Default to XL for cards (modern look)
+            padding: SPACING[padding],
+        };
+
+        switch (variant) {
+            case 'elevated':
+                return [base, SHADOWS.medium, style];
+            case 'outlined':
+                return [base, { borderWidth: 1, borderColor: COLORS.border }, style];
+            case 'flat':
+            default:
+                return [base, style];
+        }
+    };
 
     return (
-        <Component
-            onPress={onPress}
-            style={({ pressed }: any) => [
-                styles.base,
-                {
-                    padding: SPACING[padding],
-                    borderRadius: RADIUS[radius],
-                    backgroundColor
-                },
-                variant === 'elevated' && SHADOWS.medium,
-                variant === 'outline' && styles.outline,
-                onPress && pressed && styles.pressed,
-                style,
-            ]}
-        >
+        <View style={getStyle()} {...rest}>
             {children}
-        </Component>
+        </View>
     );
 }
-
-const styles = StyleSheet.create({
-    base: {
-        width: '100%',
-    },
-    outline: {
-        borderWidth: 1,
-        borderColor: COLORS.border,
-    },
-    pressed: {
-        opacity: 0.95,
-        transform: [{ scale: 0.99 }],
-    },
-});

@@ -11,7 +11,7 @@ import { Section } from "../../../../components/ui/Section";
 import { StatCard } from "../../../../components/ui/StatCard";
 import { Typography } from "../../../../components/ui/Typography";
 import type { Database } from "../../../../lib/db-types";
-import { COLORS, SPACING } from "../../../../lib/design-system";
+import { COLORS, SPACING } from "../../../../lib/theme";
 import { useSupabase } from "../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../lib/supabaseError";
 

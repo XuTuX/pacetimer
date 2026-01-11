@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { COLORS, SPACING } from '../../lib/design-system';
+import { COLORS, SPACING } from '../../lib/theme';
 import { Typography } from './Typography';
 
 interface CompareRowProps {

@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import type { SessionStats } from '../../lib/recordsIndex';
 import { formatClockTime, formatDisplayDate, formatDurationMs } from '../../lib/studyDate';
-import { COLORS } from '../../lib/theme';
+import { COLORS, SPACING } from '../../lib/theme';
 import type { Session, Subject } from '../../lib/types';
+import { Card } from '../ui/Card';
+import { ThemedText } from '../ui/ThemedText';
 
 function getModeInfo(mode: Session['mode']) {
     if (mode === 'problem-solving') return { label: 'PERSONAL', color: '#8E8E93', icon: 'person' as const };
@@ -44,8 +46,8 @@ export default function DayDetail({ sessions, sessionStatsById, subjectsById, on
         <View style={styles.container}>
             <View style={styles.header}>
                 <View style={styles.headerTextWrapper}>
-                    <Text style={styles.dateLabel}>{formatDisplayDate(date, nowMs)}</Text>
-                    <Text style={styles.sessionCount}>{sessions.length} sessions recorded</Text>
+                    <ThemedText variant="h2" style={styles.dateLabel}>{formatDisplayDate(date, nowMs)}</ThemedText>
+                    <ThemedText variant="label" style={styles.sessionCount}>{sessions.length} sessions recorded</ThemedText>
                 </View>
                 <View style={styles.headerLine} />
             </View>
@@ -55,7 +57,7 @@ export default function DayDetail({ sessions, sessionStatsById, subjectsById, on
                     <View style={styles.emptyIconCircle}>
                         <Ionicons name="calendar-clear-outline" size={28} color={COLORS.border} />
                     </View>
-                    <Text style={styles.emptyText}>No activity for this day</Text>
+                    <ThemedText variant="body2" color={COLORS.textMuted} bold>No activity for this day</ThemedText>
                 </View>
             ) : (
                 <View style={styles.list}>
@@ -70,37 +72,42 @@ export default function DayDetail({ sessions, sessionStatsById, subjectsById, on
                         const moreCount = (stats?.subjectIds ?? []).length - subjectList.length;
 
                         return (
-                            <TouchableOpacity
+                            <Pressable
                                 key={s.id}
-                                style={styles.card}
                                 onPress={() => onOpenSession(s.id)}
-                                activeOpacity={0.6}
                             >
-                                <View style={styles.cardHeader}>
-                                    <View style={styles.titleArea}>
-                                        <View style={styles.modeIndicator}>
-                                            <Ionicons name={isRoom ? 'people' : modeInfo.icon} size={12} color={isRoom ? COLORS.primary : modeInfo.color} />
-                                            <Text style={[styles.modeLabel, { color: isRoom ? COLORS.primary : modeInfo.color }]}>
-                                                {isRoom ? 'ROOM' : modeInfo.label}
-                                            </Text>
+                                <Card variant="elevated" radius="lg" padding="lg">
+                                    <View style={styles.cardHeader}>
+                                        <View style={styles.titleArea}>
+                                            <View style={styles.modeIndicator}>
+                                                <Ionicons name={isRoom ? 'people' : modeInfo.icon} size={12} color={isRoom ? COLORS.primary : modeInfo.color} />
+                                                <ThemedText
+                                                    variant="label"
+                                                    color={isRoom ? COLORS.primary : modeInfo.color}
+                                                >
+                                                    {isRoom ? 'ROOM' : modeInfo.label}
+                                                </ThemedText>
+                                            </View>
+                                            <ThemedText variant="h3" numberOfLines={1}>{title}</ThemedText>
                                         </View>
-                                        <Text style={styles.sessionTitle} numberOfLines={1}>{title}</Text>
+                                        <ThemedText variant="h3" color={COLORS.primary} style={styles.durationValue}>
+                                            {formatDurationMs(stats?.durationMs ?? 0)}
+                                        </ThemedText>
                                     </View>
-                                    <Text style={styles.durationValue}>{formatDurationMs(stats?.durationMs ?? 0)}</Text>
-                                </View>
 
-                                <View style={styles.cardFooter}>
-                                    <View style={styles.metaInfo}>
-                                        <Text style={styles.timeText}>{formatClockTime(s.startedAt)}</Text>
-                                        <View style={styles.dot} />
-                                        <Text style={styles.subjectText} numberOfLines={1}>
-                                            {subjectsDisplay}
-                                            {moreCount > 0 && <Text style={styles.moreText}> +{moreCount}</Text>}
-                                        </Text>
+                                    <View style={styles.cardFooter}>
+                                        <View style={styles.metaInfo}>
+                                            <ThemedText variant="caption" color={COLORS.textMuted} bold>{formatClockTime(s.startedAt)}</ThemedText>
+                                            <View style={styles.dot} />
+                                            <ThemedText variant="caption" color={COLORS.textMuted} bold numberOfLines={1} style={styles.subjectText}>
+                                                {subjectsDisplay}
+                                                {moreCount > 0 && <ThemedText variant="caption" color={COLORS.primary} bold> +{moreCount}</ThemedText>}
+                                            </ThemedText>
+                                        </View>
+                                        <Ionicons name="chevron-forward" size={12} color={COLORS.border} />
                                     </View>
-                                    <Ionicons name="chevron-forward" size={12} color={COLORS.border} />
-                                </View>
-                            </TouchableOpacity>
+                                </Card>
+                            </Pressable>
                         );
                     })}
                 </View>
@@ -111,30 +118,22 @@ export default function DayDetail({ sessions, sessionStatsById, subjectsById, on
 
 const styles = StyleSheet.create({
     container: {
-        paddingBottom: 20,
+        paddingBottom: SPACING.xl,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 24,
+        marginBottom: SPACING.xxl,
         paddingHorizontal: 4,
     },
     headerTextWrapper: {
-        marginRight: 16,
+        marginRight: SPACING.lg,
     },
     dateLabel: {
-        fontSize: 22,
-        fontWeight: '900',
-        color: COLORS.text,
-        letterSpacing: -0.8,
         marginBottom: 2,
     },
     sessionCount: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: COLORS.textMuted,
         textTransform: 'uppercase',
-        letterSpacing: 0.5,
     },
     headerLine: {
         flex: 1,
@@ -143,26 +142,13 @@ const styles = StyleSheet.create({
         opacity: 0.5,
     },
     list: {
-        gap: 12,
-    },
-    card: {
-        backgroundColor: COLORS.white,
-        borderRadius: 20,
-        padding: 20,
-        // Using a more structured shadow and border combo
-        borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.03)',
-        shadowColor: 'rgba(0,0,0,1)',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.03,
-        shadowRadius: 10,
-        elevation: 1,
+        gap: SPACING.md,
     },
     cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        marginBottom: 16,
+        marginBottom: SPACING.lg,
     },
     titleArea: {
         flex: 1,
@@ -174,21 +160,7 @@ const styles = StyleSheet.create({
         gap: 4,
         marginBottom: 6,
     },
-    modeLabel: {
-        fontSize: 10,
-        fontWeight: '900',
-        letterSpacing: 0.8,
-    },
-    sessionTitle: {
-        fontSize: 18,
-        fontWeight: '800',
-        color: COLORS.text,
-        letterSpacing: -0.4,
-    },
     durationValue: {
-        fontSize: 16,
-        fontWeight: '900',
-        color: COLORS.primary,
         fontVariant: ['tabular-nums'],
     },
     cardFooter: {
@@ -201,11 +173,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         flex: 1,
     },
-    timeText: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: COLORS.textMuted,
-    },
     dot: {
         width: 3,
         height: 3,
@@ -214,14 +181,7 @@ const styles = StyleSheet.create({
         marginHorizontal: 8,
     },
     subjectText: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: COLORS.textMuted,
         flex: 1,
-    },
-    moreText: {
-        color: COLORS.primary,
-        fontWeight: '800',
     },
     emptyState: {
         alignItems: 'center',
@@ -237,10 +197,5 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 16,
-    },
-    emptyText: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: COLORS.textMuted,
     },
 });

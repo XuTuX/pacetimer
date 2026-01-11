@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Tabs, useGlobalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Platform } from "react-native";
-import { COLORS, SHADOWS } from "../../../../lib/design-system";
+import { COLORS, SHADOWS } from "../../../../lib/theme";
 import { useSupabase } from "../../../../lib/supabase";
 
 export default function RoomTabsLayout() {

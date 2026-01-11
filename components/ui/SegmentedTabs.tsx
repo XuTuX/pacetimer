@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { COLORS, RADIUS, SHADOWS, SPACING } from '../../lib/design-system';
+import { COLORS, RADIUS, SHADOWS, SPACING } from '../../lib/theme';
 import { Typography } from './Typography';
 
 interface SegmentedTabsProps {

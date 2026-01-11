@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { COLORS, RADIUS, SPACING } from '../../lib/design-system';
+import { COLORS, RADIUS, SPACING } from '../../lib/theme';
 import { Card } from './Card';
 import { RankBadge } from './RankBadge';
 import { StatusBadge, StatusType } from './StatusBadge';

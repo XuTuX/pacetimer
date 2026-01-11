@@ -10,9 +10,9 @@ import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
 import { Section } from "../../../../components/ui/Section";
 import { Typography } from "../../../../components/ui/Typography";
 import type { Database } from "../../../../lib/db-types";
-import { COLORS, SHADOWS, SPACING } from "../../../../lib/design-system";
 import { useSupabase } from "../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../lib/supabaseError";
+import { COLORS, SHADOWS, SPACING } from "../../../../lib/theme";
 
 type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
 type RoomMemberRow = Database["public"]["Tables"]["room_members"]["Row"];

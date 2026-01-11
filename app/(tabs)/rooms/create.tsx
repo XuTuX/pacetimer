@@ -28,18 +28,26 @@ export default function RoomsCreateScreen() {
         setError(null);
 
         try {
+            const trimmedName = name.trim();
+            const trimmedDescription = description.trim();
+
             // 1. Create Room
             const { data: roomData, error: createError } = await supabase
                 .from("rooms")
                 .insert({
-                    name: name.trim(),
-                    description: description.trim() || null,
+                    name: trimmedName,
+                    description: trimmedDescription || null,
                     owner_id: userId
                 })
                 .select("*")
                 .single();
 
             if (createError) throw createError;
+            if (!roomData) {
+                throw new Error("룸 생성에 실패했습니다. 다시 시도해주세요.");
+            }
+
+            const roomId = roomData.id;
 
             // 2. Auto-join as participant (The host is implicitly a participant too?)
             // Usually good practice to add them to participants table for consistent querying, 
@@ -47,13 +55,13 @@ export default function RoomsCreateScreen() {
             const { error: joinError } = await supabase
                 .from("room_members")
                 .upsert(
-                    { room_id: roomData.id, user_id: userId },
+                    { room_id: roomId, user_id: userId },
                     { onConflict: "room_id,user_id", ignoreDuplicates: true },
                 );
 
             if (joinError) throw joinError;
 
-            router.replace(`/room/${roomData.id}`);
+            router.replace(`/room/${roomId}`);
         } catch (err) {
             setError(formatSupabaseError(err));
         } finally {

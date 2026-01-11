@@ -2,13 +2,17 @@ import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { RoomCard } from "../../../components/rooms/RoomCard";
+import { Button } from "../../../components/ui/Button";
+import { Card } from "../../../components/ui/Card";
+import { ScreenHeader } from "../../../components/ui/ScreenHeader";
+import { ThemedText } from "../../../components/ui/ThemedText";
 import type { Database } from "../../../lib/db-types";
 import { useSupabase } from "../../../lib/supabase";
 import { formatSupabaseError } from "../../../lib/supabaseError";
-import { COLORS } from "../../../lib/theme";
+import { COLORS, RADIUS, SPACING } from "../../../lib/theme";
 
 type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
 type RoomMemberRow = Database["public"]["Tables"]["room_members"]["Row"];
@@ -112,28 +116,31 @@ export default function RoomsIndexScreen() {
         router.push(`/room/${id}`);
     };
 
+    const AddButton = (
+        <Pressable
+            onPress={() => router.push("/(tabs)/rooms/create")}
+            style={({ pressed }) => [styles.createBtn, pressed && { transform: [{ scale: 0.95 }] }]}
+        >
+            <Ionicons name="add" size={24} color={COLORS.white} />
+        </Pressable>
+    );
+
     return (
         <SafeAreaView style={styles.container} edges={["top"]}>
-            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-                {/* Header Section */}
-                <View style={styles.header}>
-                    <View>
-                        <Text style={styles.title}>스터디 룸</Text>
-                        <Text style={styles.subtitle}>함께 집중하는 스터디</Text>
-                    </View>
-                    <Pressable
-                        onPress={() => router.push("/(tabs)/rooms/create")}
-                        style={({ pressed }) => [styles.createBtn, pressed && { transform: [{ scale: 0.95 }] }]}
-                    >
-                        <Ionicons name="add" size={24} color={COLORS.white} />
-                    </Pressable>
-                </View>
+            <ScreenHeader
+                title="스터디 룸"
+                subtitle="함께 집중하는 스터디"
+                rightElement={AddButton}
+                showBack={false}
+                style={{ borderBottomWidth: 0, paddingBottom: SPACING.sm }}
+            />
 
+            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 {/* List Header */}
                 <View style={styles.listHeaderSection}>
                     <View style={styles.listInfo}>
-                        <Text style={styles.sectionLabel}>나의 스터디 공간</Text>
-                        <Text style={styles.listTitle}>내 활성 룸</Text>
+                        <ThemedText variant="label" color={COLORS.textMuted} style={styles.sectionLabel}>나의 스터디 공간</ThemedText>
+                        <ThemedText variant="h2" style={styles.listTitle}>내 활성 룸</ThemedText>
                     </View>
                     {loading && <ActivityIndicator size="small" color={COLORS.primary} />}
                 </View>
@@ -141,21 +148,20 @@ export default function RoomsIndexScreen() {
                 {/* Rooms List */}
                 <View style={styles.listSection}>
                     {hasLoadedOnce && rooms.length === 0 ? (
-                        <View style={styles.emptyCard}>
+                        <Card variant="outlined" style={styles.emptyCard} padding="xl">
                             <View style={styles.emptyIconCircle}>
                                 <Ionicons name="school-outline" size={32} color={COLORS.primary} />
                             </View>
-                            <Text style={styles.emptyTitle}>참여 중인 룸이 없습니다</Text>
-                            <Text style={styles.emptySubtitle}>
+                            <ThemedText variant="h3" style={styles.emptyTitle}>참여 중인 룸이 없습니다</ThemedText>
+                            <ThemedText variant="body2" color={COLORS.textMuted} align="center" style={styles.emptySubtitle}>
                                 초대 링크를 통해 룸에 입장하거나{"\n"}직접 새로운 룸을 만들어보세요.
-                            </Text>
-                            <Pressable
-                                style={styles.emptyAction}
+                            </ThemedText>
+                            <Button
+                                label="새 룸 만들기"
                                 onPress={() => router.push("/(tabs)/rooms/create")}
-                            >
-                                <Text style={styles.emptyActionText}>새 룸 만들기</Text>
-                            </Pressable>
-                        </View>
+                                style={styles.emptyAction}
+                            />
+                        </Card>
                     ) : (
                         <View style={styles.roomList}>
                             {rooms.map((room) => (
@@ -172,14 +178,13 @@ export default function RoomsIndexScreen() {
 
                 {/* Subtle Join Toggle */}
                 <View style={styles.footerSection}>
-                    <Pressable
+                    <Button
+                        variant="ghost"
+                        label={joining ? "닫기" : "ID로 참여하기"}
                         onPress={() => setJoining(!joining)}
                         style={styles.idJoinLink}
-                    >
-                        <Text style={styles.idJoinLinkText}>
-                            {joining ? "닫기" : "ID로 참여하기"}
-                        </Text>
-                    </Pressable>
+                        size="sm"
+                    />
 
                     {joining && (
                         <View style={styles.subtleJoinInput}>
@@ -201,7 +206,7 @@ export default function RoomsIndexScreen() {
                             </Pressable>
                         </View>
                     )}
-                    {error ? <Text style={styles.errorText}>{error}</Text> : null}
+                    {error ? <ThemedText style={styles.errorText} color={COLORS.error}>{error}</ThemedText> : null}
                 </View>
             </ScrollView>
         </SafeAreaView>
@@ -214,33 +219,15 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.bg,
     },
     content: {
-        padding: 20,
+        padding: SPACING.xxl,
         paddingBottom: 40,
-        gap: 32,
-    },
-    header: {
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "space-between",
-        marginTop: 10,
-    },
-    title: {
-        fontSize: 32,
-        fontWeight: "900",
-        color: COLORS.text,
-        letterSpacing: -1,
-    },
-    subtitle: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: COLORS.textMuted,
-        marginTop: -4,
+        gap: SPACING.lg,
     },
     createBtn: {
-        width: 48,
-        height: 48,
+        width: 36,
+        height: 36,
         backgroundColor: COLORS.text,
-        borderRadius: 24,
+        borderRadius: 18,
         alignItems: "center",
         justifyContent: "center",
         shadowColor: "#000",
@@ -254,36 +241,26 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
         justifyContent: 'space-between',
         paddingHorizontal: 4,
+        marginTop: SPACING.md,
     },
     listInfo: {
         gap: 4,
     },
     listTitle: {
-        fontSize: 24,
-        fontWeight: '800',
-        color: COLORS.text,
-        letterSpacing: -0.5,
+        // h2
     },
     sectionLabel: {
-        fontSize: 12,
-        fontWeight: "800",
-        color: COLORS.textMuted,
         letterSpacing: 1.2,
         textTransform: 'uppercase',
     },
     listSection: {
-        gap: 16,
+        gap: SPACING.md,
     },
     roomList: {
-        gap: 12,
+        gap: SPACING.md,
     },
     emptyCard: {
-        backgroundColor: COLORS.surface,
-        borderRadius: 32,
-        padding: 40,
         alignItems: "center",
-        borderWidth: 1.5,
-        borderColor: COLORS.border,
         borderStyle: 'dashed',
     },
     emptyIconCircle: {
@@ -293,61 +270,35 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.primaryLight,
         alignItems: "center",
         justifyContent: "center",
-        marginBottom: 20,
+        marginBottom: SPACING.lg,
     },
     emptyTitle: {
-        fontSize: 20,
-        fontWeight: "800",
-        color: COLORS.text,
-        marginBottom: 8,
+        marginBottom: SPACING.sm,
     },
     emptySubtitle: {
-        fontSize: 15,
-        color: COLORS.textMuted,
-        textAlign: "center",
+        marginBottom: SPACING.lg,
         lineHeight: 24,
-        fontWeight: "500",
-        marginBottom: 32,
     },
     emptyAction: {
-        backgroundColor: COLORS.primary,
-        paddingHorizontal: 24,
-        paddingVertical: 14,
-        borderRadius: 16,
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-    },
-    emptyActionText: {
-        color: COLORS.white,
-        fontWeight: "800",
-        fontSize: 16,
+        width: '100%',
     },
     footerSection: {
-        marginTop: 12,
+        marginTop: SPACING.md,
         alignItems: 'center',
-        gap: 16,
+        gap: SPACING.md,
     },
     idJoinLink: {
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-    },
-    idJoinLinkText: {
-        fontSize: 14,
-        color: COLORS.textMuted,
-        fontWeight: '600',
-        textDecorationLine: 'underline',
+        // ghost button default
     },
     subtleJoinInput: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: COLORS.surface,
-        borderRadius: 16,
+        borderRadius: RADIUS.md,
         borderWidth: 1,
         borderColor: COLORS.border,
         height: 56,
-        paddingLeft: 16,
+        paddingLeft: SPACING.md,
         paddingRight: 6,
         width: '100%',
     },
@@ -360,13 +311,12 @@ const styles = StyleSheet.create({
     miniJoinBtn: {
         width: 44,
         height: 44,
-        borderRadius: 12,
+        borderRadius: RADIUS.sm,
         backgroundColor: COLORS.primaryLight,
         alignItems: 'center',
         justifyContent: 'center',
     },
     errorText: {
-        color: COLORS.error,
         fontSize: 13,
         fontWeight: '600',
         textAlign: 'center',

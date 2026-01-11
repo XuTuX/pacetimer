@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import type { Database } from '../../lib/db-types';
-import { COLORS } from '../../lib/theme';
+import { COLORS, RADIUS, SPACING } from '../../lib/theme';
+import { Card } from '../ui/Card'; // Assuming ui components are in components/ui
+import { ThemedText } from '../ui/ThemedText';
 
 type Room = Database['public']['Tables']['rooms']['Row'];
 
@@ -15,72 +17,75 @@ export function RoomCard({ room, isHost, onPress }: RoomCardProps) {
     const shortId = room.id.slice(0, 6);
 
     return (
-        <Pressable
-            onPress={onPress}
-            style={({ pressed }) => [
-                styles.container,
-                pressed && { transform: [{ scale: 0.98 }], opacity: 0.9 }
-            ]}
+        <Card
+            variant="elevated"
+            padding="lg"
+            style={styles.card}
+            onTouchEnd={onPress} // Card doesn't have onPress built-in yet, need to wrap or use Pressable. Let's wrap Card content or allow onPress in Card. 
+        // Better to wrap Card in Pressable or use style.
         >
-            <View style={styles.iconCircle}>
-                <Ionicons name="apps-outline" size={22} color={COLORS.primary} />
-            </View>
+            <Pressable
+                onPress={onPress}
+                style={({ pressed }) => [
+                    styles.container,
+                    pressed && { opacity: 0.8 }
+                ]}
+            >
+                <View style={styles.iconCircle}>
+                    <Ionicons name="apps-outline" size={22} color={COLORS.primary} />
+                </View>
 
-            <View style={styles.content}>
-                <View style={styles.header}>
-                    <Text style={styles.name} numberOfLines={1}>{room.name}</Text>
-                    {isHost && (
-                        <View style={styles.hostBadge}>
-                            <Ionicons name="star" size={10} color={COLORS.white} />
-                            <Text style={styles.hostText}>호스트</Text>
-                        </View>
+                <View style={styles.content}>
+                    <View style={styles.header}>
+                        <ThemedText variant="h3" style={styles.name} numberOfLines={1}>{room.name}</ThemedText>
+                        {isHost && (
+                            <View style={styles.hostBadge}>
+                                <Ionicons name="star" size={10} color={COLORS.white} />
+                                <ThemedText variant="label" style={styles.hostText}>호스트</ThemedText>
+                            </View>
+                        )}
+                    </View>
+
+                    {room.description && (
+                        <ThemedText variant="body2" color={COLORS.textMuted} numberOfLines={1} style={styles.description}>
+                            {room.description}
+                        </ThemedText>
                     )}
-                </View>
 
-                {room.description && (
-                    <Text style={styles.description} numberOfLines={1}>
-                        {room.description}
-                    </Text>
-                )}
-
-                <View style={styles.meta}>
-                    <View style={styles.idBadge}>
-                        <Text style={styles.idLabel}>ID</Text>
-                        <Text style={styles.idValue}>{shortId}</Text>
-                    </View>
-                    <View style={styles.typeBadge}>
-                        <Text style={styles.typeText}>스터디 룸</Text>
+                    <View style={styles.meta}>
+                        <View style={styles.idBadge}>
+                            <ThemedText variant="label" color={COLORS.textMuted} style={styles.idLabel}>ID</ThemedText>
+                            <ThemedText variant="caption" style={styles.idValue}>{shortId}</ThemedText>
+                        </View>
+                        <View style={styles.typeBadge}>
+                            <ThemedText variant="label" color={COLORS.textMuted}>스터디 룸</ThemedText>
+                        </View>
                     </View>
                 </View>
-            </View>
 
-            <View style={styles.chevron}>
-                <Ionicons name="chevron-forward" size={18} color={COLORS.border} />
-            </View>
-        </Pressable>
+                <View style={styles.chevron}>
+                    <Ionicons name="chevron-forward" size={18} color={COLORS.border} />
+                </View>
+            </Pressable>
+        </Card>
     );
 }
 
 const styles = StyleSheet.create({
+    card: {
+        padding: 0, // Remove default padding since we use inner pressable
+        borderRadius: RADIUS.lg,
+    },
     container: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: COLORS.surface,
-        padding: 18,
-        borderRadius: 24,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        gap: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.02,
-        shadowRadius: 12,
-        elevation: 2,
+        padding: SPACING.md, // 16 or 18
+        gap: SPACING.md,
     },
     iconCircle: {
         width: 52,
         height: 52,
-        borderRadius: 18,
+        borderRadius: RADIUS.md,
         backgroundColor: COLORS.primaryLight,
         alignItems: 'center',
         justifyContent: 'center',
@@ -95,10 +100,7 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     name: {
-        fontSize: 18,
-        fontWeight: '800',
-        color: COLORS.text,
-        letterSpacing: -0.5,
+        flex: 1,
     },
     hostBadge: {
         flexDirection: 'row',
@@ -107,17 +109,12 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.primary,
         paddingHorizontal: 8,
         paddingVertical: 3,
-        borderRadius: 8,
+        borderRadius: RADIUS.sm,
     },
     hostText: {
-        fontSize: 10,
-        fontWeight: '900',
         color: COLORS.white,
     },
     description: {
-        fontSize: 14,
-        color: COLORS.textMuted,
-        fontWeight: '500',
         marginTop: -2,
     },
     meta: {
@@ -133,33 +130,22 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
         paddingVertical: 4,
         backgroundColor: COLORS.surfaceVariant,
-        borderRadius: 8,
+        borderRadius: RADIUS.sm,
     },
     idLabel: {
-        fontSize: 10,
-        fontWeight: '800',
-        color: COLORS.textMuted,
         opacity: 0.7,
     },
     idValue: {
-        fontSize: 11,
         fontWeight: '700',
-        color: COLORS.text,
-        fontFamily: 'monospace',
+        fontFamily: 'monospace', // Keep monospace if desired, or use default
     },
     typeBadge: {
         paddingHorizontal: 8,
         paddingVertical: 4,
         backgroundColor: 'rgba(0,0,0,0.03)',
-        borderRadius: 8,
-    },
-    typeText: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: COLORS.textMuted,
+        borderRadius: RADIUS.sm,
     },
     chevron: {
         marginLeft: 4,
     }
 });
-

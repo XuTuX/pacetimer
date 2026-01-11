@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { COLORS, RADIUS, SPACING } from '../../lib/design-system';
+import { COLORS, RADIUS, SPACING } from '../../lib/theme';
 import { Typography } from './Typography';
 
 export type StatusType = 'COMPLETED' | 'IN_PROGRESS' | 'NOT_STARTED' | 'ABANDONED';

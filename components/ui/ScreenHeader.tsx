@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, RADIUS, SHADOWS, SPACING } from '../../lib/design-system';
+import { COLORS, RADIUS, SHADOWS, SPACING } from '../../lib/theme';
 import { Typography } from './Typography';
 
 interface ScreenHeaderProps {

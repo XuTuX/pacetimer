@@ -2,12 +2,16 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Dimensions, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Pressable, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import SproutVisual from '../../components/SproutVisual';
+import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
+import { ScreenHeader } from '../../components/ui/ScreenHeader'; // Changed from AppHeader
+import { ThemedText } from '../../components/ui/ThemedText';
 import { useAppStore } from '../../lib/store';
 import { getStudyDateKey } from '../../lib/studyDate';
-import { COLORS } from '../../lib/theme';
+import { COLORS, RADIUS, SHADOWS, SPACING } from '../../lib/theme';
 import type { Segment, Session } from '../../lib/types';
 
 const { height } = Dimensions.get('window');
@@ -74,6 +78,12 @@ export default function HomeScreen() {
 
     const selectedSubject = subjects.find(s => s.id === activeSubjectId);
 
+    const SettingsButton = (
+        <TouchableOpacity style={styles.headerIcon} onPress={() => router.push('/timer')}>
+            <Ionicons name="settings-outline" size={20} color={COLORS.textMuted} />
+        </TouchableOpacity>
+    );
+
     return (
         <SafeAreaView style={styles.container}>
             {/* 배경 클릭 시 드롭다운 닫기 */}
@@ -81,36 +91,34 @@ export default function HomeScreen() {
                 <Pressable style={StyleSheet.absoluteFill} onPress={() => { setIsDropdownOpen(false); setIsAdding(false); }} />
             )}
 
-            <View style={styles.header}>
-                <View>
-                    <Text style={styles.headerTitle}>오늘의 기록</Text>
-                    <Text style={styles.headerSubtitle}>성장하는 즐거움을 느껴보세요 🌱</Text>
-                </View>
-                <TouchableOpacity style={styles.headerIcon} onPress={() => router.push('/timer')}>
-                    <Ionicons name="settings-outline" size={20} color={COLORS.textMuted} />
-                </TouchableOpacity>
-            </View>
+            <ScreenHeader
+                title="오늘의 기록"
+                subtitle="성장하는 즐거움을 느껴보세요 🌱"
+                rightElement={SettingsButton}
+                showBack={false}
+                style={{ marginBottom: SPACING.lg, borderBottomWidth: 0, paddingBottom: SPACING.sm }}
+            />
 
-            <View style={styles.mainCard}>
+            <Card variant="elevated" style={styles.mainCard}>
                 <SproutVisual totalMinutes={totalMinutes} />
                 <View style={styles.timeContainer}>
-                    <Text style={styles.timeLabel}>누적 학습 시간</Text>
-                    <Text style={styles.timeText}>{formatTime(totalMs)}</Text>
+                    <ThemedText variant="caption" color={COLORS.textMuted} style={styles.timeLabel}>누적 학습 시간</ThemedText>
+                    <ThemedText variant="h1" style={styles.timeText}>{formatTime(totalMs)}</ThemedText>
                 </View>
-            </View>
+            </Card>
 
             {/* 과목 선택 영역 (Dropdown 컨테이너) */}
             <View style={styles.subjectWrapper}>
-                <Text style={styles.label}>공부 과목</Text>
+                <ThemedText variant="label" color={COLORS.textMuted} style={styles.label}>공부 과목</ThemedText>
                 <View style={{ zIndex: 10 }}>
                     <TouchableOpacity
                         style={[styles.selector, isDropdownOpen && styles.selectorActive]}
                         onPress={() => setIsDropdownOpen(!isDropdownOpen)}
                         activeOpacity={0.8}
                     >
-                        <Text style={[styles.selectorText, !selectedSubject && styles.placeholder]}>
+                        <ThemedText style={[styles.selectorText, !selectedSubject && styles.placeholder]}>
                             {selectedSubject ? selectedSubject.name : "과목을 선택하세요"}
-                        </Text>
+                        </ThemedText>
                         <Ionicons name={isDropdownOpen ? "chevron-up" : "chevron-down"} size={16} color={COLORS.textMuted} />
                     </TouchableOpacity>
 
@@ -127,7 +135,9 @@ export default function HomeScreen() {
                                             setIsDropdownOpen(false);
                                         }}
                                     >
-                                        <Text style={[styles.dropdownItemText, activeSubjectId === s.id && styles.activeItemText]}>{s.name}</Text>
+                                        <ThemedText style={[styles.dropdownItemText, activeSubjectId === s.id && styles.activeItemText]}>
+                                            {s.name}
+                                        </ThemedText>
                                         {activeSubjectId === s.id && <Ionicons name="checkmark" size={16} color={COLORS.primary} />}
                                     </TouchableOpacity>
                                 ))}
@@ -135,7 +145,7 @@ export default function HomeScreen() {
                                 {!isAdding ? (
                                     <TouchableOpacity style={styles.addItemRow} onPress={() => setIsAdding(true)}>
                                         <Ionicons name="add" size={18} color={COLORS.primary} />
-                                        <Text style={styles.addItemText}>새 과목 추가</Text>
+                                        <ThemedText style={styles.addItemText}>새 과목 추가</ThemedText>
                                     </TouchableOpacity>
                                 ) : (
                                     <View style={styles.inputRow}>
@@ -159,8 +169,12 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.bottomActions}>
-                <TouchableOpacity
-                    style={[styles.startBtn, !activeSubjectId && !stopwatch.isRunning && styles.disabledBtn]}
+                <Button
+                    label={stopwatch.isRunning ? "집중 이어가기" : "집중 시작"}
+                    icon={stopwatch.isRunning ? "pause" : "play"}
+                    size="lg"
+                    style={styles.startBtn}
+                    disabled={!activeSubjectId && !stopwatch.isRunning}
                     onPress={() => {
                         if (stopwatch.isRunning) router.push('/timer');
                         else if (activeSubjectId) router.push('/timer');
@@ -169,15 +183,16 @@ export default function HomeScreen() {
                             setIsDropdownOpen(true);
                         }
                     }}
-                >
-                    <Ionicons name={stopwatch.isRunning ? "pause" : "play"} size={22} color={COLORS.white} />
-                    <Text style={styles.startBtnText}>{stopwatch.isRunning ? "집중 이어가기" : "집중 시작"}</Text>
-                </TouchableOpacity>
+                />
 
-                <TouchableOpacity style={styles.mockLink} onPress={() => router.push('/modes/mock-exam/setup')}>
-                    <Text style={styles.mockLinkText}>모의고사 모드</Text>
-                    <Ionicons name="arrow-forward" size={14} color={COLORS.primary} />
-                </TouchableOpacity>
+                <Button
+                    label="모의고사 모드"
+                    variant="ghost"
+                    icon="arrow-forward"
+                    iconPosition="right"
+                    size="sm"
+                    onPress={() => router.push('/modes/mock-exam/setup')}
+                />
             </View>
         </SafeAreaView>
     );
@@ -187,27 +202,12 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: COLORS.bg,
-        paddingHorizontal: 24,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: 15,
-    },
-    headerTitle: {
-        fontSize: 22,
-        fontWeight: '800',
-        color: COLORS.text,
-    },
-    headerSubtitle: {
-        fontSize: 13,
-        color: COLORS.textMuted,
+        paddingHorizontal: SPACING.xxl,
     },
     headerIcon: {
         width: 38,
         height: 38,
-        borderRadius: 12,
+        borderRadius: RADIUS.md, // 12
         backgroundColor: COLORS.surface,
         alignItems: 'center',
         justifyContent: 'center',
@@ -215,39 +215,30 @@ const styles = StyleSheet.create({
         borderColor: COLORS.border,
     },
     mainCard: {
-        backgroundColor: COLORS.surface,
-        borderRadius: 24,
         height: height * 0.35,
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 20,
-        borderWidth: 1,
-        borderColor: COLORS.border,
+        // padding: 20 is handled by Card default or explicit padding
+        // Card uses RADIUS.xl (24) by default
     },
     timeContainer: {
         alignItems: 'center',
-        marginTop: 10,
+        marginTop: SPACING.md,
     },
     timeLabel: {
-        fontSize: 12,
-        color: COLORS.textMuted,
         fontWeight: '600',
+        marginBottom: 4,
     },
     timeText: {
-        fontSize: 32,
-        fontWeight: '900',
-        color: COLORS.text,
+        // fontSize: 32 -> h1 is 32
     },
     subjectWrapper: {
-        marginTop: 25,
+        marginTop: SPACING.xl,
         position: 'relative',
     },
     label: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: COLORS.textMuted,
-        marginBottom: 8,
-        marginLeft: 4,
+        marginBottom: SPACING.sm,
+        marginLeft: SPACING.xs,
     },
     selector: {
         flexDirection: 'row',
@@ -255,8 +246,8 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         backgroundColor: COLORS.surface,
         height: 52,
-        paddingHorizontal: 16,
-        borderRadius: 14,
+        paddingHorizontal: SPACING.lg,
+        borderRadius: RADIUS.lg, // 14
         borderWidth: 1,
         borderColor: COLORS.border,
     },
@@ -278,26 +269,22 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         backgroundColor: COLORS.surface,
-        borderRadius: 14,
+        borderRadius: RADIUS.lg,
         borderWidth: 1,
         borderColor: COLORS.border,
         maxHeight: 200,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
-        elevation: 5,
+        ...SHADOWS.medium,
         zIndex: 100,
     },
     dropdownScroll: {
-        padding: 6,
+        padding: SPACING.xs,
     },
     dropdownItem: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 12,
-        borderRadius: 10,
+        padding: SPACING.md,
+        borderRadius: RADIUS.md,
     },
     dropdownItemText: {
         fontSize: 15,
@@ -311,7 +298,7 @@ const styles = StyleSheet.create({
     addItemRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 12,
+        padding: SPACING.md,
         gap: 6,
         borderTopWidth: 1,
         borderTopColor: COLORS.border,
@@ -325,49 +312,25 @@ const styles = StyleSheet.create({
     inputRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 8,
+        padding: SPACING.sm,
         gap: 8,
     },
     inlineInput: {
         flex: 1,
         backgroundColor: COLORS.bg,
         height: 36,
-        borderRadius: 8,
+        borderRadius: RADIUS.sm,
         paddingHorizontal: 10,
         fontSize: 14,
     },
     bottomActions: {
         marginTop: 'auto',
-        marginBottom: 20,
-        gap: 10,
+        marginBottom: SPACING.xl, // 20
+        gap: SPACING.sm,
     },
     startBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: COLORS.primary,
         height: 60,
-        borderRadius: 20,
-        gap: 8,
-    },
-    startBtnText: {
-        fontSize: 17,
-        fontWeight: '700',
-        color: COLORS.white,
-    },
-    disabledBtn: {
-        backgroundColor: '#E0E0E0',
-    },
-    mockLink: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 8,
-        gap: 4,
-    },
-    mockLinkText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: COLORS.primary,
+        borderRadius: RADIUS.xl, // 20
+        // primary color handled by Button
     },
 });
