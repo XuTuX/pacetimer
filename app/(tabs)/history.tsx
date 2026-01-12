@@ -209,8 +209,7 @@ export default function HistoryScreen() {
                                 const defaultTextColor = isDisabled ? '#d9e1e8' : COLORS.text;
                                 const textColor = textStyle.color || defaultTextColor;
 
-                                // [NEW] 점 색상 결정: 배경이 진하면(isHeavy) 흰색, 아니면 Primary 색상
-                                const dotColor = isHeavy ? COLORS.white : COLORS.primary;
+                                ;
 
                                 if (!date) return <View style={{ width: 38 }} />;
 
@@ -241,7 +240,7 @@ export default function HistoryScreen() {
                                                 width: 5,
                                                 height: 5,
                                                 borderRadius: 2.5,
-                                                backgroundColor: dotColor, // [NEW] 동적 색상 적용
+                                                backgroundColor: COLORS.black, // [NEW] 동적 색상 적용
                                             }} />
                                         )}
 

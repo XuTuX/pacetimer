@@ -16,12 +16,17 @@ import { COLORS, RADIUS, SPACING } from "../../../lib/theme";
 
 type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
 
+type RoomWithDetails = RoomRow & {
+    room_members: { count: number }[];
+    room_exams: { created_at: string }[];
+};
+
 export default function RoomsIndexScreen() {
     const supabase = useSupabase();
     const router = useRouter();
     const { isLoaded, userId } = useAuth();
 
-    const [rooms, setRooms] = useState<RoomRow[]>([]);
+    const [rooms, setRooms] = useState<RoomWithDetails[]>([]);
     const [roomIdInput, setRoomIdInput] = useState("");
     const [loading, setLoading] = useState(false);
     const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
@@ -55,12 +60,12 @@ export default function RoomsIndexScreen() {
 
             const { data: roomsData, error: roomsError } = await supabase
                 .from("rooms")
-                .select("*")
+                .select("*, room_members(count), room_exams(created_at)")
                 .in("id", allRoomIds)
                 .order("created_at", { ascending: false });
             if (roomsError) throw roomsError;
 
-            setRooms(roomsData ?? []);
+            setRooms((roomsData as any) ?? []);
         } catch (err) {
             setError(formatSupabaseError(err));
         } finally {
@@ -149,6 +154,11 @@ export default function RoomsIndexScreen() {
                                     room={room}
                                     isHost={room.owner_id === userId}
                                     onPress={() => router.push(`/room/${room.id}`)}
+                                    participantCount={room.room_members?.[0]?.count}
+                                    hasNewExam={room.room_exams?.some(e => {
+                                        const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
+                                        return (Date.now() - new Date(e.created_at).getTime()) < threeDaysMs;
+                                    })}
                                 />
                             ))}
                         </View>

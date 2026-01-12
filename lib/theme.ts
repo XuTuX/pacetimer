@@ -5,6 +5,8 @@
 
 export const COLORS = {
     // Backgrounds & Layout
+    black: '#001010',
+
     bg: "#F8F9FA",           // Main screen background
     surface: "#FFFFFF",      // Cards, modals, white surfaces
     surfaceVariant: "#F2F2F7", // Secondary background / input background

@@ -181,9 +181,8 @@ export default function SessionDetail({ nowMs, session, sessionStats, segments, 
     let navRightElement: React.ReactNode = null;
 
     if (viewMode === 'list') {
-        const isMock = session.mode === 'mock-exam' || session.title?.includes('[룸]');
-        navTitle = isMock ? '모의고사' : '학습 세션';
-        navSubtitle = formatDisplayDate(session.studyDate, nowMs);
+        navTitle = formatDisplayDate(session.studyDate, nowMs);
+        navSubtitle = `${formatClockTime(session.startedAt)} 시작`;
 
         // List Mode: No back button on left, Close button on right
         showNavBack = false;
@@ -205,6 +204,15 @@ export default function SessionDetail({ nowMs, session, sessionStats, segments, 
         showNavBack = true;
         navBackIcon = 'chevron-back';
         navBackAction = handleBack;
+    }
+
+    // Body Content Logic
+    const subjectListStr = mergedGroups.map(g => getSubjectName(g.mainSubjectId, subjectsById)).join(', ');
+    let bodyMainTitle = session.title ? rawTitle : (subjectListStr || '학습 기록');
+
+    // [Refinement] If the title is the generic "모의고사", prefer showing the subject list
+    if (bodyMainTitle === '모의고사' && subjectListStr) {
+        bodyMainTitle = subjectListStr;
     }
 
     return (
@@ -236,8 +244,7 @@ export default function SessionDetail({ nowMs, session, sessionStats, segments, 
                                         </View>
                                     )}
                                 </View>
-                                <Text style={styles.mainTitle}>{headerTitle}</Text>
-                                {headerSubtitle && <Text style={styles.subTitle}>{headerSubtitle}</Text>}
+                                <Text style={styles.mainTitle}>{bodyMainTitle}</Text>
                             </View>
 
                             {/* Stats Summary Bento Grid */}
