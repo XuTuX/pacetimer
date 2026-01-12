@@ -240,7 +240,7 @@ export default function HistoryScreen() {
                                                 width: 5,
                                                 height: 5,
                                                 borderRadius: 2.5,
-                                                backgroundColor: COLORS.black, // [NEW] 동적 색상 적용
+                                                backgroundColor: COLORS.red, // [NEW] 동적 색상 적용
                                             }} />
                                         )}
 
