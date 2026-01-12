@@ -1,5 +1,6 @@
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -31,18 +32,21 @@ export default function SettingsScreen() {
     const [loading, setLoading] = useState(false);
 
     const handleSignOut = async () => {
+        if (loading) return;
         Alert.alert('로그아웃', '정말 로그아웃 하시겠습니까?', [
             { text: '취소', style: 'cancel' },
             {
                 text: '로그아웃',
                 style: 'destructive',
                 onPress: async () => {
+                    setLoading(true);
                     try {
-                        clearAllData();
+                        // 로그아웃 시에는 로컬 데이터를 지우지 않습니다.
                         await signOut();
                         router.replace('/auth/login');
                     } catch (err) {
                         console.error(err);
+                        setLoading(false);
                     }
                 }
             }
@@ -50,6 +54,7 @@ export default function SettingsScreen() {
     };
 
     const handleDeleteAccount = () => {
+        if (loading) return;
         Alert.alert(
             '회원 탈퇴',
             '계정을 삭제하면 모든 학습 기록과 데이터가 영구적으로 삭제되며 복구할 수 없습니다. 정말 탈퇴하시겠습니까?',
@@ -63,8 +68,6 @@ export default function SettingsScreen() {
                         try {
                             // 1. Supabase 데이터 삭제
                             if (userId) {
-                                // PostgreSQL 정책(RLS)이 잘 설정되어 있다면 본인 데이터만 지워집니다.
-                                // 'attempts'와 연관된 'attempt_records'는 DB 레벨에서 CASCADE 설정이 되어 있어야 합니다.
                                 await supabase.from('attempts').delete().eq('user_id', userId);
                                 await supabase.from('room_members').delete().eq('user_id', userId);
                                 await supabase.from('profiles').delete().eq('id', userId);
@@ -73,18 +76,19 @@ export default function SettingsScreen() {
                             // 2. Clerk 인증 계정 삭제
                             await user?.delete();
 
-                            // 3. 로컬 데이터 삭제
+                            // 3. 로컬 데이터 영구 삭제
+                            // 가장 안전한 순서: 스토리지 삭제 -> 메모리 초기화
+                            await AsyncStorage.removeItem('pacetime-storage');
                             clearAllData();
 
                             router.replace('/auth/login');
                         } catch (err) {
                             console.error(err);
+                            setLoading(false);
                             Alert.alert(
                                 '탈퇴 실패',
                                 '보안을 위해 최근에 로그인한 기록이 있어야 탈퇴가 가능합니다. 다시 로그인 후 시도해 주세요.'
                             );
-                        } finally {
-                            setLoading(false);
                         }
                     }
                 }
@@ -133,8 +137,13 @@ export default function SettingsScreen() {
         }
     };
 
-    const SettingItem = ({ icon, label, onPress, color = COLORS.text, showArrow = true, value }: any) => (
-        <TouchableOpacity style={styles.item} onPress={onPress} activeOpacity={0.7}>
+    const SettingItem = ({ icon, label, onPress, color = COLORS.text, showArrow = true, value, disabled }: any) => (
+        <TouchableOpacity
+            style={[styles.item, (disabled || loading) && { opacity: 0.5 }]}
+            onPress={onPress}
+            activeOpacity={0.7}
+            disabled={disabled || loading}
+        >
             <View style={styles.itemLeft}>
                 <View style={[styles.iconContainer, { backgroundColor: color + '10' }]}>
                     <Ionicons name={icon} size={20} color={color} />
