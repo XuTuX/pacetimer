@@ -45,7 +45,7 @@ export const SummaryCards: React.FC<Props> = ({
                     <View style={styles.verticalDivider} />
 
                     <View style={styles.statItem}>
-                        <ThemedText style={styles.unitText}>한 문제당 </ThemedText>
+                        <ThemedText style={styles.unitText}>문제당 </ThemedText>
                         <ThemedText style={styles.secondaryValue}>
                             {formatMMSS(averageQuestionDurationMs)}
                         </ThemedText>
