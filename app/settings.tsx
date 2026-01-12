@@ -27,7 +27,7 @@ export default function SettingsScreen() {
     const { signOut, userId } = useAuth();
     const { user } = useUser();
     const supabase = useSupabase();
-    const { clearAllData } = useAppStore();
+    const { clearAllData, nickname, setNickname } = useAppStore();
     const router = useRouter();
     const [loading, setLoading] = useState(false);
 
@@ -99,20 +99,26 @@ export default function SettingsScreen() {
     // Nickname Edit State
     const [isNicknameModalVisible, setNicknameModalVisible] = useState(false);
     const [newNickname, setNewNickname] = useState('');
-    const [profile, setProfile] = useState<{ display_name: string | null } | null>(null);
+    // const [profile, setProfile] = useState<{ display_name: string | null } | null>(null);
 
     // Initial fetch for nickname
     React.useEffect(() => {
         if (!userId) return;
+        // Sync store with remote
         supabase.from('profiles').select('display_name').eq('id', userId).single()
             .then(({ data, error }) => {
                 if (error) return;
-                // Force cast data as any because types are outdated
                 const profileData = data as any;
-                if (profileData) setProfile(profileData);
-                setNewNickname(profileData?.display_name || '');
+                if (profileData?.display_name) {
+                    setNickname(profileData.display_name);
+                }
             });
     }, [userId]);
+
+    // Initialize input with current nickname
+    React.useEffect(() => {
+        if (nickname) setNewNickname(nickname);
+    }, [nickname]);
 
     const handleUpdateNickname = async () => {
         if (!newNickname.trim() || !userId) return;
@@ -124,9 +130,11 @@ export default function SettingsScreen() {
                 .update({ display_name: newNickname.trim(), updated_at: new Date().toISOString() } as any)
                 .eq('id', userId);
 
+
+
             if (error) throw error;
 
-            setProfile(prev => ({ ...prev, display_name: newNickname.trim() }));
+            setNickname(newNickname.trim());
             setNicknameModalVisible(false);
             Alert.alert("성공", "닉네임이 변경되었습니다.");
         } catch (err) {
@@ -169,7 +177,7 @@ export default function SettingsScreen() {
                     </View>
                     <View style={styles.profileInfo}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                            <ThemedText variant="h3">{profile?.display_name || user?.fullName || '사용자'}</ThemedText>
+                            <ThemedText variant="h3">{nickname || '사용자'}</ThemedText>
                             <TouchableOpacity onPress={() => setNicknameModalVisible(true)} hitSlop={10}>
                                 <Ionicons name="pencil" size={16} color={COLORS.textMuted} />
                             </TouchableOpacity>
@@ -183,7 +191,7 @@ export default function SettingsScreen() {
                     <SettingItem
                         icon="person-outline"
                         label="닉네임 변경"
-                        value={profile?.display_name}
+                        value={nickname}
                         onPress={() => setNicknameModalVisible(true)}
                     />
                     <View style={styles.divider} />

@@ -1,6 +1,7 @@
 import { useAuth, useUser } from "@clerk/clerk-expo";
 import { useRouter, useSegments } from "expo-router";
 import { useEffect, useRef } from "react";
+import { useAppStore } from "../lib/store";
 import { useSupabase } from "../lib/supabase";
 import { formatSupabaseError } from "../lib/supabaseError";
 
@@ -73,6 +74,8 @@ export default function AuthBootstrap() {
             // If display_name is missing, redirect to setup
             if (!profileData?.display_name) {
                 router.replace("/setup/profile" as any);
+            } else {
+                useAppStore.getState().setNickname(profileData.display_name);
             }
 
         })().catch((err) => {

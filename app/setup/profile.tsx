@@ -17,6 +17,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../../components/ui/Button";
 import { ThemedText } from "../../components/ui/ThemedText";
 import { generateRandomNickname } from "../../lib/nicknameGenerator";
+import { useAppStore } from "../../lib/store";
 import { useSupabase } from "../../lib/supabase";
 import { COLORS, RADIUS, SPACING } from "../../lib/theme";
 
@@ -88,6 +89,7 @@ export default function ProfileSetupScreen() {
             }
 
             // Success -> Go to tabs
+            useAppStore.getState().setNickname(nickname.trim());
             router.replace("/(tabs)");
         } catch (err) {
             console.error("Setup error:", err);

@@ -4,6 +4,7 @@ import {
     ScrollView,
     StyleSheet,
     Text,
+    TouchableOpacity,
     View
 } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
@@ -86,7 +87,7 @@ export default function HistoryScreen() {
     const markedDates = useMemo(() => {
         const marks: any = {};
 
-        // 1. 학습 데이터 마킹
+        // 1. 학습 데이터 마킹 (히트맵 배경색)
         for (const day of dayList) {
             const totalMinutes = day.durationMs / 60000;
             if (totalMinutes <= 0) continue;
@@ -114,15 +115,14 @@ export default function HistoryScreen() {
                     },
                     text: {
                         color: textColor,
-                        fontWeight: '700', // 데이터 있는 날은 약간 굵게
+                        fontWeight: '700',
                         fontSize: 14
                     },
                 },
             };
         }
 
-        // 1.5. 오늘 날짜(6시 기준) 스타일링 처리
-        // 시스템 날짜(00시 기준)가 아닌 우리 기준의 오늘을 강조
+        // 1.5. 오늘 날짜 스타일링 (데이터가 없어도 텍스트 강조)
         const shiftedToday = getStudyDateKey(nowMs);
         if (!marks[shiftedToday]) {
             marks[shiftedToday] = {
@@ -134,33 +134,33 @@ export default function HistoryScreen() {
         }
 
         const todayEntry = marks[shiftedToday];
-        // 만약 텍스트 색상이 기본색(데이터가 없거나 적음)이라면, 오늘임을 표시하기 위해 Primary 색상 적용
+        // 텍스트가 기본색이면 오늘임을 강조하기 위해 Primary 색상 적용
         if (todayEntry.customStyles.text && todayEntry.customStyles.text.color === COLORS.text) {
             todayEntry.customStyles.text.color = COLORS.primary;
             todayEntry.customStyles.text.fontWeight = '900';
         }
 
-        // 2. 선택된 날짜 처리
+        // 2. 선택된 날짜 처리 (테두리 제거 -> isSelected 플래그 추가)
         const isMarked = !!marks[selectedDate];
         const existingStyle = isMarked ? marks[selectedDate].customStyles : null;
 
-        // 글자 색상은 기존(데이터 색상 혹은 기본 오늘 색상)을 유지하고 영향 주지 않음
-        const finalBackgroundColor = existingStyle ? existingStyle.container.backgroundColor : 'transparent';
+        // 기존 히트맵 배경색 유지 (없으면 투명)
+        const finalBackgroundColor = existingStyle?.container?.backgroundColor || 'transparent';
 
         marks[selectedDate] = {
             customStyles: {
                 container: {
                     backgroundColor: finalBackgroundColor,
-                    borderWidth: 2,
-                    borderColor: COLORS.text, // 테두리만 표시하여 선택됨을 알림
+                    // borderWidth 제거됨
                     borderRadius: 12,
                     width: 38,
                     height: 38,
                     justifyContent: 'center',
                     alignItems: 'center',
                 },
-                text: existingStyle ? existingStyle.text : {}, // 기존 텍스트 스타일(오늘 색상 등) 유지
+                text: existingStyle ? existingStyle.text : {},
             },
+            isSelected: true, // [NEW] dayComponent에서 점을 그리기 위한 플래그
         };
 
         return marks;
@@ -185,36 +185,79 @@ export default function HistoryScreen() {
                         <Calendar
                             key={calendarKey}
                             current={visibleMonth}
-                            onDayPress={(day: { dateString: string }) => {
-                                setSelectedDate(day.dateString);
-                                setVisibleMonth(day.dateString);
-                            }}
                             onMonthChange={(month: { dateString: string }) => setVisibleMonth(month.dateString)}
                             monthFormat={'yyyy년 MM월'}
                             markingType={'custom'}
                             markedDates={markedDates}
                             minDate={minDate}
                             disableArrowLeft={!canGoPrev}
-                            theme={{
-                                todayTextColor: COLORS.text, // 기본 오늘 표시(시스템 기준)는 일반 텍스트 색상으로 숨김
-                                arrowColor: COLORS.text,
 
-                                // 요일 헤더
+                            // [NEW] 커스텀 Day 컴포넌트: 선택 시 테두리 대신 상단 점 표시
+                            dayComponent={({ date, marking, state }: any) => {
+                                const isSelected = marking?.isSelected;
+                                const containerStyle = marking?.customStyles?.container || {};
+                                const textStyle = marking?.customStyles?.text || {};
+
+                                // 비활성화된 날짜(이전 달 등) 처리
+                                const isDisabled = state === 'disabled';
+                                const defaultTextColor = isDisabled ? '#d9e1e8' : COLORS.text;
+                                const textColor = textStyle.color || defaultTextColor;
+
+                                if (!date) return <View style={{ width: 38 }} />;
+
+                                return (
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            if (!isDisabled && date?.dateString) {
+                                                setSelectedDate(date.dateString);
+                                                setVisibleMonth(date.dateString);
+                                            }
+                                        }}
+                                        activeOpacity={0.7}
+                                        style={[
+                                            containerStyle,
+                                            {
+                                                width: 38,
+                                                height: 38,
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                            }
+                                        ]}
+                                    >
+                                        {/* 선택 표시 점 (Dot) - Primary Color */}
+                                        {isSelected && (
+                                            <View style={{
+                                                position: 'absolute',
+                                                top: 4,
+                                                width: 5,
+                                                height: 5,
+                                                borderRadius: 2.5,
+                                                backgroundColor: COLORS.primary, // 앱 테마 색상 적용
+                                            }} />
+                                        )}
+
+                                        <Text style={[
+                                            { fontSize: 15, fontWeight: '600', color: textColor },
+                                            textStyle
+                                        ]}>
+                                            {date.day}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            }}
+
+                            theme={{
+                                todayTextColor: COLORS.text,
+                                arrowColor: COLORS.text,
                                 textSectionTitleColor: '#666666',
                                 textDayHeaderFontWeight: '700',
                                 textDayHeaderFontSize: 13,
-
-                                // 월 제목
                                 textMonthFontWeight: '800',
                                 textMonthFontSize: 20,
-
-                                // 날짜 텍스트
-                                textDayFontWeight: '600', // 기본 날짜 굵기
+                                textDayFontWeight: '600',
                                 textDayFontSize: 15,
                                 dayTextColor: COLORS.text,
-
                                 calendarBackground: 'transparent',
-
                                 // @ts-ignore
                                 'stylesheet.calendar.header': {
                                     header: {
@@ -240,15 +283,6 @@ export default function HistoryScreen() {
                                         marginBottom: 10,
                                     }
                                 },
-                                // @ts-ignore
-                                'stylesheet.day.basic': {
-                                    base: {
-                                        width: 38,
-                                        height: 38,
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                    }
-                                }
                             }}
                             enableSwipeMonths={true}
                         />

@@ -66,6 +66,10 @@ interface AppState {
     // Utils
     addAccumulatedMs: (ms: number) => void;
     clearAllData: () => void;
+
+    // User Profile (Persisted)
+    nickname: string | null;
+    setNickname: (name: string | null) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -396,8 +400,13 @@ export const useAppStore = create<AppState>()(
                     activeSubjectId: null,
                     stopwatch: DEFAULT_STOPWATCH,
                     stopwatchStudyDate: getStudyDateKey(Date.now()),
+                    nickname: null,
                 });
             },
+
+            // --- User Profile ---
+            nickname: null,
+            setNickname: (name) => set({ nickname: name }),
         }),
         {
             // AsyncStorage schema is versioned via `PACETIME_STORAGE_VERSION`.

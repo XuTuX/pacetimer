@@ -41,7 +41,9 @@ export default function HomeScreen() {
         sessions,
         segments,
         activeSegmentId,
-        stopwatch
+        stopwatch,
+        nickname,
+        setNickname
     } = useAppStore();
 
     // 모달(Bottom Sheet) 상태 관리
@@ -58,7 +60,8 @@ export default function HomeScreen() {
     const { userId } = useAuth();
     const { user } = useUser();
     const supabase = useSupabase();
-    const [displayName, setDisplayName] = React.useState<string | null>(null);
+
+    // const [displayName, setDisplayName] = React.useState<string | null>(null);
 
     React.useEffect(() => {
         const id = setInterval(() => setNow(Date.now()), 1000);
@@ -72,15 +75,15 @@ export default function HomeScreen() {
                 if (error) return;
                 const profileData = data as any;
                 if (profileData?.display_name) {
-                    setDisplayName(profileData.display_name);
+                    setNickname(profileData.display_name);
                 }
             });
     }, [userId]);
 
     const displayTitle = React.useMemo(() => {
-        const name = displayName || user?.firstName || '사용자';
+        const name = nickname || '사용자';
         return `${name}`;
-    }, [displayName, user]);
+    }, [nickname]);
 
     const totalMs = React.useMemo(() => {
         const today = getStudyDateKey(now);
