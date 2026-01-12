@@ -1,7 +1,9 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { formatDurationMs, formatHMS } from '../../lib/studyDate';
-import { COLORS } from '../../lib/theme';
+import { StyleSheet, View } from 'react-native';
+import { formatHMS } from '../../lib/studyDate';
+import { COLORS, SPACING } from '../../lib/theme';
+import { Card } from '../ui/Card';
+import { ThemedText } from '../ui/ThemedText';
 
 interface Props {
     totalDurationMs: number;
@@ -23,64 +25,72 @@ export const SummaryCards: React.FC<Props> = ({
 }) => {
     return (
         <View style={styles.container}>
-            <View style={styles.card}>
-                <Text style={styles.label}>총 공부시간</Text>
-                <Text style={styles.value}>{formatHMS(totalDurationMs)}</Text>
-                <Text style={styles.secondary}>{formatDurationMs(totalDurationMs)}</Text>
-            </View>
-            <View style={styles.row}>
-                <View style={[styles.card, { flex: 1 }]}>
-                    <Text style={styles.label}>총 해결 문항</Text>
-                    <Text style={styles.value}>{totalQuestionCount.toLocaleString('ko-KR')}</Text>
-                    <Text style={styles.secondary}>문제</Text>
+            <Card variant="elevated" padding="xl" radius="xxl" style={styles.mainCard}>
+                <ThemedText variant="caption" color={COLORS.textMuted} style={[styles.label, { fontWeight: '800' }]}>총 공부시간</ThemedText>
+                <View style={styles.mainValueRow}>
+                    <ThemedText style={styles.mainValue}>{formatHMS(totalDurationMs)}</ThemedText>
                 </View>
-                <View style={[styles.card, { flex: 1 }]}>
-                    <Text style={styles.label}>문항당 평균</Text>
-                    <Text style={styles.value}>{formatMMSS(averageQuestionDurationMs)}</Text>
+
+                <View style={styles.divider} />
+
+                <View style={styles.statsRow}>
+                    <View style={styles.statItem}>
+                        <ThemedText variant="label" color={COLORS.textMuted} style={styles.statLabel}>문항 수</ThemedText>
+                        <ThemedText variant="h3">{totalQuestionCount.toLocaleString('ko-KR')}<ThemedText variant="caption" color={COLORS.textMuted}> 문제</ThemedText></ThemedText>
+                    </View>
+                    <View style={styles.verticalDivider} />
+                    <View style={styles.statItem}>
+                        <ThemedText variant="label" color={COLORS.textMuted} style={styles.statLabel}>문항당 평균</ThemedText>
+                        <ThemedText variant="h3">{formatMMSS(averageQuestionDurationMs)}</ThemedText>
+                    </View>
                 </View>
-            </View>
+            </Card>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
-        paddingHorizontal: 24,
-        gap: 12,
+        paddingHorizontal: SPACING.xxl,
     },
-    card: {
+    mainCard: {
         backgroundColor: COLORS.white,
-        borderRadius: 24,
-        padding: 20,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 2,
-    },
-    row: {
-        flexDirection: 'row',
-        gap: 12,
     },
     label: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: COLORS.textMuted,
-        marginBottom: 8,
+        marginBottom: SPACING.xs,
     },
-    value: {
-        fontSize: 22,
+    mainValueRow: {
+        flexDirection: 'row',
+        alignItems: 'baseline',
+        gap: SPACING.sm,
+    },
+    mainValue: {
+        fontSize: 32,
         fontWeight: '900',
         color: COLORS.text,
-        fontVariant: ['tabular-nums'],
     },
-    secondary: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: COLORS.textMuted,
-        marginTop: 4,
-        letterSpacing: 0,
+    secondaryValue: {
+        fontSize: 14,
+    },
+    divider: {
+        height: 1,
+        backgroundColor: COLORS.border,
+        marginVertical: SPACING.xl,
+    },
+    statsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    statItem: {
+        flex: 1,
+    },
+    statLabel: {
+        marginBottom: 4,
+    },
+    verticalDivider: {
+        width: 1,
+        height: 24,
+        backgroundColor: COLORS.border,
+        marginHorizontal: SPACING.lg,
     },
 });

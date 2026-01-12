@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { DateRange, SubjectFilter } from '../../lib/analytics-utils';
-import { COLORS } from '../../lib/theme';
+import { COLORS, RADIUS, SHADOWS, SPACING } from '../../lib/theme';
 import { Subject } from '../../lib/types';
 
 interface Props {
@@ -80,52 +80,48 @@ export const AnalyticsHeader: React.FC<Props> = ({
 
 const styles = StyleSheet.create({
     container: {
-        paddingVertical: 16,
+        paddingVertical: SPACING.md,
         backgroundColor: COLORS.bg,
     },
     rangeContainer: {
-        paddingHorizontal: 24,
-        marginBottom: 20,
+        paddingHorizontal: SPACING.xxl,
+        marginBottom: SPACING.lg,
     },
     segmentedControl: {
         flexDirection: 'row',
         backgroundColor: COLORS.surfaceVariant,
-        borderRadius: 16,
+        borderRadius: RADIUS.xl,
         padding: 4,
     },
     segmentBtn: {
         flex: 1,
-        paddingVertical: 12,
+        paddingVertical: 10,
         alignItems: 'center',
-        borderRadius: 12,
+        borderRadius: RADIUS.lg,
     },
     segmentBtnActive: {
         backgroundColor: COLORS.white,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
+        ...SHADOWS.small,
     },
     segmentText: {
-        fontSize: 14,
-        fontWeight: '800',
+        fontSize: 13,
+        fontWeight: '700',
         color: COLORS.textMuted,
     },
     segmentTextActive: {
         color: COLORS.primary,
+        fontWeight: '800',
     },
     filterScroll: {
-        paddingHorizontal: 20,
-        paddingBottom: 4,
+        paddingHorizontal: SPACING.xxl,
         gap: 8,
     },
     filterChip: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 18,
-        paddingVertical: 10,
-        borderRadius: 14,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: RADIUS.full,
         backgroundColor: COLORS.white,
         borderWidth: 1,
         borderColor: COLORS.border,
@@ -133,18 +129,15 @@ const styles = StyleSheet.create({
     filterChipActive: {
         backgroundColor: COLORS.primary,
         borderColor: COLORS.primary,
-        shadowColor: COLORS.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 3,
+        ...SHADOWS.small,
     },
     filterText: {
-        fontSize: 14,
-        fontWeight: '800',
-        color: COLORS.text,
+        fontSize: 13,
+        fontWeight: '700',
+        color: COLORS.textMuted,
     },
     filterTextActive: {
         color: COLORS.white,
+        fontWeight: '800',
     },
 });

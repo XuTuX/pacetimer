@@ -1,7 +1,9 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { DateRange } from '../../lib/analytics-utils';
-import { COLORS } from '../../lib/theme';
+import { COLORS, RADIUS, SPACING } from '../../lib/theme';
+import { Card } from '../ui/Card';
+import { ThemedText } from '../ui/ThemedText';
 
 interface Props {
     data: { date: string; durationMs: number }[];
@@ -35,7 +37,9 @@ export const DailyActivityChart: React.FC<Props> = ({ data, range }) => {
                                 { backgroundColor: getIntensityColor(item.durationMs) }
                             ]}
                         />
-                        <Text style={styles.dayLabel}>{dayLabel}일</Text>
+                        <ThemedText variant="caption" color={COLORS.textMuted} style={{ fontWeight: '700' }}>
+                            {dayLabel}일
+                        </ThemedText>
                     </View>
                 );
             })}
@@ -55,7 +59,9 @@ export const DailyActivityChart: React.FC<Props> = ({ data, range }) => {
                             ]}
                         />
                         {(i % 5 === 0 || isFirstOfMonth) && (
-                            <Text style={styles.dayLabelMini}>{item.date.slice(-2)}</Text>
+                            <ThemedText variant="caption" color={COLORS.textMuted} style={styles.dayLabelMini}>
+                                {item.date.slice(-2)}
+                            </ThemedText>
                         )}
                     </View>
                 );
@@ -64,15 +70,15 @@ export const DailyActivityChart: React.FC<Props> = ({ data, range }) => {
     );
 
     return (
-        <View style={styles.container}>
+        <Card variant="outlined" padding="lg" radius="xxl" style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.title}>{range === '7days' ? '최근 7일 활동' : '최근 30일 활동'}</Text>
+                <ThemedText variant="h3">{range === '7days' ? '최근 7일 활동' : '최근 30일 활동'}</ThemedText>
             </View>
 
             {range === '7days' ? render7Days() : render30Days()}
 
             <View style={styles.legend}>
-                <Text style={styles.legendText}>적음</Text>
+                <ThemedText variant="caption" color={COLORS.textMuted} style={{ fontWeight: '700' }}>적음</ThemedText>
                 <View style={styles.legendSteps}>
                     {[0, 0.2, 0.5, 0.9].map((lvl, i) => (
                         <View
@@ -84,28 +90,18 @@ export const DailyActivityChart: React.FC<Props> = ({ data, range }) => {
                         />
                     ))}
                 </View>
-                <Text style={styles.legendText}>많음</Text>
+                <ThemedText variant="caption" color={COLORS.textMuted} style={{ fontWeight: '700' }}>많음</ThemedText>
             </View>
-        </View>
+        </Card>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
-        marginHorizontal: 24,
-        padding: 24,
-        backgroundColor: COLORS.white,
-        borderRadius: 32,
-        borderWidth: 1,
-        borderColor: COLORS.border,
+        marginHorizontal: SPACING.xxl,
     },
     header: {
-        marginBottom: 16,
-    },
-    title: {
-        fontSize: 18,
-        fontWeight: '900',
-        color: COLORS.text,
+        marginBottom: SPACING.lg,
     },
     days7Container: {
         flexDirection: 'row',
@@ -120,16 +116,11 @@ const styles = StyleSheet.create({
     dayBox: {
         width: '80%',
         aspectRatio: 1,
-        borderRadius: 8,
-    },
-    dayLabel: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: COLORS.textMuted,
+        borderRadius: RADIUS.sm,
     },
     days30Container: {
         flexDirection: 'row',
-        gap: 4,
+        gap: 6,
         paddingVertical: 10,
     },
     dayColumnMini: {
@@ -144,16 +135,15 @@ const styles = StyleSheet.create({
     },
     dayLabelMini: {
         fontSize: 10,
-        fontWeight: '700',
-        color: COLORS.textMuted,
         position: 'absolute',
         top: 24,
+        fontWeight: '700',
     },
     legend: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'flex-end',
-        marginTop: 24,
+        marginTop: SPACING.xl,
         gap: 8,
     },
     legendSteps: {
@@ -164,10 +154,5 @@ const styles = StyleSheet.create({
         width: 12,
         height: 12,
         borderRadius: 3,
-    },
-    legendText: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: COLORS.textMuted,
     },
 });

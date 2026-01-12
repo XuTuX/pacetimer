@@ -111,7 +111,7 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
                 {gridData.map((row, rowIndex) => (
                     <View key={rowIndex} style={styles.row}>
                         <View style={styles.rowLabelContainer}>
-                            <ThemedText variant="caption" bold color={COLORS.textMuted}>{row.label}</ThemedText>
+                            <ThemedText variant="caption" color={COLORS.textMuted} style={{ fontWeight: '800' }}>{row.label}</ThemedText>
                         </View>
                         <View style={styles.boxes}>
                             {row.hours.map((h) => {
@@ -157,7 +157,7 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
             </View>
 
             <View style={styles.legend}>
-                <ThemedText variant="caption" color={COLORS.textMuted} bold>적음</ThemedText>
+                <ThemedText variant="caption" color={COLORS.textMuted} style={{ fontWeight: '800' }}>적음</ThemedText>
                 <View style={styles.legendSteps}>
                     {[0, 0.2, 0.5, 0.9].map((lvl, i) => (
                         <View
@@ -169,12 +169,12 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
                         />
                     ))}
                 </View>
-                <ThemedText variant="caption" color={COLORS.textMuted} bold>많음</ThemedText>
+                <ThemedText variant="caption" color={COLORS.textMuted} style={{ fontWeight: '800' }}>많음</ThemedText>
             </View>
 
             {!hasData && (
                 <View style={styles.emptyOverlay}>
-                    <ThemedText variant="body2" color={COLORS.textMuted} bold>학습 데이터가 없습니다</ThemedText>
+                    <ThemedText variant="body2" color={COLORS.textMuted} style={{ fontWeight: '800' }}>학습 데이터가 없습니다</ThemedText>
                 </View>
             )}
         </Card>
@@ -183,7 +183,7 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
 
 const styles = StyleSheet.create({
     container: {
-        // Handled by Card
+        marginHorizontal: SPACING.xxl,
     },
     header: {
         marginBottom: SPACING.xl,
