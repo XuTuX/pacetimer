@@ -102,12 +102,22 @@ export default function RoomsIndexScreen() {
         setJoining(true);
         setError(null);
         try {
-            const { data: roomData, error: roomMatchError } = await supabase
+            // 'like' operator checks for partial match. We use the input as a prefix.
+            const { data: rooms, error: searchError } = await supabase
                 .from("rooms")
                 .select("id")
-                .eq("id", roomId)
-                .single();
-            if (roomMatchError || !roomData) throw new Error("해당 ID의 룸을 찾을 수 없습니다.");
+                .ilike("id", `${roomId}%`);
+
+            if (searchError) throw searchError;
+
+            if (!rooms || rooms.length === 0) {
+                throw new Error("해당 ID의 룸을 찾을 수 없습니다.");
+            }
+            if (rooms.length > 1) {
+                throw new Error("비슷한 ID의 룸이 여러 개 있습니다. 더 길게 입력해주세요.");
+            }
+
+            const roomData = rooms[0];
 
             const { error: joinError } = await supabase
                 .from("room_members")
@@ -152,7 +162,7 @@ export default function RoomsIndexScreen() {
                         <TextInput
                             value={roomIdInput}
                             onChangeText={setRoomIdInput}
-                            placeholder="ID 입력"
+                            placeholder="ID 입력 (Git처럼 6자리만 입력해도 돼요)"
                             placeholderTextColor={COLORS.textMuted}
                             autoCapitalize="none"
                             autoCorrect={false}
@@ -170,7 +180,7 @@ export default function RoomsIndexScreen() {
                         )}
                     </View>
                     <ThemedText style={styles.helperText}>
-                        호스트에게 공유받은 룸 ID를 입력하세요
+                        호스트에게 공유받은 룸 ID를 입력하세요. 앞 6자리만 입력해도 입장 가능!
                     </ThemedText>
                 </View>
 

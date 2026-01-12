@@ -119,8 +119,9 @@ export default function RoomHomeScreen() {
     const handleShare = async () => {
         if (!room) return;
         try {
+            const shortCode = room.id.substring(0, 6);
             await Share.share({
-                message: `Pacetime에서 "${room.name}" 스터디 룸에 초대합니다!\n\n아래 링크를 눌러 참여하세요:\nhttps://pacetime.app/room/${room.id}\n\n(초대 코드: ${room.id})`,
+                message: `Pacetime에서 "${room.name}" 스터디 룸에 초대합니다!\n\n참여 코드: ${shortCode}\n(앱에서 코드를 입력해 입장하세요)\n\n링크: https://pacetime.app/room/${room.id}`,
             });
         } catch (error) {
             // ignore
@@ -202,6 +203,15 @@ export default function RoomHomeScreen() {
 
                         <View style={styles.titleContainer}>
                             <Typography.H1 color={COLORS.white}>{room?.name}</Typography.H1>
+
+                            <View style={styles.codeRow}>
+                                <Ionicons name="key-outline" size={14} color="rgba(255,255,255,0.6)" />
+                                <Typography.Label color="rgba(255,255,255,0.6)">참여 코드</Typography.Label>
+                                <View style={styles.codeBadge}>
+                                    <Typography.Subtitle2 bold color={COLORS.primary}>{room?.id?.substring(0, 6)}</Typography.Subtitle2>
+                                </View>
+                            </View>
+
                             <View style={styles.tagRow}>
                                 <Typography.Caption color="rgba(255,255,255,0.4)" bold>#스터디</Typography.Caption>
                                 <Typography.Caption color="rgba(255,255,255,0.4)" bold>#실시간</Typography.Caption>
@@ -265,15 +275,7 @@ export default function RoomHomeScreen() {
                         </View>
                     </Card>
 
-                    <Card variant="outlined" padding="md" style={styles.statCard}>
-                        <View style={[styles.statIconBox, { backgroundColor: COLORS.warningLight }]}>
-                            <Ionicons name="ribbon" size={18} color={COLORS.warning} />
-                        </View>
-                        <View style={styles.statTexts}>
-                            <Typography.Label color={COLORS.textMuted}>스터디 마스터</Typography.Label>
-                            <Typography.Subtitle2 bold numberOfLines={1}>{host?.profile?.display_name || "방장"}</Typography.Subtitle2>
-                        </View>
-                    </Card>
+
                 </View>
 
                 {/* Live Member Status Section */}
@@ -474,7 +476,21 @@ const styles = StyleSheet.create({
     tagRow: {
         flexDirection: 'row',
         gap: SPACING.sm,
+        marginTop: SPACING.md,
+    },
+    codeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
         marginTop: SPACING.sm,
+    },
+    codeBadge: {
+        backgroundColor: 'rgba(0, 208, 148, 0.1)',
+        borderWidth: 1,
+        borderColor: 'rgba(0, 208, 148, 0.3)',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 6,
     },
     participantOverview: {
         flexDirection: 'row',
