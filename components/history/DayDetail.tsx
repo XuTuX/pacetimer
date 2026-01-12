@@ -8,11 +8,6 @@ import type { Session, Subject } from '../../lib/types';
 import { Card } from '../ui/Card';
 import { ThemedText } from '../ui/ThemedText';
 
-function getModeInfo(mode: Session['mode']) {
-    if (mode === 'problem-solving') return { label: 'PERSONAL', color: '#8E8E93', icon: 'person' as const };
-    return { label: 'CHALLENGE', color: COLORS.primary, icon: 'flash' as const };
-}
-
 function getSubjectName(subjectId: string, subjectsById: Record<string, Subject>) {
     if (subjectId === '__review__') return '검토';
     if (subjectId.startsWith('__legacy_category__:')) return '이전 데이터';
@@ -35,11 +30,9 @@ export default function DayDetail({ sessions, sessionStatsById, subjectsById, on
     }, [sessions]);
 
     const getSessionUI = (s: Session) => {
-        const isRoom = s.title?.includes('[룸]');
-        const modeInfo = getModeInfo(s.mode);
         let title = s.title ?? (s.mode === 'mock-exam' ? '모의고사' : '학습 세션');
         title = title.replace(/^(\[.*?\]\s*|.*?•\s*)+/, '');
-        return { isRoom, title, modeInfo };
+        return { title };
     };
 
     return (
@@ -62,13 +55,13 @@ export default function DayDetail({ sessions, sessionStatsById, subjectsById, on
                 <View style={styles.list}>
                     {sortedSessions.map((s) => {
                         const stats = sessionStatsById[s.id];
-                        const { isRoom, title, modeInfo } = getSessionUI(s);
+                        const { title } = getSessionUI(s);
                         const subjectList = (stats?.subjectIds ?? [])
-                            .slice(0, 2)
                             .map((sid) => getSubjectName(sid, subjectsById));
 
-                        const subjectsDisplay = subjectList.join(', ');
-                        const moreCount = (stats?.subjectIds ?? []).length - subjectList.length;
+                        const displayTitle = subjectList.length > 0
+                            ? subjectList.join(', ')
+                            : title;
 
                         return (
                             <Pressable
@@ -76,34 +69,19 @@ export default function DayDetail({ sessions, sessionStatsById, subjectsById, on
                                 onPress={() => onOpenSession(s.id)}
                             >
                                 <Card variant="elevated" radius="lg" padding="lg">
-                                    <View style={styles.cardHeader}>
-                                        <View style={styles.titleArea}>
-                                            <View style={styles.modeIndicator}>
-                                                <Ionicons name={isRoom ? 'people' : modeInfo.icon} size={12} color={isRoom ? COLORS.primary : modeInfo.color} />
-                                                <ThemedText
-                                                    variant="label"
-                                                    color={isRoom ? COLORS.primary : modeInfo.color}
-                                                >
-                                                    {isRoom ? 'ROOM' : modeInfo.label}
-                                                </ThemedText>
-                                            </View>
-                                            <ThemedText variant="h3" numberOfLines={1}>{title}</ThemedText>
-                                        </View>
-                                        <ThemedText variant="h3" color={COLORS.primary} style={styles.durationValue}>
-                                            {formatDurationMs(stats?.durationMs ?? 0)}
-                                        </ThemedText>
-                                    </View>
-
-                                    <View style={styles.cardFooter}>
-                                        <View style={styles.metaInfo}>
-                                            <ThemedText variant="caption" color={COLORS.textMuted}>{formatClockTime(s.startedAt)}</ThemedText>
-                                            <View style={styles.dot} />
-                                            <ThemedText variant="caption" color={COLORS.textMuted} numberOfLines={1} style={styles.subjectText}>
-                                                {subjectsDisplay}
-                                                {moreCount > 0 && <ThemedText variant="caption" color={COLORS.primary}> +{moreCount}</ThemedText>}
+                                    <View style={styles.cardContent}>
+                                        <View style={styles.mainInfo}>
+                                            <ThemedText variant="h3" numberOfLines={1}>{displayTitle}</ThemedText>
+                                            <ThemedText variant="caption" color={COLORS.textMuted} style={{ marginTop: 4 }}>
+                                                {formatClockTime(s.startedAt)} 시작
                                             </ThemedText>
                                         </View>
-                                        <Ionicons name="chevron-forward" size={12} color={COLORS.border} />
+                                        <View style={styles.rightInfo}>
+                                            <ThemedText variant="h3" color={COLORS.primary} style={styles.durationValue}>
+                                                {formatDurationMs(stats?.durationMs ?? 0)}
+                                            </ThemedText>
+                                            <Ionicons name="chevron-forward" size={14} color={COLORS.border} style={{ marginLeft: 4 }} />
+                                        </View>
                                     </View>
                                 </Card>
                             </Pressable>
@@ -140,44 +118,21 @@ const styles = StyleSheet.create({
     list: {
         gap: SPACING.md,
     },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: SPACING.lg,
-    },
-    titleArea: {
-        flex: 1,
-        marginRight: 12,
-    },
-    modeIndicator: {
+    cardContent: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
-        marginBottom: 6,
+        justifyContent: 'space-between',
+    },
+    mainInfo: {
+        flex: 1,
+        marginRight: 16,
+    },
+    rightInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     durationValue: {
         fontVariant: ['tabular-nums'],
-    },
-    cardFooter: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    metaInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
-    },
-    dot: {
-        width: 3,
-        height: 3,
-        borderRadius: 1.5,
-        backgroundColor: COLORS.border,
-        marginHorizontal: 8,
-    },
-    subjectText: {
-        flex: 1,
     },
     emptyState: {
         alignItems: 'center',

@@ -96,15 +96,21 @@ export default function SubjectSelector({
                         setModalVisible(true);
                         Haptics.selectionAsync();
                     }}
-                    activeOpacity={0.7}
+                    activeOpacity={0.8}
                 >
-                    <View style={styles.selectorContent}>
-                        <View style={[styles.selectorDot, selectedSubject && styles.selectorDotActive]} />
+                    <View style={styles.selectorLeft}>
+                        <View style={[styles.iconBox, selectedSubject ? styles.iconBoxActive : null]}>
+                            <Ionicons
+                                name="book"
+                                size={18}
+                                color={selectedSubject ? COLORS.primary : COLORS.textMuted}
+                            />
+                        </View>
                         <ThemedText style={[styles.selectorText, !selectedSubject && styles.placeholder]}>
-                            {selectedSubject ? selectedSubject.name : '과목 선택하기'}
+                            {selectedSubject ? selectedSubject.name : '공부할 과목을 선택하세요'}
                         </ThemedText>
                     </View>
-                    <Ionicons name="chevron-down" size={16} color={COLORS.textMuted} style={{ opacity: 0.5 }} />
+                    <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
                 </TouchableOpacity>
             </View>
 
@@ -160,7 +166,7 @@ export default function SubjectSelector({
                                                             onPress={() => handleDeleteSubject(s.id)}
                                                             style={styles.deleteBtn}
                                                         >
-                                                            <Ionicons name="remove-circle" size={22} color={COLORS.error} />
+                                                            <Ionicons name="trash-outline" size={20} color={COLORS.error} />
                                                         </TouchableOpacity>
                                                     ) : (
                                                         <View style={[styles.dot, activeSubjectId === s.id && styles.dotActive]} />
@@ -250,25 +256,28 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         backgroundColor: COLORS.surface,
-        height: 56,
-        paddingHorizontal: SPACING.lg,
-        borderRadius: RADIUS.xl,
-        ...SHADOWS.small,
-        shadowOpacity: 0.03,
+        height: 60,
+        paddingHorizontal: SPACING.xl,
+        borderRadius: RADIUS.full,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        ...SHADOWS.small
     },
-    selectorContent: {
+    selectorLeft: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12
+        gap: 16
     },
-    selectorDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: COLORS.borderDark
+    iconBox: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: COLORS.bg,
+        alignItems: 'center',
+        justifyContent: 'center'
     },
-    selectorDotActive: {
-        backgroundColor: COLORS.primary
+    iconBoxActive: {
+        backgroundColor: COLORS.primaryLight
     },
     selectorText: {
         fontSize: 16,
