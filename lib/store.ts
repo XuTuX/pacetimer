@@ -65,6 +65,7 @@ interface AppState {
 
     // Utils
     addAccumulatedMs: (ms: number) => void;
+    clearAllData: () => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -383,6 +384,19 @@ export const useAppStore = create<AppState>()(
                         }));
                     }
                 }
+            },
+            clearAllData: () => {
+                set({
+                    subjects: [],
+                    sessions: [],
+                    segments: [],
+                    questionRecords: [],
+                    activeSessionId: null,
+                    activeSegmentId: null,
+                    activeSubjectId: null,
+                    stopwatch: DEFAULT_STOPWATCH,
+                    stopwatchStudyDate: getStudyDateKey(Date.now()),
+                });
             },
         }),
         {

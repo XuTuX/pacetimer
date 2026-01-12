@@ -18,6 +18,7 @@ import {
 import { Card } from '../components/ui/Card';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ThemedText } from '../components/ui/ThemedText';
+import { useAppStore } from '../lib/store';
 import { useSupabase } from '../lib/supabase';
 import { COLORS, RADIUS, SHADOWS, SPACING } from '../lib/theme';
 
@@ -25,6 +26,7 @@ export default function SettingsScreen() {
     const { signOut, userId } = useAuth();
     const { user } = useUser();
     const supabase = useSupabase();
+    const { clearAllData } = useAppStore();
     const router = useRouter();
     const [loading, setLoading] = useState(false);
 
@@ -36,6 +38,7 @@ export default function SettingsScreen() {
                 style: 'destructive',
                 onPress: async () => {
                     try {
+                        clearAllData();
                         await signOut();
                         router.replace('/auth/login');
                     } catch (err) {
@@ -69,6 +72,9 @@ export default function SettingsScreen() {
 
                             // 2. Clerk 인증 계정 삭제
                             await user?.delete();
+
+                            // 3. 로컬 데이터 삭제
+                            clearAllData();
 
                             router.replace('/auth/login');
                         } catch (err) {

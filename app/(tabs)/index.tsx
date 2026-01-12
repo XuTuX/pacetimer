@@ -1,3 +1,4 @@
+import { useAuth, useUser } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
@@ -22,6 +23,7 @@ import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { ThemedText } from '../../components/ui/ThemedText';
 import { useAppStore } from '../../lib/store';
 import { getStudyDateKey } from '../../lib/studyDate';
+import { useSupabase } from '../../lib/supabase';
 import { COLORS, RADIUS, SHADOWS, SPACING } from '../../lib/theme';
 import type { Segment, Session } from '../../lib/types';
 
@@ -52,10 +54,33 @@ export default function HomeScreen() {
     const [editName, setEditName] = React.useState('');
     const [now, setNow] = React.useState(Date.now());
 
+    // Nickname State
+    const { userId } = useAuth();
+    const { user } = useUser();
+    const supabase = useSupabase();
+    const [displayName, setDisplayName] = React.useState<string | null>(null);
+
     React.useEffect(() => {
         const id = setInterval(() => setNow(Date.now()), 1000);
         return () => clearInterval(id);
     }, []);
+
+    React.useEffect(() => {
+        if (!userId) return;
+        supabase.from('profiles').select('display_name').eq('id', userId).single()
+            .then(({ data, error }) => {
+                if (error) return;
+                const profileData = data as any;
+                if (profileData?.display_name) {
+                    setDisplayName(profileData.display_name);
+                }
+            });
+    }, [userId]);
+
+    const displayTitle = React.useMemo(() => {
+        const name = displayName || user?.firstName || '사용자';
+        return `${name}의 오늘`;
+    }, [displayName, user]);
 
     const totalMs = React.useMemo(() => {
         const today = getStudyDateKey(now);
@@ -117,7 +142,7 @@ export default function HomeScreen() {
     return (
         <View style={styles.container}>
             <ScreenHeader
-                title="오늘의 기록"
+                title={displayTitle}
                 rightElement={<HeaderSettings />}
                 showBack={false}
                 align="left"
