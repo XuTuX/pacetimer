@@ -35,24 +35,27 @@ export default function HistoryScreen() {
     const [selectedDate, setSelectedDate] = useState(() => params.date || getStudyDateKey(Date.now()));
     const [visibleMonth, setVisibleMonth] = useState(() => params.date || getStudyDateKey(Date.now()));
 
+    const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+    const [calendarKey, setCalendarKey] = useState(0);
+
+    useFocusEffect(useCallback(() => {
+        // [수정] 다른 탭에서 돌아오면 무조건 오늘로 표시되도록 변경
+        const today = getStudyDateKey(Date.now());
+        setSelectedDate(today);
+        setVisibleMonth(today);
+        setSelectedSessionId(null);
+        setCalendarKey(prev => prev + 1);
+
+        const id = setInterval(() => setNowMs(Date.now()), 30000);
+        return () => clearInterval(id);
+    }, []));
+
     React.useEffect(() => {
         if (params.date) {
             setSelectedDate(params.date);
             setVisibleMonth(params.date);
         }
     }, [params.date]);
-
-    const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
-
-    useFocusEffect(useCallback(() => {
-        if (!params.date) {
-            const today = getStudyDateKey(Date.now());
-            setSelectedDate(today);
-            setVisibleMonth(today);
-        }
-        const id = setInterval(() => setNowMs(Date.now()), 30000);
-        return () => clearInterval(id);
-    }, [params.date]));
 
     const subjectsById = useMemo(() => Object.fromEntries(subjects.map((s) => [s.id, s])), [subjects]);
     const index = useMemo(() => buildRecordsIndex({ sessions, segments, questionRecords, nowMs }), [sessions, segments, questionRecords, nowMs]);
@@ -117,31 +120,22 @@ export default function HistoryScreen() {
         const isMarked = !!marks[selectedDate];
         const existingStyle = isMarked ? marks[selectedDate].customStyles : null;
 
+        // 글자 색상은 기존(데이터 색상 혹은 기본 오늘 색상)을 유지하고 영향 주지 않음
         const finalBackgroundColor = existingStyle ? existingStyle.container.backgroundColor : 'transparent';
-        const finalTextColor = existingStyle ? existingStyle.text.color : COLORS.primary;
 
         marks[selectedDate] = {
             customStyles: {
                 container: {
                     backgroundColor: finalBackgroundColor,
                     borderWidth: 2,
-                    borderColor: COLORS.primary,
+                    borderColor: COLORS.text, // 테두리만 표시하여 선택됨을 알림
                     borderRadius: 12,
                     width: 38,
                     height: 38,
                     justifyContent: 'center',
                     alignItems: 'center',
-                    shadowColor: COLORS.primary,
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.15, // 그림자도 살짝 연하게 조정
-                    shadowRadius: 3,
-                    elevation: 3,
                 },
-                text: {
-                    color: finalTextColor,
-                    fontWeight: '700', // [수정됨] 900 -> 700 (자연스러운 굵기)
-                    fontSize: 14,
-                },
+                text: existingStyle ? existingStyle.text : {}, // 기존 텍스트 스타일(오늘 색상 등) 유지
             },
         };
 
@@ -165,6 +159,7 @@ export default function HistoryScreen() {
                 <View style={styles.historyWrapper}>
                     <View style={styles.calendarContainer}>
                         <Calendar
+                            key={calendarKey}
                             current={visibleMonth}
                             onDayPress={(day: { dateString: string }) => {
                                 setSelectedDate(day.dateString);
