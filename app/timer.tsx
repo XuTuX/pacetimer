@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
 
     // Header
     headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 },
-    headerCircleBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' },
+    headerCircleBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
     dotIndicator: { flexDirection: 'row', gap: 4 },
     dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: COLORS.border },
     dotActive: { width: 12, backgroundColor: COLORS.primary },
@@ -332,8 +332,8 @@ const styles = StyleSheet.create({
     gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingBottom: 40 },
     gridItem: { width: '48%', backgroundColor: COLORS.bg, padding: 16, borderRadius: RADIUS.xl, marginBottom: 12, alignItems: 'center', justifyContent: 'center', minHeight: 120 },
     gridItemActive: { backgroundColor: COLORS.white, borderWidth: 1.5, borderColor: COLORS.primary, ...SHADOWS.small },
-    gridIconBox: { width: 44, height: 44, borderRadius: 14, backgroundColor: COLORS.white, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-    gridIconBoxActive: { backgroundColor: COLORS.primary },
+    gridIconBox: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
+    gridIconBoxActive: {},
     gridText: { fontSize: 16, fontWeight: '600', color: COLORS.textMuted },
     gridTextActive: { color: COLORS.text, fontWeight: '700' },
     gridCheck: { position: 'absolute', top: 10, right: 10 },

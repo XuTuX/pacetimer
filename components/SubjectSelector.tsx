@@ -9,6 +9,7 @@ import {
     Pressable,
     ScrollView,
     StyleSheet,
+    Text,
     TextInput,
     TouchableOpacity,
     View
@@ -41,10 +42,18 @@ export default function SubjectSelector({
     setModalVisible
 }: Props) {
     const [newSubjectName, setNewSubjectName] = React.useState('');
-    const [isAdding, setIsAdding] = React.useState(false);
     const [isManageMode, setIsManageMode] = React.useState(false);
     const [editingSubjectId, setEditingSubjectId] = React.useState<string | null>(null);
     const [editName, setEditName] = React.useState('');
+
+    // Reset state on close
+    React.useEffect(() => {
+        if (!isModalVisible) {
+            setIsManageMode(false);
+            setEditingSubjectId(null);
+            setNewSubjectName('');
+        }
+    }, [isModalVisible]);
 
     const visibleSubjects = subjects.filter(s => !s.isArchived);
     const selectedSubject = visibleSubjects.find(s => s.id === activeSubjectId);
@@ -53,7 +62,6 @@ export default function SubjectSelector({
         if (newSubjectName.trim()) {
             addSubject(newSubjectName.trim());
             setNewSubjectName('');
-            setIsAdding(false);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
     };
@@ -77,10 +85,6 @@ export default function SubjectSelector({
 
     const closeModal = () => {
         setModalVisible(false);
-        setIsAdding(false);
-        setIsManageMode(false);
-        setEditingSubjectId(null);
-        setEditName('');
     };
 
     return (
@@ -92,17 +96,15 @@ export default function SubjectSelector({
                         setModalVisible(true);
                         Haptics.selectionAsync();
                     }}
-                    activeOpacity={0.8}
+                    activeOpacity={0.7}
                 >
-                    <View style={styles.selectorLeft}>
-                        <View style={[styles.iconBox, selectedSubject ? styles.iconBoxActive : null]}>
-                            <Ionicons name="book" size={18} color={selectedSubject ? COLORS.primary : COLORS.textMuted} />
-                        </View>
+                    <View style={styles.selectorContent}>
+                        <View style={[styles.selectorDot, selectedSubject && styles.selectorDotActive]} />
                         <ThemedText style={[styles.selectorText, !selectedSubject && styles.placeholder]}>
-                            {selectedSubject ? selectedSubject.name : '공부할 과목을 선택하세요'}
+                            {selectedSubject ? selectedSubject.name : '과목 선택하기'}
                         </ThemedText>
                     </View>
-                    <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+                    <Ionicons name="chevron-down" size={16} color={COLORS.textMuted} style={{ opacity: 0.5 }} />
                 </TouchableOpacity>
             </View>
 
@@ -118,131 +120,117 @@ export default function SubjectSelector({
                         style={styles.modalKeyboardAvoid}
                     >
                         <Pressable style={styles.modalContent} onPress={e => e.stopPropagation()}>
-                            <View style={styles.modalHandle} />
+                            {/* Handle & Header */}
+                            <View style={styles.handleBar} />
 
-                            <View style={styles.modalHeader}>
-                                <View style={styles.modalHeaderLeft}>
-                                    <TouchableOpacity
-                                        onPress={() => {
-                                            setIsAdding(!isAdding);
-                                            setIsManageMode(false);
-                                            Haptics.selectionAsync();
-                                        }}
-                                        style={styles.headerIconBtn}
-                                    >
-                                        <Ionicons name={isAdding ? 'remove' : 'add'} size={24} color={COLORS.primary} />
-                                    </TouchableOpacity>
-                                </View>
-
-                                <View style={styles.modalHeaderRight}>
-                                    <TouchableOpacity
-                                        onPress={() => {
-                                            setIsManageMode(!isManageMode);
-                                            setIsAdding(false);
-                                            Haptics.selectionAsync();
-                                        }}
-                                        style={styles.headerIconBtn}
-                                    >
-                                        <Ionicons
-                                            name={isManageMode ? 'settings' : 'settings-outline'}
-                                            size={24}
-                                            color={isManageMode ? COLORS.primary : COLORS.textMuted}
-                                        />
-                                    </TouchableOpacity>
-                                    <TouchableOpacity onPress={closeModal} style={styles.headerIconBtn}>
-                                        <Ionicons name="close" size={24} color={COLORS.textMuted} />
-                                    </TouchableOpacity>
-                                </View>
+                            <View style={styles.headerRow}>
+                                <View style={{ flex: 1 }} />
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        setIsManageMode(!isManageMode);
+                                        Haptics.selectionAsync();
+                                    }}
+                                    style={styles.manageBtn}
+                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                >
+                                    <Text style={[styles.manageBtnText, isManageMode && styles.manageBtnTextActive]}>
+                                        {isManageMode ? '완료' : '편집'}
+                                    </Text>
+                                </TouchableOpacity>
                             </View>
 
                             <ScrollView style={styles.modalScroll} bounces showsVerticalScrollIndicator={false}>
-                                {isAdding && (
-                                    <View style={styles.modalAddInputSection}>
-                                        <View style={styles.inputRow}>
-                                            <TextInput
-                                                style={styles.modalInput}
-                                                placeholder="과목명을 입력하세요"
-                                                placeholderTextColor={COLORS.textMuted}
-                                                value={newSubjectName}
-                                                onChangeText={setNewSubjectName}
-                                                autoFocus
-                                                onSubmitEditing={handleAddSubject}
-                                                returnKeyType="done"
-                                            />
-                                            <TouchableOpacity onPress={handleAddSubject} style={styles.confirmBtn}>
-                                                <Ionicons name="arrow-up" size={20} color={COLORS.white} />
-                                            </TouchableOpacity>
-                                        </View>
-                                    </View>
-                                )}
-
                                 <View style={styles.subjectList}>
                                     {visibleSubjects.map(s => (
-                                        <TouchableOpacity
-                                            key={s.id}
-                                            style={[styles.modalItem, activeSubjectId === s.id && styles.modalItemActive]}
-                                            onPress={() => {
-                                                if (isManageMode) return;
-                                                setActiveSubjectId(s.id);
-                                                setModalVisible(false);
-                                                Haptics.selectionAsync();
-                                            }}
-                                            disabled={isManageMode}
-                                        >
-                                            <View style={styles.modalItemLeft}>
-                                                <View
-                                                    style={[
-                                                        styles.subjectDot,
-                                                        { backgroundColor: activeSubjectId === s.id ? COLORS.primary : COLORS.borderDark }
-                                                    ]}
-                                                />
-                                                {editingSubjectId === s.id ? (
-                                                    <TextInput
-                                                        style={styles.editInput}
-                                                        value={editName}
-                                                        onChangeText={setEditName}
-                                                        autoFocus
-                                                        onBlur={() => handleUpdateSubject(s.id)}
-                                                        onSubmitEditing={() => handleUpdateSubject(s.id)}
-                                                    />
-                                                ) : (
-                                                    <ThemedText
-                                                        style={[styles.modalItemText, activeSubjectId === s.id && styles.activeItemText]}
-                                                    >
-                                                        {s.name}
-                                                    </ThemedText>
-                                                )}
-                                            </View>
-
-                                            <View style={styles.itemRightActions}>
-                                                {isManageMode ? (
-                                                    <View style={styles.manageActions}>
-                                                        <TouchableOpacity
-                                                            onPress={() => {
-                                                                setEditingSubjectId(s.id);
-                                                                setEditName(s.name);
-                                                            }}
-                                                            style={styles.manageBtn}
-                                                        >
-                                                            <Ionicons name="pencil" size={18} color={COLORS.textMuted} />
-                                                        </TouchableOpacity>
+                                        <View key={s.id} style={styles.itemContainer}>
+                                            <TouchableOpacity
+                                                style={styles.modalItem}
+                                                onPress={() => {
+                                                    if (isManageMode) return;
+                                                    setActiveSubjectId(s.id);
+                                                    setModalVisible(false);
+                                                    Haptics.selectionAsync();
+                                                }}
+                                                activeOpacity={isManageMode ? 1 : 0.7}
+                                            >
+                                                {/* Left: Delete or Dot */}
+                                                <View style={styles.itemLeft}>
+                                                    {isManageMode ? (
                                                         <TouchableOpacity
                                                             onPress={() => handleDeleteSubject(s.id)}
-                                                            style={styles.manageBtn}
+                                                            style={styles.deleteBtn}
                                                         >
-                                                            <Ionicons name="trash-outline" size={18} color={COLORS.error} />
+                                                            <Ionicons name="remove-circle" size={22} color={COLORS.error} />
                                                         </TouchableOpacity>
-                                                    </View>
-                                                ) : (
-                                                    activeSubjectId === s.id && (
-                                                        <View style={styles.checkCircle}>
-                                                            <Ionicons name="checkmark" size={14} color={COLORS.white} />
-                                                        </View>
-                                                    )
-                                                )}
-                                            </View>
-                                        </TouchableOpacity>
+                                                    ) : (
+                                                        <View style={[styles.dot, activeSubjectId === s.id && styles.dotActive]} />
+                                                    )}
+
+                                                    {/* Center: Name or Edit Input */}
+                                                    {editingSubjectId === s.id ? (
+                                                        <TextInput
+                                                            style={styles.inlineInput}
+                                                            value={editName}
+                                                            onChangeText={setEditName}
+                                                            autoFocus
+                                                            onBlur={() => handleUpdateSubject(s.id)}
+                                                            onSubmitEditing={() => handleUpdateSubject(s.id)}
+                                                            selectionColor={COLORS.primary}
+                                                        />
+                                                    ) : (
+                                                        <ThemedText style={[styles.itemText, activeSubjectId === s.id && styles.itemTextActive]}>
+                                                            {s.name}
+                                                        </ThemedText>
+                                                    )}
+                                                </View>
+
+                                                {/* Right: Edit Icon or Checkmark */}
+                                                <View style={styles.itemRight}>
+                                                    {isManageMode ? (
+                                                        editingSubjectId !== s.id && (
+                                                            <TouchableOpacity
+                                                                onPress={() => {
+                                                                    setEditingSubjectId(s.id);
+                                                                    setEditName(s.name);
+                                                                }}
+                                                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                                            >
+                                                                <Ionicons name="pencil" size={16} color={COLORS.textMuted} />
+                                                            </TouchableOpacity>
+                                                        )
+                                                    ) : (
+                                                        activeSubjectId === s.id && (
+                                                            <Ionicons name="checkmark" size={20} color={COLORS.primary} />
+                                                        )
+                                                    )}
+                                                </View>
+                                            </TouchableOpacity>
+                                        </View>
                                     ))}
+
+                                    {/* Add New Subject Row (Always at bottom) */}
+                                    <View style={styles.addItemRow}>
+                                        <TouchableOpacity
+                                            onPress={handleAddSubject}
+                                            disabled={!newSubjectName.trim()}
+                                            style={styles.addIconBtn}
+                                        >
+                                            <Ionicons
+                                                name="add"
+                                                size={22}
+                                                color={newSubjectName.trim() ? COLORS.primary : COLORS.textMuted}
+                                            />
+                                        </TouchableOpacity>
+                                        <TextInput
+                                            style={styles.addInput}
+                                            placeholder="새로운 과목 추가"
+                                            placeholderTextColor={COLORS.textMuted}
+                                            value={newSubjectName}
+                                            onChangeText={setNewSubjectName}
+                                            onSubmitEditing={handleAddSubject}
+                                            returnKeyType="done"
+                                        />
+                                    </View>
                                 </View>
                             </ScrollView>
                         </Pressable>
@@ -262,28 +250,25 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         backgroundColor: COLORS.surface,
-        height: 60,
-        paddingHorizontal: SPACING.xl,
-        borderRadius: RADIUS.full,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        ...SHADOWS.small
+        height: 56,
+        paddingHorizontal: SPACING.lg,
+        borderRadius: RADIUS.xl,
+        ...SHADOWS.small,
+        shadowOpacity: 0.03,
     },
-    selectorLeft: {
+    selectorContent: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 16
+        gap: 12
     },
-    iconBox: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: COLORS.bg,
-        alignItems: 'center',
-        justifyContent: 'center'
+    selectorDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: COLORS.borderDark
     },
-    iconBoxActive: {
-        backgroundColor: COLORS.primaryLight
+    selectorDotActive: {
+        backgroundColor: COLORS.primary
     },
     selectorText: {
         fontSize: 16,
@@ -296,147 +281,124 @@ const styles = StyleSheet.create({
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.45)',
+        backgroundColor: 'rgba(0,0,0,0.4)',
         justifyContent: 'flex-end'
     },
-    modalHandle: {
-        width: 40,
+    modalKeyboardAvoid: {
+        width: '100%',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: COLORS.surface,
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        paddingBottom: 40,
+        maxHeight: height * 0.8,
+        ...SHADOWS.medium
+    },
+    handleBar: {
+        width: 36,
         height: 4,
         backgroundColor: COLORS.borderDark,
         borderRadius: 2,
         alignSelf: 'center',
-        marginTop: 10
+        marginTop: 10,
     },
-    modalKeyboardAvoid: {
-        width: '100%'
-    },
-    modalContent: {
-        backgroundColor: COLORS.surface,
-        borderTopLeftRadius: 32,
-        borderTopRightRadius: 32,
-        paddingBottom: 48,
-        maxHeight: height * 0.75,
-        minHeight: 300,
-        ...SHADOWS.heavy
-    },
-    modalHeader: {
+    headerRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        justifyContent: 'flex-end',
         paddingHorizontal: SPACING.xl,
-        paddingTop: SPACING.xl,
-        paddingBottom: SPACING.md
+        paddingTop: SPACING.md,
+        paddingBottom: SPACING.xs,
     },
-    modalHeaderLeft: {
-        flexDirection: 'row',
-        alignItems: 'center'
+    manageBtn: {
+        paddingVertical: 4,
+        paddingHorizontal: 4
     },
-    modalHeaderRight: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8
+    manageBtnText: {
+        fontSize: 14,
+        color: COLORS.textMuted,
+        fontWeight: '600'
     },
-    headerIconBtn: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: COLORS.bg,
-        alignItems: 'center',
-        justifyContent: 'center'
+    manageBtnTextActive: {
+        color: COLORS.primary
     },
     modalScroll: {
-        paddingHorizontal: SPACING.xxl
-    },
-    modalAddInputSection: {
-        marginBottom: SPACING.md
+        paddingHorizontal: SPACING.xl
     },
     subjectList: {
-        gap: 8,
-        marginVertical: SPACING.md
+        paddingBottom: SPACING.xl,
+        marginTop: 8
+    },
+    itemContainer: {
+        marginBottom: 4,
     },
     modalItem: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        padding: SPACING.lg,
-        backgroundColor: COLORS.bg,
-        borderRadius: RADIUS.lg,
-        borderWidth: 1,
-        borderColor: 'transparent'
+        justifyContent: 'space-between',
+        paddingVertical: 14,
+        paddingHorizontal: 8,
     },
-    modalItemLeft: {
+    itemLeft: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12
     },
-    subjectDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4
+    dot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: COLORS.gray,
+        opacity: 0.3
     },
-    modalItemActive: {
-        backgroundColor: COLORS.primaryLight,
-        borderColor: 'rgba(0, 208, 148, 0.1)'
+    dotActive: {
+        backgroundColor: COLORS.primary,
+        opacity: 1
     },
-    modalItemText: {
+    itemText: {
         fontSize: 16,
         color: COLORS.text,
-        fontWeight: '600'
+        fontWeight: '500'
     },
-    activeItemText: {
-        color: COLORS.primaryDark,
-        fontWeight: '700'
+    itemTextActive: {
+        fontWeight: '700',
+        color: COLORS.text
     },
-    itemRightActions: {
-        flexDirection: 'row',
-        alignItems: 'center'
+    itemRight: {
+        minWidth: 24,
+        alignItems: 'flex-end'
     },
-    manageActions: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8
+    deleteBtn: {
+        marginRight: 4
     },
-    manageBtn: {
-        padding: 8
-    },
-    editInput: {
+    inlineInput: {
         flex: 1,
         fontSize: 16,
         color: COLORS.text,
         fontWeight: '600',
-        padding: 0
+        padding: 0,
+        marginLeft: -2
     },
-    checkCircle: {
-        width: 22,
-        height: 22,
-        borderRadius: 11,
-        backgroundColor: COLORS.primary,
-        alignItems: 'center',
-        justifyContent: 'center'
-    },
-    inputRow: {
+    addItemRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10
+        paddingVertical: 12,
+        paddingHorizontal: 4,
+        marginTop: 8,
+        borderTopWidth: 1,
+        borderTopColor: COLORS.surfaceVariant, // Very subtle separator
+        gap: 12
     },
-    modalInput: {
-        flex: 1,
-        height: 56,
-        backgroundColor: COLORS.bg,
-        borderRadius: RADIUS.lg,
-        paddingHorizontal: 16,
-        fontSize: 16,
-        borderWidth: 1,
-        borderColor: COLORS.primary
-    },
-    confirmBtn: {
-        width: 56,
-        height: 56,
-        borderRadius: RADIUS.lg,
-        backgroundColor: COLORS.primary,
+    addIconBtn: {
+        width: 24,
         alignItems: 'center',
-        justifyContent: 'center',
-        ...SHADOWS.small
+    },
+    addInput: {
+        flex: 1,
+        fontSize: 16,
+        color: COLORS.text,
+        height: 40
     }
 });

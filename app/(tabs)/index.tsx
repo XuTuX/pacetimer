@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { Dimensions, StyleSheet, TouchableOpacity, View } from 'react-native';
 import SproutVisual from '../../components/SproutVisual';
+import SubjectSelector from '../../components/SubjectSelector';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { HeaderSettings } from '../../components/ui/HeaderSettings';
@@ -15,7 +16,6 @@ import { getStudyDateKey } from '../../lib/studyDate';
 import { useSupabase } from '../../lib/supabase';
 import { COLORS, RADIUS, SPACING } from '../../lib/theme';
 import type { Segment, Session } from '../../lib/types';
-import SubjectSelector from '../../components/SubjectSelector';
 
 const { height } = Dimensions.get('window');
 
@@ -112,7 +112,6 @@ export default function HomeScreen() {
                 <Card variant="elevated" style={styles.mainCard}>
                     <SproutVisual totalMinutes={totalMinutes} />
                     <View style={styles.timeContainer}>
-                        <ThemedText variant="caption" color={COLORS.textMuted} style={styles.timeLabel}>누적 학습 시간</ThemedText>
                         <ThemedText variant="h1" style={styles.timeText}>{formatTime(totalMs)}</ThemedText>
                     </View>
                 </Card>

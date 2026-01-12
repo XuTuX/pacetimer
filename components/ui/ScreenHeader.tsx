@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, RADIUS, SHADOWS, SPACING } from '../../lib/theme';
+import { COLORS, SPACING } from '../../lib/theme';
 import { Typography } from './Typography';
 
 interface ScreenHeaderProps {
@@ -115,11 +115,8 @@ const styles = StyleSheet.create({
     backButton: {
         width: 40,
         height: 40,
-        borderRadius: RADIUS.full,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: COLORS.surface,
-        ...SHADOWS.small,
     },
     pressed: {
         opacity: 0.7,

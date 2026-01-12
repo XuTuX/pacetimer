@@ -107,7 +107,7 @@ export default function RoomsIndexScreen() {
                 onPress={() => router.push("/(tabs)/rooms/create")}
                 style={({ pressed }) => [styles.createBtn, pressed && { transform: [{ scale: 0.95 }] }]}
             >
-                <Ionicons name="add" size={24} color={COLORS.white} />
+                <Ionicons name="add" size={28} color={COLORS.text} />
             </Pressable>
             <HeaderSettings />
         </View>
@@ -212,8 +212,6 @@ const styles = StyleSheet.create({
     createBtn: {
         width: 40,
         height: 40,
-        backgroundColor: COLORS.text,
-        borderRadius: 20,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -232,8 +230,6 @@ const styles = StyleSheet.create({
     emptyIconCircle: {
         width: 80,
         height: 80,
-        borderRadius: 40,
-        backgroundColor: COLORS.primaryLight,
         alignItems: "center",
         justifyContent: "center",
         marginBottom: SPACING.lg,

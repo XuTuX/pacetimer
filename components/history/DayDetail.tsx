@@ -188,8 +188,6 @@ const styles = StyleSheet.create({
     emptyIconCircle: {
         width: 64,
         height: 64,
-        borderRadius: 32,
-        backgroundColor: COLORS.surfaceVariant,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 16,

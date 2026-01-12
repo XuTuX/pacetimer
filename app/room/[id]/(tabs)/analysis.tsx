@@ -563,8 +563,6 @@ const styles = StyleSheet.create({
     examIconBox: {
         width: 64,
         height: 64,
-        borderRadius: 24,
-        backgroundColor: COLORS.primaryLight,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: SPACING.lg,
