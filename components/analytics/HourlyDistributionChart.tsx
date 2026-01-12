@@ -20,21 +20,40 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
     const max = Math.max(...data, 0);
     const hasData = max > 0;
 
+    // Standard thresholds for "high intensity" (100% color)
+    // 1 hour a day is a logical maximum for an hourly distribution slot.
+    // For 7/30 days, we set the benchmark for "A lot" (darkest blue) 
+    // to reflect consistent daily study at that hour.
+    const getReferenceMax = () => {
+        const days = range === 'today' ? 1 : range === '7days' ? 7 : 30;
+        if (mode === 'time') {
+            const HOUR_MS = 3600000;
+            // 45 mins per day at a specific hour is already "a lot" for a habit.
+            const benchmark = 0.75 * HOUR_MS * days;
+            return Math.max(max, benchmark);
+        } else {
+            // 15 questions per hour average is "a lot"
+            const benchmark = 15 * days;
+            return Math.max(max, benchmark);
+        }
+    };
+
+    const refMax = getReferenceMax();
+
     const getIntensityColor = (value: number) => {
         if (value === 0) return 'rgba(0,0,0,0.03)';
-        if (max === 0) return 'rgba(0,0,0,0.03)';
+        if (refMax === 0) return 'rgba(0,0,0,0.03)';
 
-        const ratio = value / max;
-        if (ratio > 0.8) return COLORS.primary;
-        if (ratio > 0.5) return COLORS.primary + 'CC'; // 80%
-        if (ratio > 0.2) return COLORS.primary + '80'; // 50%
-        return COLORS.primary + '33'; // 20%
+        const ratio = value / refMax;
+        if (ratio > 0.66) return COLORS.primary; // 3단계: 많음
+        if (ratio > 0.33) return COLORS.primary + '80'; // 2단계: 보통 (50%)
+        return COLORS.primary + '33'; // 1단계: 적음 (20%)
     };
 
     const getIntensityTextColor = (value: number) => {
         if (value === 0) return COLORS.textMuted;
-        const ratio = value / max;
-        return ratio > 0.5 ? COLORS.white : COLORS.text;
+        const ratio = value / refMax;
+        return ratio > 0.33 ? COLORS.white : COLORS.text;
     };
 
     const gridData = [
@@ -53,6 +72,7 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
     };
 
     const formatHourlyValueLabel = (val: number) => {
+        if (val === 0) return '';
         if (mode === 'time') {
             const totalSeconds = Math.max(0, Math.floor(val / 1000));
             const hours = Math.floor(totalSeconds / 3600);
@@ -60,7 +80,7 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
             const seconds = totalSeconds % 60;
 
             if (hours > 0) {
-                return minutes > 0 ? `${hours}시간 ${minutes}분` : `${hours}시간`;
+                return `${hours}시간`;
             }
             if (minutes > 0) {
                 return `${minutes}분`;
@@ -140,6 +160,8 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
                                             </ThemedText>
                                             <ThemedText
                                                 variant="caption"
+                                                numberOfLines={1}
+                                                adjustsFontSizeToFit
                                                 style={[
                                                     styles.hourValue,
                                                     { color: labelColor }
@@ -159,12 +181,12 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
             <View style={styles.legend}>
                 <ThemedText variant="caption" color={COLORS.textMuted} style={{ fontWeight: '800' }}>적음</ThemedText>
                 <View style={styles.legendSteps}>
-                    {[0, 0.2, 0.5, 0.9].map((lvl, i) => (
+                    {[0.2, 0.5, 0.8].map((lvl, i) => (
                         <View
                             key={i}
                             style={[
                                 styles.legendBox,
-                                { backgroundColor: getIntensityColor(lvl * max || (i === 0 ? 0 : 1)) }
+                                { backgroundColor: getIntensityColor(lvl * (refMax || 1)) }
                             ]}
                         />
                     ))}
@@ -246,7 +268,9 @@ const styles = StyleSheet.create({
     hourValue: {
         fontSize: 9,
         fontWeight: '700',
-        marginTop: 2,
+        marginTop: 1,
+        width: '90%',
+        textAlign: 'center',
     },
     legend: {
         flexDirection: 'row',
