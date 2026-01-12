@@ -93,11 +93,7 @@ export default function HomeScreen() {
                 align="left"
             />
 
-            <ScrollView
-                style={styles.content}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.scrollContent}
-            >
+            <View style={styles.content}>
                 <Card variant="elevated" style={styles.mainCard}>
                     <SproutVisual totalMinutes={totalMinutes} />
                     <View style={styles.timeContainer}>
@@ -106,30 +102,32 @@ export default function HomeScreen() {
                     </View>
                 </Card>
 
-                {/* --- 과목 선택 버튼 영역 --- */}
-                <View style={styles.subjectWrapper}>
-                    <ThemedText variant="label" color={COLORS.textMuted} style={styles.label}>공부 과목</ThemedText>
+                <View style={styles.centerContent}>
+                    {/* --- 과목 선택 버튼 영역 --- */}
+                    <View style={styles.subjectWrapper}>
+                        <ThemedText variant="label" color={COLORS.textMuted} style={styles.label}>공부 과목</ThemedText>
 
-                    <TouchableOpacity
-                        style={styles.selector}
-                        onPress={() => {
-                            setModalVisible(true);
-                            Haptics.selectionAsync();
-                        }}
-                        activeOpacity={0.8}
-                    >
-                        <View style={styles.selectorLeft}>
-                            <View style={[styles.iconBox, selectedSubject ? styles.iconBoxActive : null]}>
-                                <Ionicons name="book" size={16} color={selectedSubject ? COLORS.white : COLORS.textMuted} />
+                        <TouchableOpacity
+                            style={styles.selector}
+                            onPress={() => {
+                                setModalVisible(true);
+                                Haptics.selectionAsync();
+                            }}
+                            activeOpacity={0.8}
+                        >
+                            <View style={styles.selectorLeft}>
+                                <View style={[styles.iconBox, selectedSubject ? styles.iconBoxActive : null]}>
+                                    <Ionicons name="book" size={16} color={selectedSubject ? COLORS.white : COLORS.textMuted} />
+                                </View>
+                                <ThemedText style={[styles.selectorText, !selectedSubject && styles.placeholder]}>
+                                    {selectedSubject ? selectedSubject.name : "과목을 선택해주세요"}
+                                </ThemedText>
                             </View>
-                            <ThemedText style={[styles.selectorText, !selectedSubject && styles.placeholder]}>
-                                {selectedSubject ? selectedSubject.name : "과목을 선택해주세요"}
-                            </ThemedText>
-                        </View>
-                        <Ionicons name="chevron-up" size={16} color={COLORS.textMuted} style={{ transform: [{ rotate: '180deg' }] }} />
-                    </TouchableOpacity>
+                            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+                        </TouchableOpacity>
+                    </View>
+                    {/* ----------------------- */}
                 </View>
-                {/* ----------------------- */}
 
                 <View style={styles.bottomActions}>
                     <Button
@@ -157,7 +155,7 @@ export default function HomeScreen() {
                         onPress={() => router.push('/modes/mock-exam/setup')}
                     />
                 </View>
-            </ScrollView>
+            </View>
 
             {/* --- Bottom Sheet Modal --- */}
             <Modal
@@ -246,42 +244,51 @@ const styles = StyleSheet.create({
     },
     content: {
         flex: 1,
-    },
-    scrollContent: {
         paddingHorizontal: SPACING.xxl,
-        paddingBottom: 40,
+        paddingBottom: 20,
     },
     mainCard: {
-        height: height * 0.35,
+        height: height * 0.38,
         alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: SPACING.md,
+        paddingBottom: SPACING.lg,
+    },
+    centerContent: {
+        flex: 1,
         justifyContent: 'center',
     },
     timeContainer: {
         alignItems: 'center',
-        marginTop: SPACING.md,
+        marginTop: SPACING.xs,
+        gap: 2,
     },
     timeLabel: {
         fontWeight: '600',
-        marginBottom: 4,
+        marginBottom: 2,
     },
-    timeText: {},
+    timeText: {
+        fontSize: 34,
+    },
 
     // Selector Button Styles
     subjectWrapper: {
-        marginTop: SPACING.xl,
+        marginTop: SPACING.sm,
     },
     label: {
         marginBottom: SPACING.sm,
         marginLeft: SPACING.xs,
+        fontSize: 12,
+        fontWeight: '600',
     },
     selector: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         backgroundColor: COLORS.surface,
-        height: 56,
+        height: 68,
         paddingHorizontal: SPACING.lg,
-        borderRadius: RADIUS.lg,
+        borderRadius: RADIUS.xl,
         borderWidth: 1,
         borderColor: COLORS.border,
         ...SHADOWS.small,
@@ -289,12 +296,12 @@ const styles = StyleSheet.create({
     selectorLeft: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: 16,
     },
     iconBox: {
-        width: 32,
-        height: 32,
-        borderRadius: 8,
+        width: 40,
+        height: 40,
+        borderRadius: RADIUS.md,
         backgroundColor: COLORS.bg,
         alignItems: 'center',
         justifyContent: 'center',
@@ -303,8 +310,8 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.primary,
     },
     selectorText: {
-        fontSize: 16,
-        fontWeight: '600',
+        fontSize: 18,
+        fontWeight: '700',
         color: COLORS.text,
     },
     placeholder: {
@@ -328,7 +335,7 @@ const styles = StyleSheet.create({
         paddingBottom: 40, // 하단 아이폰 홈 바 여유 공간
         maxHeight: height * 0.7, // 화면의 70%까지만 차지
         minHeight: 200,
-        ...SHADOWS.large,
+        ...SHADOWS.heavy,
     },
     modalHeader: {
         flexDirection: 'row',
@@ -421,11 +428,11 @@ const styles = StyleSheet.create({
 
     bottomActions: {
         marginTop: 'auto',
-        marginBottom: SPACING.xl,
+        marginBottom: SPACING.lg,
         gap: SPACING.sm,
     },
     startBtn: {
-        height: 60,
+        height: 64,
         borderRadius: RADIUS.xl,
     },
 });

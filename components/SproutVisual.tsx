@@ -39,20 +39,6 @@ export default function SproutVisual({ totalMinutes }: SproutVisualProps) {
         }
     };
 
-    const getTimeVibe = () => {
-        if (currentHour >= 5 && currentHour < 11) {
-            return { bg: '#FFF9EB', border: '#FFE4A1', mood: 'morning' }; // Morning: Soft Golden
-        } else if (currentHour >= 11 && currentHour < 17) {
-            return { bg: '#F0F9FF', border: '#BAE6FD', mood: 'afternoon' }; // Afternoon: Sky Blue
-        } else if (currentHour >= 17 && currentHour < 21) {
-            return { bg: '#FFF1F2', border: '#FECDD3', mood: 'evening' }; // Evening: Soft Rose
-        } else {
-            return { bg: '#F5F3FF', border: '#DDD6FE', mood: 'night' }; // Night: Soft Lavender
-        }
-    };
-
-    const vibe = getTimeVibe();
-
     const animatedStyle = useAnimatedStyle(() => {
         const scale = 1 + (stage % 6) * 0.05;
         const translateY = -(stage % 6) * 2;
@@ -61,7 +47,6 @@ export default function SproutVisual({ totalMinutes }: SproutVisualProps) {
                 { scale: withSpring(scale) },
                 { translateY: withSpring(translateY) },
             ],
-            // Removed background and border for transparent look as requested
         };
     });
 
@@ -83,12 +68,12 @@ const styles = StyleSheet.create({
     container: {
         alignItems: 'center',
         justifyContent: 'center',
-        height: 240,
+        height: 200,
         width: '100%',
     },
     imageWrapper: {
-        width: 240,
-        height: 240,
+        width: 200,
+        height: 200,
         alignItems: 'center',
         justifyContent: 'center',
     },
