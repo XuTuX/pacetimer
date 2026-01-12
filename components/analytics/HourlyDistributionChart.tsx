@@ -27,14 +27,15 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
     const getReferenceMax = () => {
         const days = range === 'today' ? 1 : range === '7days' ? 7 : 30;
         if (mode === 'time') {
-            const HOUR_MS = 3600000;
-            // 45 mins per day at a specific hour is already "a lot" for a habit.
-            const benchmark = 0.75 * HOUR_MS * days;
-            return Math.max(max, benchmark);
+            if (range === '7days') {
+                // 7일은 4시간이 3단계(2/3) 지점이 되도록 6시간을 기준으로 설정
+                return 3600000 * 6;
+            }
+            // 그 외는 하루 1시간(60분) 기준
+            return 3600000 * days;
         } else {
-            // 15 questions per hour average is "a lot"
-            const benchmark = 15 * days;
-            return Math.max(max, benchmark);
+            // 5문제(1/3), 10문제(2/3), 15문제(전체) 기준
+            return 15 * days;
         }
     };
 
@@ -42,12 +43,14 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
 
     const getIntensityColor = (value: number) => {
         if (value === 0) return 'rgba(0,0,0,0.03)';
-        if (refMax === 0) return 'rgba(0,0,0,0.03)';
 
         const ratio = value / refMax;
-        if (ratio > 0.66) return COLORS.primary; // 3단계: 많음
-        if (ratio > 0.33) return COLORS.primary + '80'; // 2단계: 보통 (50%)
-        return COLORS.primary + '33'; // 1단계: 적음 (20%)
+        // 3단계: 시간(40분+), 문제(10개+)
+        if (ratio >= 0.66) return COLORS.primary;
+        // 2단계: 시간(20분~40분), 문제(5개~10개)
+        if (ratio >= 0.33) return COLORS.primary + '80';
+        // 1단계: 시간(0~20분), 문제(0~5개)
+        return COLORS.primary + '33';
     };
 
     const getIntensityTextColor = (value: number) => {
@@ -96,14 +99,13 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
             <View style={styles.header}>
                 <View style={{ flex: 1 }}>
                     <ThemedText variant="h3">시간대별 분포</ThemedText>
-                    {hasData && (
-                        <ThemedText variant="caption" color={COLORS.textMuted} style={styles.subtitle}>
-                            {selectedHour !== null
+                    <ThemedText variant="caption" color={COLORS.textMuted} style={styles.subtitle}>
+                        {hasData ? (
+                            selectedHour !== null
                                 ? `${selectedHour}시: ${formatValue(data[selectedHour])}`
                                 : `${rangeText} ${peakHour}시에 가장 ${mode === 'time' ? '많이 집중했어요' : '많은 문제를 풀었어요'}`
-                            }
-                        </ThemedText>
-                    )}
+                        ) : '학습 데이터가 없습니다'}
+                    </ThemedText>
                 </View>
                 <View style={styles.toggleContainer}>
                     <TouchableOpacity
@@ -179,7 +181,15 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
             </View>
 
             <View style={styles.legend}>
-                <ThemedText variant="caption" color={COLORS.textMuted} style={{ fontWeight: '800' }}>적음</ThemedText>
+                <ThemedText variant="caption" color={COLORS.textMuted} style={{ fontWeight: '800' }}>
+                    {mode === 'time' ? (
+                        range === 'today' ? '20분 미만' :
+                            range === '7days' ? '3시간 미만' :
+                                `${10 * 30 / 60}시간 미만`
+                    ) : (
+                        `${5 * (range === 'today' ? 1 : range === '7days' ? 7 : 30)}문제 미만`
+                    )}
+                </ThemedText>
                 <View style={styles.legendSteps}>
                     {[0.2, 0.5, 0.8].map((lvl, i) => (
                         <View
@@ -191,14 +201,17 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
                         />
                     ))}
                 </View>
-                <ThemedText variant="caption" color={COLORS.textMuted} style={{ fontWeight: '800' }}>많음</ThemedText>
+                <ThemedText variant="caption" color={COLORS.textMuted} style={{ fontWeight: '800' }}>
+                    {mode === 'time' ? (
+                        range === 'today' ? '40분 이상' :
+                            range === '7days' ? '4시간 이상' :
+                                `${20 * 30 / 60}시간 이상`
+                    ) : (
+                        `${10 * (range === 'today' ? 1 : range === '7days' ? 7 : 30)}문제 이상`
+                    )}
+                </ThemedText>
             </View>
 
-            {!hasData && (
-                <View style={styles.emptyOverlay}>
-                    <ThemedText variant="body2" color={COLORS.textMuted} style={{ fontWeight: '800' }}>학습 데이터가 없습니다</ThemedText>
-                </View>
-            )}
         </Card>
     );
 };
@@ -287,13 +300,5 @@ const styles = StyleSheet.create({
         width: 12,
         height: 12,
         borderRadius: 3,
-    },
-    emptyOverlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(255,255,255,0.7)',
-        borderRadius: RADIUS.xxl,
-        justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 10,
     },
 });
