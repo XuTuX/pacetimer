@@ -70,6 +70,17 @@ export default function HistoryScreen() {
         return `${earliest.slice(0, 7)}-01`;
     }, [dayList]);
 
+    const maxDate = useMemo(() => getStudyDateKey(nowMs), [nowMs]);
+
+    const canGoPrev = useMemo(() => {
+        if (!minDate) return false;
+        return visibleMonth.slice(0, 7) > minDate.slice(0, 7);
+    }, [visibleMonth, minDate]);
+
+    const canGoNext = useMemo(() => {
+        return visibleMonth.slice(0, 7) < maxDate.slice(0, 7);
+    }, [visibleMonth, maxDate]);
+
     React.useEffect(() => {
         if (!minDate) return;
         if (selectedDate < minDate) {
@@ -170,6 +181,9 @@ export default function HistoryScreen() {
                             markingType={'custom'}
                             markedDates={markedDates}
                             minDate={minDate}
+                            maxDate={maxDate}
+                            disableArrowLeft={!canGoPrev}
+                            disableArrowRight={!canGoNext}
                             theme={{
                                 todayTextColor: COLORS.primary,
                                 arrowColor: COLORS.text,
