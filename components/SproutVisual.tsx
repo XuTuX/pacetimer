@@ -17,23 +17,20 @@ export default function SproutVisual({ totalMinutes }: SproutVisualProps) {
         return () => clearInterval(interval);
     }, []);
 
-    // Growth by study time:
-    // 0-60min: Stage 1
-    // 1h-3h: Stage 2
-    // 3h-6h: Stage 3
-    // 6h-9h: Stage 4
-    // 9h+: Stage 5 (Tree)
+    // Growth by daily study time:
+    // 0-3h: Stage 1
+    // 3h-6h: Stage 2
+    // 6h-10h: Stage 4
+    // 10h+: Stage 5 (Tree)
     let stage = 1;
-    if (totalMinutes >= 540) stage = 5;
+    if (totalMinutes >= 600) stage = 5;
     else if (totalMinutes >= 360) stage = 4;
-    else if (totalMinutes >= 180) stage = 3;
-    else if (totalMinutes >= 60) stage = 2;
+    else if (totalMinutes >= 180) stage = 2;
 
     const getStageImage = (s: number) => {
         switch (s) {
             case 5: return require('../assets/images/sprout_stage_5.png');
             case 4: return require('../assets/images/sprout_stage_4.png');
-            case 3: return require('../assets/images/sprout_stage_3.png');
             case 2: return require('../assets/images/sprout_stage_2.png');
             default: return require('../assets/images/sprout_stage_1.png');
         }

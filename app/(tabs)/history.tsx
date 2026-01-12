@@ -63,19 +63,18 @@ export default function HistoryScreen() {
             let color = COLORS.primaryLight;
             let textColor = COLORS.text;
 
-            if (totalMinutes >= 540) { // 9h+
+            if (totalMinutes >= 360) { // 6h+: 3단계
                 color = COLORS.primary;
                 textColor = COLORS.white;
-            } else if (totalMinutes >= 360) {
-                color = '#3CD6A3';
+            } else if (totalMinutes >= 180) { // 3h+: 2단계
+                color = COLORS.primary + '80';
                 textColor = COLORS.white;
-            } else if (totalMinutes >= 180) {
-                color = '#86E8CC';
-                textColor = COLORS.white;
-            } else if (totalMinutes >= 60) {
-                color = '#C1F2E4';
+            } else if (totalMinutes > 0) { // 1단계
+                color = COLORS.primary + '33';
+                textColor = COLORS.text;
             } else {
-                color = COLORS.primaryLight;
+                color = 'rgba(0,0,0,0.03)';
+                textColor = COLORS.text;
             }
 
             marks[day.date] = {
@@ -145,10 +144,8 @@ export default function HistoryScreen() {
                             <View style={styles.legendRow}>
                                 <Text style={styles.legendText}>적음</Text>
                                 <View style={styles.legendStages}>
-                                    <View style={[styles.legendBox, { backgroundColor: COLORS.primaryLight }]} />
-                                    <View style={[styles.legendBox, { backgroundColor: '#C1F2E4' }]} />
-                                    <View style={[styles.legendBox, { backgroundColor: '#86E8CC' }]} />
-                                    <View style={[styles.legendBox, { backgroundColor: '#3CD6A3' }]} />
+                                    <View style={[styles.legendBox, { backgroundColor: COLORS.primary + '33' }]} />
+                                    <View style={[styles.legendBox, { backgroundColor: COLORS.primary + '80' }]} />
                                     <View style={[styles.legendBox, { backgroundColor: COLORS.primary }]} />
                                 </View>
                                 <Text style={styles.legendText}>많음</Text>
