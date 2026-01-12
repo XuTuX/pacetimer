@@ -15,7 +15,7 @@ import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { buildRecordsIndex } from '../../lib/recordsIndex';
 import { useAppStore } from '../../lib/store';
 import { formatDisplayDate, getStudyDateKey } from '../../lib/studyDate';
-import { COLORS, SHADOWS } from '../../lib/theme';
+import { COLORS } from '../../lib/theme';
 
 LocaleConfig.locales['kr'] = {
     monthNames: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'],
@@ -207,11 +207,7 @@ const styles = StyleSheet.create({
     calendarWrapper: {
         borderRadius: 32,
         overflow: 'hidden',
-        backgroundColor: COLORS.surface,
-        padding: 12,
-        ...SHADOWS.small,
-        borderWidth: 1,
-        borderColor: COLORS.border,
+        padding: 0,
     },
     legendContainer: {
         paddingHorizontal: 12,

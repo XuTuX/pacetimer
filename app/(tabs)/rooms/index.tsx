@@ -125,8 +125,9 @@ export default function RoomsIndexScreen() {
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 <View style={styles.listHeaderSection}>
                     <View style={styles.listInfo}>
-                        <ThemedText variant="label" color={COLORS.textMuted} style={styles.sectionLabel}>나의 스터디 공간</ThemedText>
-                        <ThemedText variant="h2" style={styles.listTitle}>내 활성 룸</ThemedText>
+                        <ThemedText variant="h3" style={styles.listTitle}>
+                            참여 중인 룸 <ThemedText color={COLORS.primary} style={{ fontWeight: '800' }}>{rooms.length}</ThemedText>
+                        </ThemedText>
                     </View>
                     {loading && <ActivityIndicator size="small" color={COLORS.primary} />}
                 </View>
@@ -218,14 +219,13 @@ const styles = StyleSheet.create({
     },
     listHeaderSection: {
         flexDirection: 'row',
-        alignItems: 'flex-end',
+        alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 4,
         marginTop: SPACING.md,
     },
-    listInfo: { gap: 4 },
-    listTitle: {},
-    sectionLabel: { letterSpacing: 1.2, textTransform: 'uppercase' },
+    listInfo: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    listTitle: { letterSpacing: -0.5 },
     listSection: { gap: SPACING.md },
     roomList: { gap: SPACING.md },
     emptyCard: { alignItems: "center", borderStyle: 'dashed' },

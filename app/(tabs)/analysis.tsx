@@ -1,7 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-    ScrollView,
     StyleSheet,
     View
 } from 'react-native';
@@ -43,11 +42,7 @@ export default function AnalysisScreen() {
                 align="left"
             />
 
-            <ScrollView
-                style={styles.content}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
-            >
+            <View style={styles.content}>
                 <View style={styles.topSection}>
                     <AnalyticsHeader
                         selectedRange={range}
@@ -71,7 +66,7 @@ export default function AnalysisScreen() {
                         range={range}
                     />
                 </View>
-            </ScrollView>
+            </View>
         </View>
     );
 }
@@ -83,6 +78,7 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     sections: {
+        flex: 1,
         gap: 20,
     },
 });
