@@ -26,22 +26,29 @@ export const SummaryCards: React.FC<Props> = ({
     return (
         <View style={styles.container}>
             <Card variant="elevated" padding="xl" radius="xxl" style={styles.mainCard}>
-                <ThemedText variant="caption" color={COLORS.textMuted} style={[styles.label, { fontWeight: '800' }]}>총 공부시간</ThemedText>
-                <View style={styles.mainValueRow}>
-                    <ThemedText style={styles.mainValue}>{formatHMS(totalDurationMs)}</ThemedText>
+                {/* 상단: 총 공부시간 섹션 */}
+                <View style={styles.primaryRow}>
+                    <ThemedText style={styles.primaryValue}>{formatHMS(totalDurationMs)}</ThemedText>
                 </View>
 
-                <View style={styles.divider} />
+                <View style={styles.horizontalDivider} />
 
-                <View style={styles.statsRow}>
+                {/* 하단: 문항 수 & 평균 (중앙으로 모음) */}
+                <View style={styles.secondaryRow}>
                     <View style={styles.statItem}>
-                        <ThemedText variant="label" color={COLORS.textMuted} style={styles.statLabel}>문항 수</ThemedText>
-                        <ThemedText variant="h3">{totalQuestionCount.toLocaleString('ko-KR')}<ThemedText variant="caption" color={COLORS.textMuted}> 문제</ThemedText></ThemedText>
+                        <ThemedText style={styles.secondaryValue}>
+                            {totalQuestionCount.toLocaleString('ko-KR')}
+                        </ThemedText>
+                        <ThemedText style={styles.unitText}> 문제</ThemedText>
                     </View>
+
                     <View style={styles.verticalDivider} />
+
                     <View style={styles.statItem}>
-                        <ThemedText variant="label" color={COLORS.textMuted} style={styles.statLabel}>문항당 평균</ThemedText>
-                        <ThemedText variant="h3">{formatMMSS(averageQuestionDurationMs)}</ThemedText>
+                        <ThemedText style={styles.unitText}>한 문제당 </ThemedText>
+                        <ThemedText style={styles.secondaryValue}>
+                            {formatMMSS(averageQuestionDurationMs)}
+                        </ThemedText>
                     </View>
                 </View>
             </Card>
@@ -55,42 +62,58 @@ const styles = StyleSheet.create({
     },
     mainCard: {
         backgroundColor: COLORS.white,
+        alignItems: 'center', // 카드 전체 내용 중앙 정렬
+        paddingVertical: 24,
     },
-    label: {
-        marginBottom: SPACING.xs,
-    },
-    mainValueRow: {
-        flexDirection: 'row',
-        alignItems: 'baseline',
-        gap: SPACING.sm,
-    },
-    mainValue: {
-        fontSize: 32,
-        fontWeight: '900',
-        color: COLORS.text,
-    },
-    secondaryValue: {
-        fontSize: 14,
-    },
-    divider: {
-        height: 1,
-        backgroundColor: COLORS.border,
-        marginVertical: SPACING.xl,
-    },
-    statsRow: {
+    primaryRow: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+    },
+    totalLabel: {
+        fontSize: 13,
+        fontWeight: '800',
+        color: COLORS.textMuted,
+        marginTop: 6, // 숫자 높이와 맞추기 위한 미세 조정
+    },
+    primaryValue: {
+        fontSize: 38,
+        fontWeight: '900',
+        color: COLORS.text,
+        letterSpacing: -1,
+    },
+    horizontalDivider: {
+        width: '100%',
+        height: 1,
+        backgroundColor: COLORS.border,
+        marginVertical: 20,
+        opacity: 0.3,
+    },
+    secondaryRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center', // 양 끝으로 벌리지 않고 중앙으로 모음
+        gap: 24, // 두 정보 사이의 간격 (원하는 만큼 조절 가능)
     },
     statItem: {
-        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'baseline',
     },
-    statLabel: {
-        marginBottom: 4,
+    secondaryValue: {
+        fontSize: 18,
+        fontWeight: '800',
+        color: COLORS.text,
+    },
+    unitText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: COLORS.textMuted,
     },
     verticalDivider: {
         width: 1,
-        height: 24,
+        height: 14,
         backgroundColor: COLORS.border,
-        marginHorizontal: SPACING.lg,
+        opacity: 0.5,
     },
 });
