@@ -1,18 +1,16 @@
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Dimensions, ScrollView, StyleSheet, View } from "react-native";
-import { Button } from "../../../../components/ui/Button";
-import { Card } from "../../../../components/ui/Card";
+import { ActivityIndicator, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Button } from "../../../../components/ui/Button"; // 기존 UI 버튼 사용
 import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
-import { Section } from "../../../../components/ui/Section";
 import { Typography } from "../../../../components/ui/Typography";
 import type { Database } from "../../../../lib/db-types";
 import { useSupabase } from "../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../lib/supabaseError";
-import { COLORS, RADIUS, SPACING } from "../../../../lib/theme";
+import { COLORS, RADIUS, SHADOWS, SPACING } from "../../../../lib/theme";
+import { getRoomExamSubjectFromTitle } from "../../../../lib/roomExam";
 
 type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
@@ -29,7 +27,6 @@ export default function RaceScreen() {
     const [exams, setExams] = useState<RoomExamRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
     const [myAttempts, setMyAttempts] = useState<AttemptRow[]>([]);
 
     const loadData = useCallback(async () => {
@@ -40,41 +37,18 @@ export default function RaceScreen() {
         setLoading(true);
         setError(null);
         try {
-            const { data: roomData, error: roomError } = await supabase
-                .from("rooms")
-                .select("*")
-                .eq("id", roomId)
-                .single();
-            if (roomError) throw roomError;
-            setRoom(roomData);
+            const [roomRes, examRes, attemptRes] = await Promise.all([
+                supabase.from("rooms").select("*").eq("id", roomId).single(),
+                supabase.from("room_exams").select("*").eq("room_id", roomId).order("created_at", { ascending: false }),
+                supabase.from("attempts").select("*").eq("room_id", roomId).eq("user_id", userId ?? "")
+            ]);
 
-            const { data: examData, error: exError } = await supabase
-                .from("room_exams")
-                .select("*")
-                .eq("room_id", roomId)
-                .order("created_at", { ascending: false });
-            if (exError) throw exError;
-            const fetchedExams = examData ?? [];
-            setExams(fetchedExams);
+            if (roomRes.error) throw roomRes.error;
+            if (examRes.error) throw examRes.error;
 
-            if (userId) {
-                // Fetch current user's attempts for all exams in this room
-                const { data: aData } = await supabase
-                    .from("attempts")
-                    .select("*")
-                    .eq("room_id", roomId)
-                    .eq("user_id", userId);
-                setMyAttempts(aData || []);
-
-                const { data: mData } = await supabase
-                    .from("room_members")
-                    .select(`role`)
-                    .eq("room_id", roomId)
-                    .eq("user_id", userId)
-                    .single();
-                if (mData) setCurrentUserRole(mData.role);
-            }
-
+            setRoom(roomRes.data);
+            setExams(examRes.data ?? []);
+            setMyAttempts(attemptRes.data ?? []);
         } catch (err: any) {
             setError(formatSupabaseError(err));
         } finally {
@@ -82,37 +56,20 @@ export default function RaceScreen() {
         }
     }, [roomId, supabase, userId]);
 
-    useFocusEffect(
-        useCallback(() => {
-            loadData();
-        }, [loadData])
-    );
-
-    const getSubject = (title: string) => {
-        const match = title.match(/^\[(.*?)\]/);
-        return match ? match[1] : "기타";
-    };
+    useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
     const groupedExams = useMemo(() => {
         const groups: Record<string, RoomExamRow[]> = {};
-        exams.forEach(exam => {
-            const subject = getSubject(exam.title);
+        exams.forEach((exam) => {
+            const subject = getRoomExamSubjectFromTitle(exam.title) ?? "기타";
             if (!groups[subject]) groups[subject] = [];
             groups[subject].push(exam);
         });
         return groups;
     }, [exams]);
 
-    const canCreateExam = true;
-
     if (loading && exams.length === 0) {
-        return (
-            <View style={styles.container}>
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={COLORS.primary} />
-                </View>
-            </View>
-        );
+        return <View style={styles.center}><ActivityIndicator color={COLORS.primary} /></View>;
     }
 
     return (
@@ -121,121 +78,93 @@ export default function RaceScreen() {
                 title="모의고사"
                 showBack={false}
                 rightElement={
-                    canCreateExam ? (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            icon="add"
-                            onPress={() => {
-                                if (roomId && roomId !== 'undefined') {
-                                    router.push(`/room/${roomId}/add-exam`);
-                                }
-                            }}
-                            style={styles.headerBtn}
-                        />
-                    ) : undefined
+                    // + 버튼을 이전의 깔끔한 헤더 버튼 스타일로 복구
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        icon="add"
+                        onPress={() => router.push(`/room/${roomId}/add-exam`)}
+                        style={styles.headerBtn}
+                    />
                 }
             />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 {exams.length === 0 ? (
-                    <View style={styles.emptyExamsContainer}>
-                        <Card variant="outlined" padding="huge" style={styles.emptyExams}>
-                            <Ionicons name="document-text-outline" size={48} color={COLORS.borderDark} />
-                            <Typography.Body1 bold color={COLORS.textMuted} style={styles.emptyExamsText}>
-                                등록된 시험이 없습니다.
-                            </Typography.Body1>
-                            {canCreateExam && (
-                                <Button
-                                    label="첫 시험 만들기"
-                                    onPress={() => router.push(`/room/${roomId}/add-exam`)}
-                                    style={styles.emptyCreateBtn}
-                                    fullWidth={false}
-                                />
-                            )}
-                        </Card>
+                    <View style={styles.emptyContainer}>
+                        <View style={styles.emptyIconBox}>
+                            <Ionicons name="document-text" size={40} color={COLORS.borderDark} />
+                        </View>
+                        <Typography.Subtitle1 color={COLORS.textMuted} bold>아직 등록된 시험이 없어요</Typography.Subtitle1>
+                        <Button
+                            label="첫 시험 만들기"
+                            onPress={() => router.push(`/room/${roomId}/add-exam`)}
+                            style={{ marginTop: 24 }}
+                        />
                     </View>
                 ) : (
-                    (Object.entries(groupedExams) as [string, RoomExamRow[]][]).map(([subject, subjectExams]) => (
-                        <Section
-                            key={subject}
-                            title={subject}
-                            style={styles.subjectSection}
-                            rightElement={
-                                <View style={styles.subjectCounter}>
-                                    <Typography.Label color={COLORS.textMuted}>{subjectExams.length}</Typography.Label>
+                    Object.entries(groupedExams).map(([subject, subjectExams]) => (
+                        <View key={subject} style={styles.section}>
+                            <View style={styles.sectionHeader}>
+                                <View style={styles.subjectIndicator} />
+                                <Text style={styles.subjectTitle}>{subject}</Text>
+                                <View style={styles.countBadge}>
+                                    <Text style={styles.countText}>{subjectExams.length}</Text>
                                 </View>
-                            }
-                        >
-                            <View style={styles.gridContainer}>
+                            </View>
+
+                            <View style={styles.grid}>
                                 {subjectExams.map((item) => {
                                     const attempt = myAttempts.find(a => a.exam_id === item.id);
                                     const isCompleted = !!attempt?.ended_at;
                                     const isInProgress = !!attempt && !attempt.ended_at;
 
                                     return (
-                                        <Card
+                                        <TouchableOpacity
                                             key={item.id}
+                                            activeOpacity={0.8}
                                             onPress={() => {
                                                 if (isCompleted) {
-                                                    router.push({
-                                                        pathname: `/room/${roomId}/analysis` as any,
-                                                        params: { initialExamId: item.id }
-                                                    });
+                                                    router.push({ pathname: `/room/${roomId}/analysis` as any, params: { initialExamId: item.id } });
                                                 } else {
                                                     router.push(`/room/${roomId}/exam/${item.id}/run`);
                                                 }
                                             }}
-                                            padding="md"
-                                            radius="xl"
-                                            variant={isCompleted ? "flat" : "elevated"}
                                             style={[
-                                                styles.gridItem,
-                                                isCompleted && styles.gridItemCompleted
+                                                styles.examCard,
+                                                isCompleted && styles.cardCompleted,
+                                                isInProgress && styles.cardInProgress
                                             ]}
                                         >
-                                            <LinearGradient
-                                                colors={isCompleted ? ['#F1F8E9', '#DCEDC8'] : (isInProgress ? ['#FFFDE7', '#FFF9C4'] : ['#F5F5F7', '#EEEEF0'])}
-                                                style={styles.iconBoxGradient}
-                                            >
-                                                <Ionicons
-                                                    name={isCompleted ? "checkmark-sharp" : (isInProgress ? "play-sharp" : "document-text-outline")}
-                                                    size={22}
-                                                    color={isCompleted ? COLORS.success : (isInProgress ? COLORS.warning : COLORS.textMuted)}
-                                                />
-                                            </LinearGradient>
-
-                                            <View style={styles.itemContent}>
-                                                <Typography.Body2 bold numberOfLines={2}>
-                                                    {item.title.replace(/^(\[.*?\]\s*|.*?•\s*)+/, "")}
-                                                </Typography.Body2>
-                                                <Typography.Label color={COLORS.textMuted}>{item.total_questions}문항</Typography.Label>
+                                            <View style={styles.cardTop}>
+                                                <View style={[styles.iconBox, isCompleted && styles.iconBoxCompleted, isInProgress && styles.iconBoxInProgress]}>
+                                                    <Ionicons
+                                                        name={isCompleted ? "checkmark" : (isInProgress ? "play" : "document-text")}
+                                                        size={18}
+                                                        color={isCompleted ? COLORS.primary : (isInProgress ? COLORS.warning : COLORS.textMuted)}
+                                                    />
+                                                </View>
+                                                {isCompleted && <Text style={styles.doneLabel}>완료</Text>}
                                             </View>
 
-                                            <View style={styles.itemFooter}>
-                                                {isCompleted ? (
-                                                    <View style={styles.analysisBadge}>
-                                                        <Typography.Label color={COLORS.primary} bold>분석</Typography.Label>
-                                                        <Ionicons name="chevron-forward" size={10} color={COLORS.primary} />
-                                                    </View>
-                                                ) : isInProgress ? (
-                                                    <View style={styles.progressContainer}>
-                                                        <View style={styles.progressBarBg}>
-                                                            <View style={[styles.progressBarFill, { width: '45%' }]} />
-                                                        </View>
-                                                        <Typography.Label color={COLORS.warning} bold align="center">진행중</Typography.Label>
-                                                    </View>
-                                                ) : (
-                                                    <View style={styles.startBadge}>
-                                                        <Typography.Label color={COLORS.textMuted} bold>시작</Typography.Label>
-                                                    </View>
+                                            <Text style={styles.examTitle} numberOfLines={2}>
+                                                {item.title}
+                                            </Text>
+
+                                            <View style={styles.cardBottom}>
+                                                <View style={styles.infoRow}>
+                                                    <Ionicons name="list-outline" size={14} color={COLORS.textMuted} />
+                                                    <Text style={styles.infoText}>{item.total_questions}문항</Text>
+                                                </View>
+                                                {isInProgress && (
+                                                    <Text style={styles.runningText}>진행 중...</Text>
                                                 )}
                                             </View>
-                                        </Card>
+                                        </TouchableOpacity>
                                     );
                                 })}
                             </View>
-                        </Section>
+                        </View>
                     ))
                 )}
             </ScrollView>
@@ -244,104 +173,153 @@ export default function RaceScreen() {
 }
 
 const { width } = Dimensions.get('window');
+const cardWidth = (width - SPACING.xl * 2 - 16) / 2;
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: COLORS.bg,
     },
+    center: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     headerBtn: {
         backgroundColor: COLORS.surfaceVariant,
         borderRadius: RADIUS.full,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+        width: 40,
+        height: 40,
     },
     scrollContent: {
-        paddingBottom: SPACING.massive,
+        padding: SPACING.xl,
+        paddingBottom: 120,
     },
-    subjectSection: {
-        paddingTop: SPACING.md,
-        marginVertical: 0,
+    section: {
+        marginBottom: 36,
     },
-    subjectCounter: {
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    subjectIndicator: {
+        width: 4,
+        height: 16,
+        backgroundColor: COLORS.primary,
+        borderRadius: 2,
+        marginRight: 8,
+    },
+    subjectTitle: {
+        fontSize: 19,
+        fontWeight: '800',
+        color: COLORS.text,
+        marginRight: 6,
+    },
+    countBadge: {
         backgroundColor: COLORS.surfaceVariant,
-        paddingHorizontal: SPACING.sm,
+        paddingHorizontal: 8,
         paddingVertical: 2,
-        borderRadius: 8,
+        borderRadius: RADIUS.full,
     },
-    gridContainer: {
+    countText: {
+        fontSize: 12,
+        color: COLORS.textMuted,
+        fontWeight: 'bold',
+    },
+    grid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        paddingHorizontal: SPACING.xl,
-        gap: SPACING.md,
+        gap: 16,
     },
-    gridItem: {
-        width: (width - SPACING.xl * 2 - SPACING.md * 2) / 3, // Precise 3-column split
-        minHeight: 160,
+    examCard: {
+        width: cardWidth,
+        backgroundColor: COLORS.white,
+        borderRadius: 24,
+        padding: 18,
+        ...SHADOWS.medium,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.02)',
+        minHeight: 154,
+        justifyContent: 'space-between',
     },
-    gridItemCompleted: {
+    cardCompleted: {
+        backgroundColor: '#F7FCF9',
+        borderColor: 'rgba(0, 208, 148, 0.1)',
+    },
+    cardInProgress: {
+        backgroundColor: '#FFFDF2',
+        borderColor: 'rgba(255, 184, 0, 0.1)',
+    },
+    cardTop: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    iconBox: {
+        width: 36,
+        height: 36,
+        borderRadius: 12,
         backgroundColor: COLORS.bg,
-    },
-    iconBoxGradient: {
-        width: 44,
-        height: 44,
-        borderRadius: 16,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: SPACING.md,
     },
-    itemContent: {
-        flex: 1,
-        marginBottom: SPACING.md,
+    iconBoxCompleted: {
+        backgroundColor: 'rgba(0, 208, 148, 0.1)',
     },
-    itemFooter: {
-        marginTop: 'auto',
+    iconBoxInProgress: {
+        backgroundColor: 'rgba(255, 184, 0, 0.1)',
     },
-    analysisBadge: {
+    doneLabel: {
+        fontSize: 11,
+        fontWeight: 'bold',
+        color: COLORS.primary,
+        backgroundColor: 'white',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 6,
+        borderWidth: 1,
+        borderColor: 'rgba(0, 208, 148, 0.2)',
+    },
+    examTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: COLORS.text,
+        lineHeight: 22,
+        marginVertical: 12,
+    },
+    cardBottom: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    infoRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
         gap: 4,
-        backgroundColor: COLORS.primaryLight,
-        paddingVertical: 6,
-        borderRadius: 12,
     },
-    progressContainer: {
-        gap: 6,
+    infoText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: COLORS.textMuted,
     },
-    progressBarBg: {
-        height: 4,
-        backgroundColor: 'rgba(0,0,0,0.05)',
-        borderRadius: 2,
-        overflow: 'hidden',
+    runningText: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: COLORS.warning,
     },
-    progressBarFill: {
-        height: '100%',
-        backgroundColor: COLORS.warning,
-        borderRadius: 2,
-    },
-    startBadge: {
-        backgroundColor: COLORS.surfaceVariant,
-        paddingVertical: 6,
-        borderRadius: 12,
-        alignItems: 'center',
-    },
-    emptyExamsContainer: {
-        padding: SPACING.xl,
-        paddingTop: SPACING.massive,
-    },
-    emptyExams: {
+    emptyContainer: {
         alignItems: 'center',
         justifyContent: 'center',
-        borderStyle: 'dashed',
+        paddingVertical: 100,
     },
-    emptyExamsText: {
-        marginTop: SPACING.lg,
-    },
-    emptyCreateBtn: {
-        marginTop: SPACING.xl,
-    },
+    emptyIconBox: {
+        width: 80,
+        height: 80,
+        borderRadius: 30,
+        backgroundColor: COLORS.surfaceVariant,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 20,
+    }
 });

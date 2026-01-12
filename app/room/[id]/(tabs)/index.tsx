@@ -1,13 +1,10 @@
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useGlobalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Animated, ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useMemo, useState } from "react";
+import { ActivityIndicator, Clipboard, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Button } from "../../../../components/ui/Button";
-import { Card } from "../../../../components/ui/Card";
 import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
-import { Section } from "../../../../components/ui/Section";
 import { Typography } from "../../../../components/ui/Typography";
 import type { Database } from "../../../../lib/db-types";
 import { useSupabase } from "../../../../lib/supabase";
@@ -15,8 +12,6 @@ import { formatSupabaseError } from "../../../../lib/supabaseError";
 import { COLORS, RADIUS, SHADOWS, SPACING } from "../../../../lib/theme";
 
 type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
-type RoomMemberRow = Database["public"]["Tables"]["room_members"]["Row"];
-type AttemptRow = Database["public"]["Tables"]["attempts"]["Row"];
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 
 interface ParticipantWithData {
@@ -31,67 +26,43 @@ export default function RoomHomeScreen() {
     const router = useRouter();
     const { userId } = useAuth();
     const { id } = useGlobalSearchParams<{ id: string }>();
-
     const roomId = Array.isArray(id) ? id[0] : id;
 
     const [room, setRoom] = useState<RoomRow | null>(null);
     const [participants, setParticipants] = useState<ParticipantWithData[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
 
     const loadData = useCallback(async () => {
-        if (!roomId || roomId === 'undefined') {
-            setLoading(false);
-            return;
-        }
+        if (!roomId || roomId === 'undefined') return;
         setLoading(true);
-        setError(null);
         try {
-            // Fetch both Room and Members simultaneously to prevent flickering
             const [roomRes, membersRes] = await Promise.all([
                 supabase.from("rooms").select("*").eq("id", roomId).single(),
                 supabase.from("room_members").select(`*, profile:profiles(*)`).eq("room_id", roomId)
             ]);
-
             if (roomRes.error) throw roomRes.error;
             if (membersRes.error) throw membersRes.error;
 
-            const roomData = roomRes.data;
-            const participantsWithData: ParticipantWithData[] = (membersRes.data as any) ?? [];
-
-            // Update all states together
-            setRoom(roomData);
-            setParticipants(participantsWithData);
-
-            if (userId) {
-                const currentMember = participantsWithData.find(p => p.user_id === userId);
-                setCurrentUserRole(currentMember?.role ?? null);
-            }
-
+            setRoom(roomRes.data);
+            setParticipants((membersRes.data as any) ?? []);
         } catch (err: any) {
             setError(formatSupabaseError(err));
         } finally {
             setLoading(false);
         }
-    }, [roomId, supabase, userId]);
+    }, [roomId, supabase]);
 
-    useFocusEffect(
-        useCallback(() => {
-            loadData();
-        }, [loadData])
-    );
+    useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
     const isMember = useMemo(() => participants.some(p => p.user_id === userId), [participants, userId]);
-    const host = useMemo(() => participants.find(p => p.user_id === room?.owner_id), [participants, room?.owner_id]);
+    const shortCode = useMemo(() => room?.id?.substring(0, 6).toUpperCase(), [room?.id]);
 
     const handleJoinRoom = async () => {
         if (!roomId || !userId) return;
         setLoading(true);
         try {
-            const { error } = await supabase
-                .from("room_members")
-                .insert({ room_id: roomId, user_id: userId, role: "MEMBER" });
+            const { error } = await supabase.from("room_members").insert({ room_id: roomId, user_id: userId, role: "MEMBER" });
             if (error) throw error;
             await loadData();
         } catch (err) {
@@ -101,296 +72,116 @@ export default function RoomHomeScreen() {
         }
     };
 
-    const handleLeaveRoom = async () => {
-        if (!roomId || !userId) return;
-        try {
-            const { error } = await supabase
-                .from("room_members")
-                .delete()
-                .eq("room_id", roomId)
-                .eq("user_id", userId);
-            if (error) throw error;
-            router.replace('/(tabs)/rooms');
-        } catch (err) {
-            setError(formatSupabaseError(err));
-        }
-    };
-
     const handleShare = async () => {
         if (!room) return;
         try {
-            const shortCode = room.id.substring(0, 6);
             await Share.share({
-                message: `Pacetime에서 "${room.name}" 스터디 룸에 초대합니다!\n\n참여 코드: ${shortCode}\n(앱에서 코드를 입력해 입장하세요)\n\n링크: https://pacetime.app/room/${room.id}`,
+                message: `[Pacetime] "${room.name}" 스터디 룸 초대\n참여 코드: ${shortCode}\n링크: https://pacetime.app/room/${room.id}`,
             });
-        } catch (error) {
-            // ignore
-        }
+        } catch (error) { /* ignore */ }
     };
 
-    const pulseAnim = useRef(new Animated.Value(1)).current;
-
-    useEffect(() => {
-        const pulse = Animated.loop(
-            Animated.sequence([
-                Animated.timing(pulseAnim, {
-                    toValue: 1.5, duration: 1000, useNativeDriver: true,
-                }),
-                Animated.timing(pulseAnim, {
-                    toValue: 1, duration: 1000, useNativeDriver: true,
-                }),
-            ])
-        );
-        pulse.start();
-        return () => pulse.stop();
-    }, [pulseAnim]);
-
     if (loading && !room) {
-        return (
-            <View style={styles.container}>
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={COLORS.primary} />
-                </View>
-            </View>
-        );
+        return <View style={styles.center}><ActivityIndicator color={COLORS.primary} /></View>;
     }
 
     return (
         <View style={styles.container}>
             <ScreenHeader
-                title={room?.name || "룸"}
+                title={room?.name || "룸 상세"}
                 showBack={false}
                 rightElement={
-                    <View style={styles.headerActions}>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            icon="share-outline"
-                            onPress={handleShare}
-                            style={styles.headerBtn}
-                        />
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            icon="close"
-                            onPress={() => router.replace('/(tabs)/rooms')}
-                            style={styles.headerBtn}
-                        />
-                    </View>
+                    <TouchableOpacity
+                        onPress={() => router.replace('/(tabs)/rooms')}
+                        style={styles.closeBtn}
+                    >
+                        <Ionicons name="close" size={24} color={COLORS.text} />
+                    </TouchableOpacity>
                 }
             />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                {/* Hero section with Premium Gradient */}
-                <View style={styles.heroSection}>
-                    <LinearGradient
-                        colors={['#1a1a1a', '#2d2d2d']}
-                        style={styles.heroContent}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
+                {/* 1. 참여 코드 섹션 */}
+                <View style={styles.codeContainer}>
+                    <Typography.Label color={COLORS.textMuted} bold style={{ marginBottom: 8 }}>참여 코드</Typography.Label>
+                    <TouchableOpacity
+                        activeOpacity={0.7}
+                        style={styles.codeBox}
+                        onPress={() => {
+                            if (shortCode) Clipboard.setString(shortCode);
+                        }}
                     >
-                        <View style={styles.heroHeader}>
-                            <View style={styles.heroLabelBox}>
-                                <Ionicons name="flash" size={10} color={COLORS.primary} />
-                                <Typography.Label style={styles.heroLabel}>LIVE SESSION</Typography.Label>
-                            </View>
-                            <View style={styles.heroBadge}>
-                                <Animated.View style={[styles.pulseDot, { transform: [{ scale: pulseAnim }], opacity: pulseAnim.interpolate({ inputRange: [1, 1.5], outputRange: [1, 0.4] }) }]} />
-                                <View style={[styles.pulseDot, { position: 'absolute', left: 12, top: 12 }]} />
-                                <Typography.Label style={styles.heroBadgeText}>ACTIVE</Typography.Label>
-                            </View>
+                        <Text style={styles.codeText}>{shortCode}</Text>
+                        <View style={styles.copyBadge}>
+                            <Ionicons name="copy" size={12} color={COLORS.primary} />
+                            <Typography.Caption color={COLORS.primary} bold>복사</Typography.Caption>
                         </View>
+                    </TouchableOpacity>
+                </View>
 
-                        <View style={styles.titleContainer}>
-                            <Typography.H1 color={COLORS.white}>{room?.name}</Typography.H1>
-
-                            <View style={styles.codeRow}>
-                                <Ionicons name="key-outline" size={14} color="rgba(255,255,255,0.6)" />
-                                <Typography.Label color="rgba(255,255,255,0.6)">참여 코드</Typography.Label>
-                                <View style={styles.codeBadge}>
-                                    <Typography.Subtitle2 bold color={COLORS.primary}>{room?.id?.substring(0, 6)}</Typography.Subtitle2>
-                                </View>
-                            </View>
-
-                            <View style={styles.tagRow}>
-                                <Typography.Caption color="rgba(255,255,255,0.4)" bold>#스터디</Typography.Caption>
-                                <Typography.Caption color="rgba(255,255,255,0.4)" bold>#실시간</Typography.Caption>
-                                <Typography.Caption color="rgba(255,255,255,0.4)" bold>#경쟁</Typography.Caption>
-                            </View>
+                {/* 2. 멤버 그리드 섹션 */}
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <Typography.Subtitle1 bold>참여자</Typography.Subtitle1>
+                        <View style={styles.countBadge}>
+                            <Typography.Caption color={COLORS.white} bold>{participants.length}</Typography.Caption>
                         </View>
+                    </View>
 
-                        <View style={styles.participantOverview}>
-                            <View style={styles.avatarStack}>
-                                {participants.slice(0, 5).map((p, idx) => {
-                                    const isHost = p.user_id === room?.owner_id;
-                                    return (
-                                        <View
-                                            key={p.user_id}
-                                            style={[
-                                                styles.stackedAvatar,
-                                                { marginLeft: idx === 0 ? 0 : -12, zIndex: 10 - idx }
-                                            ]}
-                                        >
-                                            <View style={[styles.avatarCircle, isHost && styles.hostAvatarCircle]}>
-                                                <Typography.Subtitle2 color={isHost ? COLORS.white : "rgba(255,255,255,0.6)"} bold>
-                                                    {p.profile?.display_name?.charAt(0).toUpperCase() || "?"}
-                                                </Typography.Subtitle2>
+                    <View style={styles.memberGrid}>
+                        {participants.map((p) => {
+                            const isOwner = p.user_id === room?.owner_id;
+                            return (
+                                <View key={p.user_id} style={styles.memberCard}>
+                                    <View style={[styles.avatarWrapper, isOwner && styles.ownerAvatarWrapper]}>
+                                        {/* 글자 대신 사람 이모티콘 사용 */}
+                                        <Text style={styles.avatarEmoji}>👤</Text>
+                                        {isOwner && (
+                                            <View style={styles.crownIcon}>
+                                                <Ionicons name="ribbon" size={10} color={COLORS.white} />
                                             </View>
-                                            {isHost && (
-                                                <View style={styles.hostCrown}>
-                                                    <Ionicons name="sparkles" size={8} color={COLORS.white} />
-                                                </View>
-                                            )}
-                                        </View>
-                                    );
-                                })}
-                                {participants.length > 5 && (
-                                    <View style={[styles.stackedAvatar, { marginLeft: -12, zIndex: 0 }]}>
-                                        <View style={styles.moreAvatar}>
-                                            <Typography.Label color="rgba(255,255,255,0.5)">+{participants.length - 5}</Typography.Label>
-                                        </View>
+                                        )}
                                     </View>
-                                )}
-                            </View>
-                            <View style={styles.guestInfo}>
-                                <Typography.Caption color="rgba(255,255,255,0.3)" bold>
-                                    <Typography.Caption color={COLORS.primary} bold>{participants.length}명</Typography.Caption>의 메이트와 함께
-                                </Typography.Caption>
-                            </View>
-                        </View>
-                    </LinearGradient>
-                </View>
-
-                {/* Main Action / Stats Grid */}
-                <View style={styles.statsGrid}>
-                    <Card variant="outlined" padding="md" style={styles.statCard}>
-                        <View style={[styles.statIconBox, { backgroundColor: COLORS.primaryLight }]}>
-                            <Ionicons name="calendar" size={18} color={COLORS.primary} />
-                        </View>
-                        <View style={styles.statTexts}>
-                            <Typography.Label color={COLORS.textMuted}>개설일</Typography.Label>
-                            <Typography.Subtitle2 bold>
-                                {new Date(room?.created_at || '').toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
-                            </Typography.Subtitle2>
-                        </View>
-                    </Card>
-
-
-                </View>
-
-                {/* Live Member Status Section */}
-                <Section
-                    title="메이트 현황"
-                    rightElement={
-                        <View style={styles.liveIndicator}>
-                            <View style={styles.liveIndicatorDot} />
-                            <Typography.Label color={COLORS.error}>LIVE</Typography.Label>
-                        </View>
-                    }
-                >
-                    <Card padding="sm" style={styles.liveListContainer}>
-                        {participants.length === 0 ? (
-                            <View style={styles.emptyLive}>
-                                <Typography.Body2 color={COLORS.textMuted} bold>참여 중인 메이트가 없습니다.</Typography.Body2>
-                            </View>
-                        ) : (
-                            participants.map((p) => (
-                                <View key={p.user_id} style={styles.liveRow}>
-                                    <View style={styles.liveAvatarBox}>
-                                        <Typography.Subtitle2 bold color={COLORS.textMuted}>{p.profile?.display_name?.charAt(0).toUpperCase() || '?'}</Typography.Subtitle2>
-                                    </View>
-                                    <View style={styles.liveInfo}>
-                                        <Typography.Body1 bold>{p.profile?.display_name}</Typography.Body1>
-                                        <Typography.Caption>준비 중</Typography.Caption>
-                                    </View>
-                                    <View style={styles.liveBadge}>
-                                        <Typography.Label color={COLORS.textMuted}>IDLE</Typography.Label>
-                                    </View>
+                                    <Typography.Caption
+                                        numberOfLines={1}
+                                        style={styles.memberName}
+                                        color={isOwner ? COLORS.primary : COLORS.text}
+                                        bold={isOwner}
+                                    >
+                                        {p.profile?.display_name}
+                                    </Typography.Caption>
                                 </View>
-                            ))
-                        )}
-                    </Card>
-                </Section>
+                            );
+                        })}
+                    </View>
+                </View>
+            </ScrollView>
 
-                <Section>
-                    <LinearGradient
-                        colors={[COLORS.white, '#FDFDFD']}
-                        style={styles.noticeCard}
-                    >
-                        <View style={styles.noticeHeader}>
-                            <View style={styles.noticeIconBox}>
-                                <Ionicons name="megaphone" size={14} color={COLORS.white} />
-                            </View>
-                            <Typography.Subtitle2 bold>공지사항</Typography.Subtitle2>
-                        </View>
-                        <View style={styles.noticeList}>
-                            <View style={styles.noticeRow}>
-                                <View style={styles.noticeDot} />
-                                <Typography.Body2 color={COLORS.textMuted} bold>이곳에서 모의고사 경쟁에 참여할 수 있습니다.</Typography.Body2>
-                            </View>
-                            <View style={styles.noticeRow}>
-                                <View style={styles.noticeDot} />
-                                <Typography.Body2 color={COLORS.textMuted} bold>Race 탭에서 멤버들이 등록한 시험을 확인하세요.</Typography.Body2>
-                            </View>
-                        </View>
-                    </LinearGradient>
-                </Section>
-
-                {/* Footer Controls */}
-                <View style={styles.footerControls}>
+            {/* 3. 하단 액션 버튼 */}
+            <View style={styles.footer}>
+                {!isMember ? (
+                    <Button
+                        label="이 룸에 참여하기"
+                        onPress={handleJoinRoom}
+                        size="lg"
+                        variant="primary"
+                        style={styles.mainBtn}
+                    />
+                ) : (
                     <Button
                         label="친구 초대하기"
                         onPress={handleShare}
-                        icon="share-social"
-                        variant="primary"
+                        icon="share-social-outline"
                         size="lg"
+                        variant="primary"
+                        style={styles.mainBtn}
                     />
-
-                    {isMember && userId !== room?.owner_id && (
-                        <Button
-                            label="스터디 룸 퇴장"
-                            onPress={handleLeaveRoom}
-                            icon="log-out-outline"
-                            variant="ghost"
-                            size="sm"
-                        />
-                    )}
-                </View>
-
-                {/* Join Overlay (Conditional) */}
-                {!isMember && (
-                    <View style={styles.joinOverlay}>
-                        <Card padding="massive" radius="xxl" style={styles.joinCard}>
-                            <View style={styles.joinHeaderIcon}>
-                                <Ionicons name="sparkles" size={32} color={COLORS.primary} />
-                            </View>
-                            <Typography.H2 align="center" style={styles.joinMainTitle}>새로운 스터디 공간</Typography.H2>
-                            <Typography.Body1 align="center" color={COLORS.textMuted} style={styles.joinSubTitle}>
-                                "{room?.name}" 룸에서 친구들과 함께 실전 감각을 키워보세요.
-                            </Typography.Body1>
-
-                            <Button
-                                label="시작하기"
-                                onPress={handleJoinRoom}
-                                size="lg"
-                                style={styles.joinActionBtn}
-                            />
-
-                            <Button
-                                label="나중에 둘러보기"
-                                variant="ghost"
-                                onPress={() => router.replace('/(tabs)/rooms')}
-                                style={styles.joinLater}
-                            />
-                        </Card>
-                    </View>
                 )}
-            </ScrollView>
+            </View>
 
             {error && (
-                <View style={styles.toast}>
-                    <Ionicons name="alert-circle" size={18} color={COLORS.error} />
-                    <Text style={styles.toastText}>{error}</Text>
+                <View style={styles.errorToast}>
+                    <Typography.Caption color={COLORS.white}>{error}</Typography.Caption>
                 </View>
             )}
         </View>
@@ -402,318 +193,129 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: COLORS.bg,
     },
-    loadingContainer: {
+    center: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    headerActions: {
-        flexDirection: 'row',
+    closeBtn: {
+        width: 40,
+        height: 40,
         alignItems: 'center',
-        gap: SPACING.sm,
-    },
-    headerBtn: {
+        justifyContent: 'center',
+        borderRadius: 20,
         backgroundColor: COLORS.surfaceVariant,
-        borderRadius: RADIUS.full,
     },
     scrollContent: {
-        paddingBottom: 80,
+        padding: SPACING.xl,
     },
-    heroSection: {
-        paddingHorizontal: SPACING.xl,
-        paddingTop: SPACING.lg,
-        paddingBottom: SPACING.xxl,
-    },
-    heroContent: {
-        borderRadius: 36,
-        padding: SPACING.massive,
-        ...SHADOWS.heavy,
-    },
-    heroHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+    codeContainer: {
         alignItems: 'center',
-        marginBottom: SPACING.xxl,
-    },
-    heroLabelBox: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        paddingHorizontal: SPACING.md,
-        paddingVertical: 6,
-        borderRadius: 12,
-    },
-    heroLabel: {
-        color: 'rgba(255,255,255,0.7)',
-    },
-    heroBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        backgroundColor: 'rgba(0, 208, 148, 0.12)',
-        paddingHorizontal: SPACING.md,
-        paddingVertical: 6,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: 'rgba(0, 208, 148, 0.3)',
-    },
-    pulseDot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: COLORS.primary,
-        ...SHADOWS.small,
-        shadowColor: COLORS.primary,
-        shadowOpacity: 0.8,
-    },
-    heroBadgeText: {
-        color: COLORS.primary,
-    },
-    titleContainer: {
-        marginBottom: SPACING.huge,
-    },
-    tagRow: {
-        flexDirection: 'row',
-        gap: SPACING.sm,
+        marginBottom: 40,
         marginTop: SPACING.md,
     },
-    codeRow: {
+    codeBox: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        marginTop: SPACING.sm,
+        backgroundColor: '#F2F2F7',
+        paddingVertical: 14,
+        paddingHorizontal: 24,
+        borderRadius: RADIUS.xl,
+        gap: 12,
     },
-    codeBadge: {
-        backgroundColor: 'rgba(0, 208, 148, 0.1)',
-        borderWidth: 1,
-        borderColor: 'rgba(0, 208, 148, 0.3)',
+    codeText: {
+        fontSize: 26,
+        fontWeight: '800',
+        color: COLORS.text,
+        letterSpacing: 4,
+    },
+    copyBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: COLORS.white,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: RADIUS.full,
+        ...SHADOWS.small,
+    },
+    section: {
+        flex: 1,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 24,
+    },
+    countBadge: {
+        backgroundColor: COLORS.text,
         paddingHorizontal: 8,
         paddingVertical: 2,
         borderRadius: 6,
     },
-    participantOverview: {
+    memberGrid: {
         flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        backgroundColor: 'rgba(255,255,255,0.05)',
-        paddingHorizontal: 18,
-        paddingVertical: 14,
-        borderRadius: 22,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.03)',
+        flexWrap: 'wrap',
+        gap: 16,
     },
-    avatarStack: {
-        flexDirection: 'row',
+    memberCard: {
+        width: '21%',
         alignItems: 'center',
+        marginBottom: 16,
     },
-    stackedAvatar: {
-        width: 40,
-        height: 40,
+    avatarWrapper: {
+        width: 52,
+        height: 52,
         borderRadius: 20,
-        borderWidth: 2.5,
-        borderColor: '#222',
-        overflow: 'hidden',
-    },
-    avatarCircle: {
-        width: '100%',
-        height: '100%',
-        backgroundColor: '#444',
+        backgroundColor: COLORS.surfaceVariant,
         alignItems: 'center',
         justifyContent: 'center',
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: COLORS.border,
     },
-    hostAvatarCircle: {
-        backgroundColor: COLORS.primary,
+    ownerAvatarWrapper: {
+        borderColor: COLORS.primary,
+        backgroundColor: COLORS.primaryLight,
     },
-    hostCrown: {
+    avatarEmoji: {
+        fontSize: 24,
+    },
+    crownIcon: {
         position: 'absolute',
-        top: -1,
-        right: -1,
-        backgroundColor: COLORS.warning,
-        width: 16,
-        height: 16,
-        borderRadius: 8,
+        top: -4,
+        right: -4,
+        backgroundColor: COLORS.primary,
+        width: 18,
+        height: 18,
+        borderRadius: 9,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 2,
-        borderColor: '#222',
+        borderColor: COLORS.bg,
     },
-    moreAvatar: {
+    memberName: {
+        textAlign: 'center',
         width: '100%',
-        height: '100%',
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        alignItems: 'center',
-        justifyContent: 'center',
     },
-    guestInfo: {
-        alignItems: 'flex-end',
-    },
-    statsGrid: {
-        flexDirection: 'row',
+    footer: {
         paddingHorizontal: SPACING.xl,
-        gap: SPACING.md,
-        marginBottom: SPACING.xxl,
+        paddingTop: SPACING.md,
+        paddingBottom: 40,
     },
-    statCard: {
-        flex: 1,
+    mainBtn: {
+        borderRadius: RADIUS.xl,
+        height: 56,
     },
-    statIconBox: {
-        width: 42,
-        height: 42,
-        borderRadius: 14,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: SPACING.sm,
-    },
-    statTexts: {
-        flex: 1,
-    },
-    liveIndicator: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        backgroundColor: COLORS.errorLight,
-        paddingHorizontal: SPACING.sm,
-        paddingVertical: 4,
-        borderRadius: 8,
-    },
-    liveIndicatorDot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: COLORS.error,
-    },
-    liveListContainer: {
-        backgroundColor: COLORS.white,
-        borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.02)',
-    },
-    liveRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: SPACING.md,
-        borderRadius: 20,
-        backgroundColor: COLORS.surfaceVariant,
-        marginBottom: SPACING.sm,
-    },
-    liveAvatarBox: {
-        width: 40,
-        height: 40,
-        borderRadius: 14,
-        backgroundColor: COLORS.borderDark,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: SPACING.md,
-    },
-    liveInfo: {
-        flex: 1,
-    },
-    liveBadge: {
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-        borderRadius: 10,
-        backgroundColor: COLORS.border,
-    },
-    emptyLive: {
-        padding: SPACING.huge,
-        alignItems: 'center',
-    },
-    noticeCard: {
-        borderRadius: 32,
-        padding: SPACING.xxl,
-        borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.02)',
-        ...SHADOWS.small,
-    },
-    noticeHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-        marginBottom: SPACING.lg,
-    },
-    noticeIconBox: {
-        width: 28,
-        height: 28,
-        borderRadius: 10,
-        backgroundColor: COLORS.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    noticeList: {
-        gap: SPACING.md,
-    },
-    noticeRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-    },
-    noticeDot: {
-        width: 5,
-        height: 5,
-        borderRadius: 2.5,
-        backgroundColor: COLORS.border,
-    },
-    footerControls: {
-        paddingHorizontal: SPACING.xl,
-        gap: SPACING.lg,
-        alignItems: 'center',
-    },
-    joinOverlay: {
+    errorToast: {
         position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.65)',
-        zIndex: 2000,
-        padding: SPACING.xxl,
-        justifyContent: 'center',
-    },
-    joinCard: {
-        alignItems: 'center',
-        ...SHADOWS.heavy,
-    },
-    joinHeaderIcon: {
-        width: 80,
-        height: 80,
-        borderRadius: 32,
-        backgroundColor: COLORS.primaryLight,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: SPACING.huge,
-    },
-    joinMainTitle: {
-        marginBottom: SPACING.md,
-    },
-    joinSubTitle: {
-        lineHeight: 22,
-        marginBottom: SPACING.huge,
-    },
-    joinActionBtn: {
-        marginBottom: SPACING.md,
-    },
-    joinLater: {
-        paddingVertical: SPACING.sm,
-    },
-    toast: {
-        position: 'absolute',
-        bottom: 32,
+        bottom: 120,
         left: 20,
         right: 20,
-        padding: 18,
-        backgroundColor: COLORS.errorLight,
-        borderRadius: 24,
-        flexDirection: 'row',
+        backgroundColor: 'rgba(0,0,0,0.8)',
+        padding: SPACING.md,
+        borderRadius: RADIUS.md,
         alignItems: 'center',
-        gap: 10,
-        borderWidth: 1,
-        borderColor: 'rgba(255,0,0,0.15)',
-        ...SHADOWS.medium,
-    },
-    toastText: {
-        color: COLORS.error,
-        flex: 1,
-    },
+    }
 });
-
-

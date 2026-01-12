@@ -13,6 +13,7 @@ import { Typography } from "../../../../components/ui/Typography";
 import type { Database } from "../../../../lib/db-types";
 import { useSupabase } from "../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../lib/supabaseError";
+import { getRoomExamSubjectFromTitle } from "../../../../lib/roomExam";
 import { COLORS, SPACING } from "../../../../lib/theme";
 
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
@@ -102,7 +103,7 @@ export default function AnalysisScreen() {
 
             const stats: Record<string, { totalTime: number; totalQs: number }> = {};
             (data as any[]).forEach(a => {
-                const sub = getSubject(a.room_exams.title);
+                const sub = getRoomExamSubjectFromTitle(a.room_exams.title) ?? "기타";
                 if (!stats[sub]) stats[sub] = { totalTime: 0, totalQs: 0 };
                 stats[sub].totalTime += a.duration_ms || 0;
                 stats[sub].totalQs += a.room_exams.total_questions || 0;
@@ -201,23 +202,21 @@ export default function AnalysisScreen() {
         }, [roomId, selectedExamId, exams.length, loadExams, loadExamData])
     );
 
-    const getSubject = (title: string) => {
-        // Handle "Subject • Title" or "[Subject] Title"
-        const bulletMatch = title.match(/^(.*?) •/);
-        if (bulletMatch) return bulletMatch[1];
-        const bracketMatch = title.match(/^\[(.*?)\]/);
-        return bracketMatch ? bracketMatch[1] : "기타";
-    };
-
     const uniqueSubjects = useMemo(() => {
         const set = new Set<string>();
-        exams.forEach(e => set.add(getSubject(e.title)));
+        exams.forEach((e) => {
+            const subjectLabel = getRoomExamSubjectFromTitle(e.title) ?? "기타";
+            set.add(subjectLabel);
+        });
         return ["전체", ...Array.from(set)];
     }, [exams]);
 
     const filteredExams = useMemo(() => {
         if (selectedSubject === "전체") return exams;
-        return exams.filter(e => getSubject(e.title) === selectedSubject);
+        return exams.filter((e) => {
+            const subjectLabel = getRoomExamSubjectFromTitle(e.title) ?? "기타";
+            return subjectLabel === selectedSubject;
+        });
     }, [exams, selectedSubject]);
 
     const exam = useMemo(() => exams.find(e => e.id === selectedExamId), [exams, selectedExamId]);
@@ -697,4 +696,3 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
 });
-
