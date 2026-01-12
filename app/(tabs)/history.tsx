@@ -41,8 +41,16 @@ export default function HistoryScreen() {
     }, [params.date]);
 
     const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+    const [calendarKey, setCalendarKey] = useState(0);
 
     useFocusEffect(useCallback(() => {
+        // 다른 탭에 갔다가 다시 '기록' 탭으로 돌아올 때 오늘 날짜로 리셋
+        const today = getStudyDateKey(Date.now());
+        setSelectedDate(today);
+        // 캘린더 컴포넌트가 내부 상태(현재 보고 있는 월)를 유지하는 경우가 있어,
+        // 강제로 현재 월로 이동시키기 위해 key를 변경하여 리마운트합니다.
+        setCalendarKey(prev => prev + 1);
+
         const id = setInterval(() => setNowMs(Date.now()), 30000);
         return () => clearInterval(id);
     }, []));
@@ -53,6 +61,12 @@ export default function HistoryScreen() {
     const dayList = useMemo(() => {
         return Object.values(index.dayStatsByDate).sort((a, b) => b.date.localeCompare(a.date));
     }, [index.dayStatsByDate]);
+
+    const minDate = useMemo(() => {
+        if (dayList.length === 0) return getStudyDateKey(Date.now());
+        // dayList는 내림차순 정렬되어 있으므로 마지막 요소가 가장 오래된 기록임
+        return dayList[dayList.length - 1].date;
+    }, [dayList]);
 
     // 마킹 로직
     const markedDates = useMemo(() => {
@@ -98,7 +112,10 @@ export default function HistoryScreen() {
         const existingStyle = isMarked ? marks[selectedDate].customStyles : null;
 
         const finalBackgroundColor = existingStyle ? existingStyle.container.backgroundColor : 'transparent';
-        const finalTextColor = existingStyle ? existingStyle.text.color : COLORS.primary;
+        // 선택된 날짜의 텍스트 색상: 
+        // 1. 이미 데이터가 있어서 색상이 지정된 경우 그 색상 유지
+        // 2. 데이터가 없는 경우 오늘 날짜(COLORS.primary)와 구분하기 위해 기본 텍스트 색상 사용
+        const finalTextColor = existingStyle ? existingStyle.text.color : COLORS.text;
 
         marks[selectedDate] = {
             customStyles: {
@@ -145,7 +162,10 @@ export default function HistoryScreen() {
                 <View style={styles.historyWrapper}>
                     <View style={styles.calendarContainer}>
                         <Calendar
+                            key={calendarKey}
                             current={selectedDate}
+                            minDate={minDate}
+                            maxDate={getStudyDateKey(Date.now())}
                             onDayPress={(day: { dateString: string }) => setSelectedDate(day.dateString)}
                             monthFormat={'yyyy년 MM월'}
                             markingType={'custom'}

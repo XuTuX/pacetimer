@@ -56,7 +56,7 @@ export default function DayDetail({ sessions, sessionStatsById, subjectsById, on
                     <View style={styles.emptyIconCircle}>
                         <Ionicons name="calendar-clear-outline" size={28} color={COLORS.border} />
                     </View>
-                    <ThemedText variant="body2" color={COLORS.textMuted}>No activity for this day</ThemedText>
+                    <ThemedText variant="body2" color={COLORS.textMuted}>이 날은 학습 기록이 없습니다</ThemedText>
                 </View>
             ) : (
                 <View style={styles.list}>
