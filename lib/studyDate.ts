@@ -6,12 +6,10 @@ export function getStudyDateKey(timestampMs: number): string {
 }
 
 export function formatDisplayDate(dateKey: string, nowMs: number = Date.now()): string {
-    const today = getStudyDateKey(nowMs);
-    const yesterday = getStudyDateKey(nowMs - 24 * 60 * 60 * 1000);
-    if (dateKey === today) return '오늘';
-    if (dateKey === yesterday) return '어제';
-    const [, m, d] = dateKey.split('-');
-    return `${parseInt(m, 10)}월 ${parseInt(d, 10)}일`;
+    const [y, m, d] = dateKey.split('-').map(s => parseInt(s, 10));
+    const date = new Date(y, m - 1, d);
+    const dayOfWeek = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()];
+    return `${m}월 ${d}일 (${dayOfWeek})`;
 }
 
 export function formatClockTime(timestampMs: number): string {

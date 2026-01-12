@@ -81,34 +81,35 @@ export default function HistoryScreen() {
                 customStyles: {
                     container: {
                         backgroundColor: color,
-                        borderRadius: 10,
-                        width: 36,
-                        height: 36,
+                        borderRadius: 8,
+                        width: 42,
+                        height: 42,
                         justifyContent: 'center',
                         alignItems: 'center',
                         borderWidth: 2,
                         borderColor: 'transparent',
                     },
-                    text: { color: textColor, fontWeight: '700', fontSize: 15, textAlign: 'center' },
+                    text: { color: textColor, fontWeight: '700', fontSize: 16, textAlign: 'center' },
                 },
             };
         }
 
         if (marks[selectedDate]) {
             marks[selectedDate].customStyles.container.borderColor = COLORS.primary;
+            marks[selectedDate].customStyles.text.color = marks[selectedDate].customStyles.text.color === COLORS.white ? COLORS.white : COLORS.primary;
         } else {
             marks[selectedDate] = {
                 customStyles: {
                     container: {
                         borderWidth: 2,
                         borderColor: COLORS.primary,
-                        borderRadius: 10,
-                        width: 36,
-                        height: 36,
+                        borderRadius: 8,
+                        width: 42,
+                        height: 42,
                         justifyContent: 'center',
                         alignItems: 'center',
                     },
-                    text: { color: COLORS.text, fontWeight: '700', fontSize: 15, textAlign: 'center' },
+                    text: { color: COLORS.primary, fontWeight: '700', fontSize: 16, textAlign: 'center' },
                 },
             };
         }
@@ -130,6 +131,18 @@ export default function HistoryScreen() {
                 contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
             >
                 <View style={styles.historyWrapper}>
+                    <View style={styles.legendContainer}>
+                        <View style={styles.legendRow}>
+                            <Text style={styles.legendText}>3h 미만</Text>
+                            <View style={styles.legendStages}>
+                                <View style={[styles.legendBox, { backgroundColor: COLORS.primary + '33' }]} />
+                                <View style={[styles.legendBox, { backgroundColor: COLORS.primary + '80' }]} />
+                                <View style={[styles.legendBox, { backgroundColor: COLORS.primary }]} />
+                            </View>
+                            <Text style={styles.legendText}>6h 이상</Text>
+                        </View>
+                    </View>
+
                     <View style={styles.calendarWrapper}>
                         <Calendar
                             current={selectedDate}
@@ -143,7 +156,7 @@ export default function HistoryScreen() {
                                 textDayFontWeight: '700',
                                 textMonthFontWeight: '900',
                                 textDayHeaderFontWeight: '800',
-                                textDayFontSize: 15,
+                                textDayFontSize: 16,
                                 textMonthFontSize: 18,
                                 calendarBackground: 'transparent',
                                 dayTextColor: COLORS.text,
@@ -151,19 +164,6 @@ export default function HistoryScreen() {
                             }}
                             enableSwipeMonths={true}
                         />
-
-                        <View style={styles.legendContainer}>
-                            <Text style={styles.legendLabel}>학습 강도</Text>
-                            <View style={styles.legendRow}>
-                                <Text style={styles.legendText}>3시간 미만</Text>
-                                <View style={styles.legendStages}>
-                                    <View style={[styles.legendBox, { backgroundColor: COLORS.primary + '33' }]} />
-                                    <View style={[styles.legendBox, { backgroundColor: COLORS.primary + '80' }]} />
-                                    <View style={[styles.legendBox, { backgroundColor: COLORS.primary }]} />
-                                </View>
-                                <Text style={styles.legendText}>6시간 이상</Text>
-                            </View>
-                        </View>
                     </View>
 
                     <DayDetail
@@ -223,32 +223,30 @@ const styles = StyleSheet.create({
         padding: 0,
     },
     legendContainer: {
+        alignItems: 'flex-end',
         paddingHorizontal: 12,
-        paddingTop: 12,
-        paddingBottom: 4,
-    },
-    legendLabel: {
-        fontSize: 12,
-        fontWeight: '800',
-        color: COLORS.text,
-        marginBottom: 10,
+        marginBottom: -8,
     },
     legendRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: 8,
+        backgroundColor: COLORS.surfaceVariant,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 12,
     },
     legendStages: {
         flexDirection: 'row',
-        gap: 6,
+        gap: 4,
     },
     legendBox: {
-        width: 14,
-        height: 14,
-        borderRadius: 4,
+        width: 10,
+        height: 10,
+        borderRadius: 3,
     },
     legendText: {
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: '700',
         color: COLORS.textMuted,
     },
