@@ -115,7 +115,14 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
                             setSelectedHour(null);
                         }}
                     >
-                        <ThemedText variant="label" color={mode === 'time' ? COLORS.primary : COLORS.textMuted}>시간</ThemedText>
+                        <ThemedText
+                            style={[
+                                styles.toggleText,
+                                mode === 'time' && styles.toggleTextActive
+                            ]}
+                        >
+                            시간
+                        </ThemedText>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.toggleButton, mode === 'questions' && styles.toggleButtonActive]}
@@ -124,7 +131,14 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
                             setSelectedHour(null);
                         }}
                     >
-                        <ThemedText variant="label" color={mode === 'questions' ? COLORS.primary : COLORS.textMuted}>문제</ThemedText>
+                        <ThemedText
+                            style={[
+                                styles.toggleText,
+                                mode === 'questions' && styles.toggleTextActive
+                            ]}
+                        >
+                            문제
+                        </ThemedText>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -232,21 +246,30 @@ const styles = StyleSheet.create({
     toggleContainer: {
         flexDirection: 'row',
         backgroundColor: COLORS.surfaceVariant,
-        padding: 4,
-        borderRadius: RADIUS.md,
+        padding: 3,
+        borderRadius: RADIUS.lg,
     },
     toggleButton: {
-        paddingHorizontal: SPACING.md,
+        paddingHorizontal: 12,
         paddingVertical: 6,
-        borderRadius: RADIUS.sm,
+        borderRadius: RADIUS.md,
     },
     toggleButtonActive: {
         backgroundColor: COLORS.white,
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 0.05,
         shadowRadius: 2,
         elevation: 1,
+    },
+    toggleText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: COLORS.textMuted,
+    },
+    toggleTextActive: {
+        color: COLORS.text,
+        fontWeight: '800',
     },
     gridContainer: {
         gap: SPACING.md,

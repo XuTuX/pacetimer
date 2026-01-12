@@ -70,16 +70,10 @@ export default function HistoryScreen() {
         return `${earliest.slice(0, 7)}-01`;
     }, [dayList]);
 
-    const maxDate = useMemo(() => getStudyDateKey(nowMs), [nowMs]);
-
     const canGoPrev = useMemo(() => {
         if (!minDate) return false;
         return visibleMonth.slice(0, 7) > minDate.slice(0, 7);
     }, [visibleMonth, minDate]);
-
-    const canGoNext = useMemo(() => {
-        return visibleMonth.slice(0, 7) < maxDate.slice(0, 7);
-    }, [visibleMonth, maxDate]);
 
     React.useEffect(() => {
         if (!minDate) return;
@@ -127,6 +121,25 @@ export default function HistoryScreen() {
             };
         }
 
+        // 1.5. 오늘 날짜(6시 기준) 스타일링 처리
+        // 시스템 날짜(00시 기준)가 아닌 우리 기준의 오늘을 강조
+        const shiftedToday = getStudyDateKey(nowMs);
+        if (!marks[shiftedToday]) {
+            marks[shiftedToday] = {
+                customStyles: {
+                    container: {},
+                    text: { color: COLORS.text }
+                }
+            };
+        }
+
+        const todayEntry = marks[shiftedToday];
+        // 만약 텍스트 색상이 기본색(데이터가 없거나 적음)이라면, 오늘임을 표시하기 위해 Primary 색상 적용
+        if (todayEntry.customStyles.text && todayEntry.customStyles.text.color === COLORS.text) {
+            todayEntry.customStyles.text.color = COLORS.primary;
+            todayEntry.customStyles.text.fontWeight = '900';
+        }
+
         // 2. 선택된 날짜 처리
         const isMarked = !!marks[selectedDate];
         const existingStyle = isMarked ? marks[selectedDate].customStyles : null;
@@ -151,7 +164,7 @@ export default function HistoryScreen() {
         };
 
         return marks;
-    }, [dayList, selectedDate]);
+    }, [dayList, selectedDate, nowMs]);
 
     return (
         <View style={styles.container}>
@@ -181,11 +194,9 @@ export default function HistoryScreen() {
                             markingType={'custom'}
                             markedDates={markedDates}
                             minDate={minDate}
-                            maxDate={maxDate}
                             disableArrowLeft={!canGoPrev}
-                            disableArrowRight={!canGoNext}
                             theme={{
-                                todayTextColor: COLORS.primary,
+                                todayTextColor: COLORS.text, // 기본 오늘 표시(시스템 기준)는 일반 텍스트 색상으로 숨김
                                 arrowColor: COLORS.text,
 
                                 // 요일 헤더

@@ -1,3 +1,4 @@
+// 하루 시작 기준을 오전 6시로 설정 (06:00 이전은 전날로 기록)
 const STUDY_DAY_SHIFT_MS = 6 * 60 * 60 * 1000;
 
 export function getStudyDateKey(timestampMs: number): string {
