@@ -79,23 +79,36 @@ export default function HistoryScreen() {
 
             marks[day.date] = {
                 customStyles: {
-                    container: { backgroundColor: color, borderRadius: 8 },
-                    text: { color: textColor, fontWeight: '700' },
+                    container: {
+                        backgroundColor: color,
+                        borderRadius: 10,
+                        width: 36,
+                        height: 36,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        borderWidth: 2,
+                        borderColor: 'transparent',
+                    },
+                    text: { color: textColor, fontWeight: '700', fontSize: 15, textAlign: 'center' },
                 },
             };
         }
 
         if (marks[selectedDate]) {
-            marks[selectedDate].customStyles.container = {
-                ...marks[selectedDate].customStyles.container,
-                borderWidth: 2,
-                borderColor: COLORS.text,
-            };
+            marks[selectedDate].customStyles.container.borderColor = COLORS.primary;
         } else {
             marks[selectedDate] = {
                 customStyles: {
-                    container: { borderWidth: 2, borderColor: COLORS.text, borderRadius: 8 },
-                    text: { color: COLORS.text, fontWeight: '700' },
+                    container: {
+                        borderWidth: 2,
+                        borderColor: COLORS.primary,
+                        borderRadius: 10,
+                        width: 36,
+                        height: 36,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                    },
+                    text: { color: COLORS.text, fontWeight: '700', fontSize: 15, textAlign: 'center' },
                 },
             };
         }
@@ -130,8 +143,8 @@ export default function HistoryScreen() {
                                 textDayFontWeight: '700',
                                 textMonthFontWeight: '900',
                                 textDayHeaderFontWeight: '800',
-                                textDayFontSize: 13,
-                                textMonthFontSize: 17,
+                                textDayFontSize: 15,
+                                textMonthFontSize: 18,
                                 calendarBackground: 'transparent',
                                 dayTextColor: COLORS.text,
                                 textSectionTitleColor: COLORS.textMuted,
@@ -142,13 +155,13 @@ export default function HistoryScreen() {
                         <View style={styles.legendContainer}>
                             <Text style={styles.legendLabel}>학습 강도</Text>
                             <View style={styles.legendRow}>
-                                <Text style={styles.legendText}>적음</Text>
+                                <Text style={styles.legendText}>3시간 미만</Text>
                                 <View style={styles.legendStages}>
                                     <View style={[styles.legendBox, { backgroundColor: COLORS.primary + '33' }]} />
                                     <View style={[styles.legendBox, { backgroundColor: COLORS.primary + '80' }]} />
                                     <View style={[styles.legendBox, { backgroundColor: COLORS.primary }]} />
                                 </View>
-                                <Text style={styles.legendText}>많음</Text>
+                                <Text style={styles.legendText}>6시간 이상</Text>
                             </View>
                         </View>
                     </View>
