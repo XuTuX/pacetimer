@@ -79,7 +79,7 @@ export default function HomeScreen() {
 
     const displayTitle = React.useMemo(() => {
         const name = displayName || user?.firstName || '사용자';
-        return `${name}의 오늘`;
+        return `${name}`;
     }, [displayName, user]);
 
     const totalMs = React.useMemo(() => {
