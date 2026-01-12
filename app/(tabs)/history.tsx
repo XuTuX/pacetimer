@@ -40,7 +40,6 @@ export default function HistoryScreen() {
     const [calendarKey, setCalendarKey] = useState(0);
 
     useFocusEffect(useCallback(() => {
-        // [수정] 다른 탭에서 돌아오면 무조건 오늘로 표시되도록 변경
         const today = getStudyDateKey(Date.now());
         setSelectedDate(today);
         setVisibleMonth(today);
@@ -94,13 +93,16 @@ export default function HistoryScreen() {
 
             let color = COLORS.primary + '33';
             let textColor = COLORS.text;
+            let isHeavy = false; // [NEW] 배경색이 진한지 여부를 판별하는 플래그
 
             if (totalMinutes >= 360) {
                 color = COLORS.primary;
                 textColor = COLORS.white;
+                isHeavy = true; // [NEW] 가장 진한 색
             } else if (totalMinutes >= 180) {
                 color = COLORS.primary + '99';
                 textColor = COLORS.white;
+                isHeavy = true; // [NEW] 중간 진한 색 (텍스트가 흰색인 경우 Heavy로 간주)
             }
 
             marks[day.date] = {
@@ -119,39 +121,41 @@ export default function HistoryScreen() {
                         fontSize: 14
                     },
                 },
+                isHeavy, // [NEW] dayComponent에 전달
             };
         }
 
-        // 1.5. 오늘 날짜 스타일링 (데이터가 없어도 텍스트 강조)
+        // 1.5. 오늘 날짜 스타일링
         const shiftedToday = getStudyDateKey(nowMs);
         if (!marks[shiftedToday]) {
             marks[shiftedToday] = {
                 customStyles: {
                     container: {},
                     text: { color: COLORS.text }
-                }
+                },
+                isHeavy: false // 데이터가 없으면 Heavy가 아님
             };
         }
 
         const todayEntry = marks[shiftedToday];
-        // 텍스트가 기본색이면 오늘임을 강조하기 위해 Primary 색상 적용
-        if (todayEntry.customStyles.text && todayEntry.customStyles.text.color === COLORS.text) {
+
+        // [수정] 배경이 진하지 않을 때만 텍스트를 Primary 색상으로 강조
+        // 배경이 진하면(isHeavy=true) 이미 text가 White로 설정되어 있으므로 가독성을 위해 유지
+        if (!todayEntry.isHeavy && todayEntry.customStyles.text && todayEntry.customStyles.text.color === COLORS.text) {
             todayEntry.customStyles.text.color = COLORS.primary;
             todayEntry.customStyles.text.fontWeight = '900';
         }
 
-        // 2. 선택된 날짜 처리 (테두리 제거 -> isSelected 플래그 추가)
+        // 2. 선택된 날짜 처리
         const isMarked = !!marks[selectedDate];
         const existingStyle = isMarked ? marks[selectedDate].customStyles : null;
-
-        // 기존 히트맵 배경색 유지 (없으면 투명)
         const finalBackgroundColor = existingStyle?.container?.backgroundColor || 'transparent';
+        const isSelectedDayHeavy = marks[selectedDate]?.isHeavy || false; // 선택된 날짜가 Heavy한지 확인
 
         marks[selectedDate] = {
             customStyles: {
                 container: {
                     backgroundColor: finalBackgroundColor,
-                    // borderWidth 제거됨
                     borderRadius: 12,
                     width: 38,
                     height: 38,
@@ -160,7 +164,8 @@ export default function HistoryScreen() {
                 },
                 text: existingStyle ? existingStyle.text : {},
             },
-            isSelected: true, // [NEW] dayComponent에서 점을 그리기 위한 플래그
+            isSelected: true,
+            isHeavy: isSelectedDayHeavy, // [NEW] 선택된 날짜 객체에도 isHeavy 정보 전달
         };
 
         return marks;
@@ -192,16 +197,20 @@ export default function HistoryScreen() {
                             minDate={minDate}
                             disableArrowLeft={!canGoPrev}
 
-                            // [NEW] 커스텀 Day 컴포넌트: 선택 시 테두리 대신 상단 점 표시
+                            // [수정] 커스텀 Day 컴포넌트: isHeavy 플래그에 따라 점 색상 변경
                             dayComponent={({ date, marking, state }: any) => {
                                 const isSelected = marking?.isSelected;
+                                const isHeavy = marking?.isHeavy; // [NEW] 배경이 어두운지 확인
+
                                 const containerStyle = marking?.customStyles?.container || {};
                                 const textStyle = marking?.customStyles?.text || {};
 
-                                // 비활성화된 날짜(이전 달 등) 처리
                                 const isDisabled = state === 'disabled';
                                 const defaultTextColor = isDisabled ? '#d9e1e8' : COLORS.text;
                                 const textColor = textStyle.color || defaultTextColor;
+
+                                // [NEW] 점 색상 결정: 배경이 진하면(isHeavy) 흰색, 아니면 Primary 색상
+                                const dotColor = isHeavy ? COLORS.white : COLORS.primary;
 
                                 if (!date) return <View style={{ width: 38 }} />;
 
@@ -224,7 +233,7 @@ export default function HistoryScreen() {
                                             }
                                         ]}
                                     >
-                                        {/* 선택 표시 점 (Dot) - Primary Color */}
+                                        {/* 선택 표시 점 (Dot) */}
                                         {isSelected && (
                                             <View style={{
                                                 position: 'absolute',
@@ -232,7 +241,7 @@ export default function HistoryScreen() {
                                                 width: 5,
                                                 height: 5,
                                                 borderRadius: 2.5,
-                                                backgroundColor: COLORS.primary, // 앱 테마 색상 적용
+                                                backgroundColor: dotColor, // [NEW] 동적 색상 적용
                                             }} />
                                         )}
 

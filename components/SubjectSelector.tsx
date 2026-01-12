@@ -13,9 +13,9 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import { ThemedText } from './ui/ThemedText';
 import { COLORS, RADIUS, SHADOWS, SPACING } from '../lib/theme';
 import type { Subject } from '../lib/types';
+import { ThemedText } from './ui/ThemedText';
 
 type Props = {
     subjects: Subject[];
