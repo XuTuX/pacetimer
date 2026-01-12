@@ -128,7 +128,7 @@ export default function RoomsIndexScreen() {
         <View style={styles.headerActions}>
             <Pressable
                 onPress={() => router.push("/(tabs)/rooms/create")}
-                style={({ pressed }) => [styles.createBtn, pressed && { transform: [{ scale: 0.95 }] }]}
+                style={({ pressed }) => [styles.createBtn, pressed && { opacity: 0.7 }]}
             >
                 <Ionicons name="add" size={28} color={COLORS.text} />
             </Pressable>
@@ -146,6 +146,34 @@ export default function RoomsIndexScreen() {
             />
 
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+                <View style={styles.searchSection}>
+                    <View style={styles.searchBar}>
+                        <Ionicons name="search" size={22} color={COLORS.primary} />
+                        <TextInput
+                            value={roomIdInput}
+                            onChangeText={setRoomIdInput}
+                            placeholder="ID 입력"
+                            placeholderTextColor={COLORS.textMuted}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            style={styles.inputField}
+                            onSubmitEditing={handleJoin}
+                        />
+                        {roomIdInput.length > 0 && (
+                            <Pressable onPress={handleJoin} disabled={joining}>
+                                {joining ? (
+                                    <ActivityIndicator size="small" color={COLORS.primary} />
+                                ) : (
+                                    <Ionicons name="arrow-forward" size={22} color={COLORS.primary} />
+                                )}
+                            </Pressable>
+                        )}
+                    </View>
+                    <ThemedText style={styles.helperText}>
+                        호스트에게 공유받은 룸 ID를 입력하세요
+                    </ThemedText>
+                </View>
+
                 <View style={styles.listSection}>
                     {loading && <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 20 }} />}
                     {hasLoadedOnce && rooms.length === 0 ? (
@@ -180,35 +208,7 @@ export default function RoomsIndexScreen() {
                 </View>
 
                 <View style={styles.footerSection}>
-                    <Button
-                        variant="ghost"
-                        label={joining ? "닫기" : "ID로 참여하기"}
-                        onPress={() => setJoining(!joining)}
-                        style={styles.idJoinLink}
-                        textStyle={styles.idJoinText}
-                        size="sm"
-                    />
-                    {joining && (
-                        <View style={styles.subtleJoinInput}>
-                            <TextInput
-                                value={roomIdInput}
-                                onChangeText={setRoomIdInput}
-                                placeholder="룸 ID 붙여넣기"
-                                placeholderTextColor={COLORS.textMuted}
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                                style={styles.miniInput}
-                            />
-                            <Pressable
-                                onPress={handleJoin}
-                                disabled={roomIdInput.trim().length === 0}
-                                style={styles.miniJoinBtn}
-                            >
-                                <Ionicons name="arrow-forward" size={20} color={COLORS.primary} />
-                            </Pressable>
-                        </View>
-                    )}
-                    {error ? <ThemedText style={styles.errorText} color={COLORS.error}>{error}</ThemedText> : null}
+                    {/* Spacer */}
                 </View>
             </ScrollView>
         </View>
@@ -255,29 +255,38 @@ const styles = StyleSheet.create({
     emptyTitle: { marginBottom: SPACING.sm },
     emptySubtitle: { marginBottom: SPACING.lg, lineHeight: 24 },
     emptyAction: { width: '100%' },
-    footerSection: { marginTop: SPACING.md, alignItems: 'center', gap: SPACING.md },
-    idJoinLink: {},
-    subtleJoinInput: {
+    searchSection: {
+        marginBottom: SPACING.md,
+        gap: 6,
+    },
+    searchBar: {
         flexDirection: 'row',
         alignItems: 'center',
+        gap: 12,
         backgroundColor: COLORS.surface,
-        borderRadius: RADIUS.md,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        height: 56,
-        paddingLeft: SPACING.md,
-        paddingRight: 6,
-        width: '100%',
+        borderRadius: RADIUS.md, // Soft rounded look
+        paddingHorizontal: SPACING.md,
+        height: 50,
+        // Optional: slight shadow or border for depth
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 1,
     },
-    miniInput: { flex: 1, fontSize: 15, color: COLORS.text, fontWeight: '500' },
-    miniJoinBtn: {
-        width: 44,
-        height: 44,
-        borderRadius: RADIUS.md,
-        backgroundColor: COLORS.primary, // Changed to primary for better visibility
-        alignItems: 'center',
-        justifyContent: 'center',
+    inputField: {
+        flex: 1,
+        fontSize: 16,
+        color: COLORS.text,
+        fontWeight: '500',
     },
+    helperText: {
+        fontSize: 12,
+        color: COLORS.textMuted,
+        marginLeft: 4,
+    },
+    footerSection: { marginTop: SPACING.md, alignItems: 'center', gap: SPACING.md },
+    idJoinLink: {},
     errorText: { fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 8 },
     countBadge: {
         backgroundColor: COLORS.surfaceVariant,
