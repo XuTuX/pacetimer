@@ -16,7 +16,7 @@ type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 interface ButtonProps extends TouchableOpacityProps {
-    label: string;
+    label?: string;
     variant?: ButtonVariant;
     size?: ButtonSize;
     icon?: keyof typeof Ionicons.glyphMap;
@@ -39,7 +39,7 @@ export function Button({
 }: ButtonProps) {
 
     const getBackgroundColor = () => {
-        if (disabled) return COLORS.surfaceVariant; // Disabled state often grey
+        if (disabled) return COLORS.surfaceVariant;
         switch (variant) {
             case 'primary': return COLORS.primary;
             case 'secondary': return COLORS.primaryLight;
@@ -91,11 +91,12 @@ export function Button({
         {
             backgroundColor: getBackgroundColor(),
             height: getHeight(),
-            borderRadius: RADIUS.md, // Consistent medium radius
+            borderRadius: RADIUS.md,
             borderWidth: variant === 'outline' ? 1 : 0,
             borderColor: getBorderColor(),
             width: fullWidth ? '100%' : undefined,
-            paddingHorizontal: SPACING.lg,
+            paddingHorizontal: label ? SPACING.lg : 0,
+            aspectRatio: label ? undefined : 1, // Make it square if only icon
         },
         disabled && styles.disabled,
         style,
@@ -106,7 +107,7 @@ export function Button({
         {
             color: getTextColor(),
             fontSize: getFontSize(),
-            fontWeight: '700', // Buttons usually bold
+            fontWeight: '700',
         },
     ];
 
@@ -122,11 +123,21 @@ export function Button({
             ) : (
                 <>
                     {icon && iconPosition === 'left' && (
-                        <Ionicons name={icon} size={20} color={getTextColor()} style={{ marginRight: SPACING.sm }} />
+                        <Ionicons
+                            name={icon}
+                            size={label ? 20 : 22}
+                            color={getTextColor()}
+                            style={label ? { marginRight: SPACING.sm } : {}}
+                        />
                     )}
-                    <Text style={textStyle}>{label}</Text>
+                    {label && <Text style={textStyle}>{label}</Text>}
                     {icon && iconPosition === 'right' && (
-                        <Ionicons name={icon} size={20} color={getTextColor()} style={{ marginLeft: SPACING.sm }} />
+                        <Ionicons
+                            name={icon}
+                            size={label ? 20 : 22}
+                            color={getTextColor()}
+                            style={label ? { marginLeft: SPACING.sm } : {}}
+                        />
                     )}
                 </>
             )}
@@ -144,6 +155,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     disabled: {
-        opacity: 0.8,
+        opacity: 0.6,
     },
 });

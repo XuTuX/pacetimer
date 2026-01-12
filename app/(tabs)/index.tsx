@@ -2,12 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Dimensions, Pressable, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Dimensions, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import SproutVisual from '../../components/SproutVisual';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
-import { ScreenHeader } from '../../components/ui/ScreenHeader'; // Changed from AppHeader
+import { HeaderSettings } from '../../components/ui/HeaderSettings';
+import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { ThemedText } from '../../components/ui/ThemedText';
 import { useAppStore } from '../../lib/store';
 import { getStudyDateKey } from '../../lib/studyDate';
@@ -24,7 +24,6 @@ export default function HomeScreen() {
     const [isAdding, setIsAdding] = React.useState(false);
     const [now, setNow] = React.useState(Date.now());
 
-    // Update 'now' for real-time timer updates
     React.useEffect(() => {
         const id = setInterval(() => setNow(Date.now()), 1000);
         return () => clearInterval(id);
@@ -32,28 +31,21 @@ export default function HomeScreen() {
 
     const totalMs = React.useMemo(() => {
         const today = getStudyDateKey(now);
-
-        // 1. Get all sessions for today
         const todaySessionIds = new Set(
             sessions.filter((s: Session) => s.studyDate === today).map((s: Session) => s.id)
         );
-
-        // 2. Sum up finished segments for these sessions
         let accumulated = segments.reduce((acc: number, seg: Segment) => {
             if (todaySessionIds.has(seg.sessionId) && seg.endedAt) {
                 return acc + (seg.endedAt - seg.startedAt);
             }
             return acc;
         }, 0);
-
-        // 3. Add active segment if it belongs to a today's session
         if (activeSegmentId) {
             const activeSeg = segments.find((s: Segment) => s.id === activeSegmentId);
             if (activeSeg && todaySessionIds.has(activeSeg.sessionId)) {
                 accumulated += (now - activeSeg.startedAt);
             }
         }
-
         return accumulated;
     }, [sessions, segments, activeSegmentId, now]);
 
@@ -78,123 +70,115 @@ export default function HomeScreen() {
 
     const selectedSubject = subjects.find(s => s.id === activeSubjectId);
 
-    const SettingsButton = (
-        <TouchableOpacity style={styles.headerIcon} onPress={() => router.push('/timer')}>
-            <Ionicons name="settings-outline" size={20} color={COLORS.textMuted} />
-        </TouchableOpacity>
-    );
-
     return (
-        <SafeAreaView style={styles.container}>
-            {/* 배경 클릭 시 드롭다운 닫기 */}
-            {isDropdownOpen && (
-                <Pressable style={StyleSheet.absoluteFill} onPress={() => { setIsDropdownOpen(false); setIsAdding(false); }} />
-            )}
-
+        <View style={styles.container}>
             <ScreenHeader
                 title="오늘의 기록"
-                subtitle="성장하는 즐거움을 느껴보세요 🌱"
-                rightElement={SettingsButton}
+                rightElement={<HeaderSettings />}
                 showBack={false}
-                style={{ marginBottom: SPACING.lg, borderBottomWidth: 0, paddingBottom: SPACING.sm }}
+                align="left"
             />
 
-            <Card variant="elevated" style={styles.mainCard}>
-                <SproutVisual totalMinutes={totalMinutes} />
-                <View style={styles.timeContainer}>
-                    <ThemedText variant="caption" color={COLORS.textMuted} style={styles.timeLabel}>누적 학습 시간</ThemedText>
-                    <ThemedText variant="h1" style={styles.timeText}>{formatTime(totalMs)}</ThemedText>
-                </View>
-            </Card>
+            <ScrollView
+                style={styles.content}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.scrollContent}
+            >
+                <Card variant="elevated" style={styles.mainCard}>
+                    <SproutVisual totalMinutes={totalMinutes} />
+                    <View style={styles.timeContainer}>
+                        <ThemedText variant="caption" color={COLORS.textMuted} style={styles.timeLabel}>누적 학습 시간</ThemedText>
+                        <ThemedText variant="h1" style={styles.timeText}>{formatTime(totalMs)}</ThemedText>
+                    </View>
+                </Card>
 
-            {/* 과목 선택 영역 (Dropdown 컨테이너) */}
-            <View style={styles.subjectWrapper}>
-                <ThemedText variant="label" color={COLORS.textMuted} style={styles.label}>공부 과목</ThemedText>
-                <View style={{ zIndex: 10 }}>
-                    <TouchableOpacity
-                        style={[styles.selector, isDropdownOpen && styles.selectorActive]}
-                        onPress={() => setIsDropdownOpen(!isDropdownOpen)}
-                        activeOpacity={0.8}
-                    >
-                        <ThemedText style={[styles.selectorText, !selectedSubject && styles.placeholder]}>
-                            {selectedSubject ? selectedSubject.name : "과목을 선택하세요"}
-                        </ThemedText>
-                        <Ionicons name={isDropdownOpen ? "chevron-up" : "chevron-down"} size={16} color={COLORS.textMuted} />
-                    </TouchableOpacity>
+                <View style={styles.subjectWrapper}>
+                    <ThemedText variant="label" color={COLORS.textMuted} style={styles.label}>공부 과목</ThemedText>
+                    <View style={{ zIndex: 10 }}>
+                        <TouchableOpacity
+                            style={[styles.selector, isDropdownOpen && styles.selectorActive]}
+                            onPress={() => setIsDropdownOpen(!isDropdownOpen)}
+                            activeOpacity={0.8}
+                        >
+                            <ThemedText style={[styles.selectorText, !selectedSubject && styles.placeholder]}>
+                                {selectedSubject ? selectedSubject.name : "과목을 선택하세요"}
+                            </ThemedText>
+                            <Ionicons name={isDropdownOpen ? "chevron-up" : "chevron-down"} size={16} color={COLORS.textMuted} />
+                        </TouchableOpacity>
 
-                    {/* 작은 팝업창 형태의 드롭다운 */}
-                    {isDropdownOpen && (
-                        <View style={styles.dropdownWindow}>
-                            <ScrollView style={styles.dropdownScroll} bounces={false}>
-                                {subjects.map(s => (
-                                    <TouchableOpacity
-                                        key={s.id}
-                                        style={styles.dropdownItem}
-                                        onPress={() => {
-                                            setActiveSubjectId(s.id);
-                                            setIsDropdownOpen(false);
-                                        }}
-                                    >
-                                        <ThemedText style={[styles.dropdownItemText, activeSubjectId === s.id && styles.activeItemText]}>
-                                            {s.name}
-                                        </ThemedText>
-                                        {activeSubjectId === s.id && <Ionicons name="checkmark" size={16} color={COLORS.primary} />}
-                                    </TouchableOpacity>
-                                ))}
-
-                                {!isAdding ? (
-                                    <TouchableOpacity style={styles.addItemRow} onPress={() => setIsAdding(true)}>
-                                        <Ionicons name="add" size={18} color={COLORS.primary} />
-                                        <ThemedText style={styles.addItemText}>새 과목 추가</ThemedText>
-                                    </TouchableOpacity>
-                                ) : (
-                                    <View style={styles.inputRow}>
-                                        <TextInput
-                                            style={styles.inlineInput}
-                                            placeholder="과목명..."
-                                            value={newSubjectName}
-                                            onChangeText={setNewSubjectName}
-                                            autoFocus
-                                            onSubmitEditing={handleAddSubject}
-                                        />
-                                        <TouchableOpacity onPress={handleAddSubject}>
-                                            <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
+                        {isDropdownOpen && (
+                            <View style={styles.dropdownWindow}>
+                                <ScrollView style={styles.dropdownScroll} bounces={false}>
+                                    {subjects.map(s => (
+                                        <TouchableOpacity
+                                            key={s.id}
+                                            style={styles.dropdownItem}
+                                            onPress={() => {
+                                                setActiveSubjectId(s.id);
+                                                setIsDropdownOpen(false);
+                                            }}
+                                        >
+                                            <ThemedText style={[styles.dropdownItemText, activeSubjectId === s.id && styles.activeItemText]}>
+                                                {s.name}
+                                            </ThemedText>
+                                            {activeSubjectId === s.id && <Ionicons name="checkmark" size={16} color={COLORS.primary} />}
                                         </TouchableOpacity>
-                                    </View>
-                                )}
-                            </ScrollView>
-                        </View>
-                    )}
+                                    ))}
+
+                                    {!isAdding ? (
+                                        <TouchableOpacity style={styles.addItemRow} onPress={() => setIsAdding(true)}>
+                                            <Ionicons name="add" size={18} color={COLORS.primary} />
+                                            <ThemedText style={styles.addItemText}>새 과목 추가</ThemedText>
+                                        </TouchableOpacity>
+                                    ) : (
+                                        <View style={styles.inputRow}>
+                                            <TextInput
+                                                style={styles.inlineInput}
+                                                placeholder="과목명..."
+                                                value={newSubjectName}
+                                                onChangeText={setNewSubjectName}
+                                                autoFocus
+                                                onSubmitEditing={handleAddSubject}
+                                            />
+                                            <TouchableOpacity onPress={handleAddSubject}>
+                                                <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
+                                </ScrollView>
+                            </View>
+                        )}
+                    </View>
                 </View>
-            </View>
 
-            <View style={styles.bottomActions}>
-                <Button
-                    label={stopwatch.isRunning ? "집중 이어가기" : "집중 시작"}
-                    icon={stopwatch.isRunning ? "pause" : "play"}
-                    size="lg"
-                    style={styles.startBtn}
-                    disabled={!activeSubjectId && !stopwatch.isRunning}
-                    onPress={() => {
-                        if (stopwatch.isRunning) router.push('/timer');
-                        else if (activeSubjectId) router.push('/timer');
-                        else {
-                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                            setIsDropdownOpen(true);
-                        }
-                    }}
-                />
+                <View style={styles.bottomActions}>
+                    <Button
+                        label={stopwatch.isRunning ? "집중 이어가기" : "집중 시작"}
+                        icon={stopwatch.isRunning ? "pause" : "play"}
+                        size="lg"
+                        style={styles.startBtn}
+                        disabled={!activeSubjectId && !stopwatch.isRunning}
+                        onPress={() => {
+                            if (stopwatch.isRunning) router.push('/timer');
+                            else if (activeSubjectId) router.push('/timer');
+                            else {
+                                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                                setIsDropdownOpen(true);
+                            }
+                        }}
+                    />
 
-                <Button
-                    label="모의고사 모드"
-                    variant="ghost"
-                    icon="arrow-forward"
-                    iconPosition="right"
-                    size="sm"
-                    onPress={() => router.push('/modes/mock-exam/setup')}
-                />
-            </View>
-        </SafeAreaView>
+                    <Button
+                        label="모의고사 모드"
+                        variant="ghost"
+                        icon="arrow-forward"
+                        iconPosition="right"
+                        size="sm"
+                        onPress={() => router.push('/modes/mock-exam/setup')}
+                    />
+                </View>
+            </ScrollView>
+        </View>
     );
 }
 
@@ -202,24 +186,18 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: COLORS.bg,
-        paddingHorizontal: SPACING.xxl,
     },
-    headerIcon: {
-        width: 38,
-        height: 38,
-        borderRadius: RADIUS.md, // 12
-        backgroundColor: COLORS.surface,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: COLORS.border,
+    content: {
+        flex: 1,
+    },
+    scrollContent: {
+        paddingHorizontal: SPACING.xxl,
+        paddingBottom: 40,
     },
     mainCard: {
         height: height * 0.35,
         alignItems: 'center',
         justifyContent: 'center',
-        // padding: 20 is handled by Card default or explicit padding
-        // Card uses RADIUS.xl (24) by default
     },
     timeContainer: {
         alignItems: 'center',
@@ -229,9 +207,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         marginBottom: 4,
     },
-    timeText: {
-        // fontSize: 32 -> h1 is 32
-    },
+    timeText: {},
     subjectWrapper: {
         marginTop: SPACING.xl,
         position: 'relative',
@@ -247,7 +223,7 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.surface,
         height: 52,
         paddingHorizontal: SPACING.lg,
-        borderRadius: RADIUS.lg, // 14
+        borderRadius: RADIUS.lg,
         borderWidth: 1,
         borderColor: COLORS.border,
     },
@@ -262,7 +238,6 @@ const styles = StyleSheet.create({
     placeholder: {
         color: COLORS.textMuted,
     },
-    // 드롭다운 작은 창 스타일
     dropdownWindow: {
         position: 'absolute',
         top: 58,
@@ -324,13 +299,12 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
     bottomActions: {
-        marginTop: 'auto',
-        marginBottom: SPACING.xl, // 20
+        marginTop: SPACING.xl,
+        marginBottom: SPACING.xl,
         gap: SPACING.sm,
     },
     startBtn: {
         height: 60,
-        borderRadius: RADIUS.xl, // 20
-        // primary color handled by Button
+        borderRadius: RADIUS.xl,
     },
 });

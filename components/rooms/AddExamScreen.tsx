@@ -8,10 +8,14 @@ import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { ScreenHeader } from "../../components/ui/ScreenHeader";
 import { Typography } from "../../components/ui/Typography";
-import { COLORS, RADIUS, SHADOWS, SPACING } from "../../lib/theme";
 import { useAppStore } from "../../lib/store";
 import { useSupabase } from "../../lib/supabase";
 import { formatSupabaseError } from "../../lib/supabaseError";
+import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from "../../lib/theme";
+
+const SUBJECT_COLORS = [
+    '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#82E0AA'
+];
 
 export default function AddExamScreen() {
     const supabase = useSupabase();
@@ -30,10 +34,8 @@ export default function AddExamScreen() {
     const [error, setError] = useState<string | null>(null);
     const [isPickerOpen, setIsPickerOpen] = useState(false);
 
-    // Management states (Add/Edit)
+    // Management states (Add)
     const [newSubjectName, setNewSubjectName] = useState("");
-    const [editingSubjectId, setEditingSubjectId] = useState<string | null>(null);
-    const [editingSubjectName, setEditingSubjectName] = useState("");
 
     const activeSubjects = subjects.filter(s => !s.isArchived);
 
@@ -93,10 +95,9 @@ export default function AddExamScreen() {
                     <Button
                         variant="ghost"
                         size="sm"
-                        leftIcon="close"
+                        icon="close"
                         onPress={() => router.back()}
                         style={styles.closeBtn}
-                        fullWidth={false}
                     />
                 }
             />
@@ -124,13 +125,92 @@ export default function AddExamScreen() {
                             </View>
                             <Pressable
                                 style={[styles.modernInput, isPickerOpen && styles.modernInputActive]}
-                                onPress={() => setIsPickerOpen(true)}
+                                onPress={() => setIsPickerOpen(!isPickerOpen)}
                             >
-                                <Typography.Body1 bold style={[styles.modernValue, !selectedSubjectId && { color: COLORS.textMuted }]}>
-                                    {activeSubjects.find(s => s.id === selectedSubjectId)?.name || "과목 선택"}
-                                </Typography.Body1>
-                                <Ionicons name="chevron-down" size={18} color={COLORS.textMuted} />
+                                <View style={styles.labelLeft}>
+                                    <View style={[
+                                        styles.colorDot,
+                                        {
+                                            backgroundColor: selectedSubjectId
+                                                ? SUBJECT_COLORS[Math.max(0, activeSubjects.findIndex(s => s.id === selectedSubjectId)) % SUBJECT_COLORS.length]
+                                                : COLORS.border
+                                        }
+                                    ]} />
+                                    <Typography.Body1 bold style={[styles.modernValue, !selectedSubjectId && { color: COLORS.textMuted }]}>
+                                        {activeSubjects.find(s => s.id === selectedSubjectId)?.name || "과목 선택"}
+                                    </Typography.Body1>
+                                </View>
+                                <Ionicons name={isPickerOpen ? "chevron-up" : "chevron-down"} size={18} color={COLORS.textMuted} />
                             </Pressable>
+
+                            {isPickerOpen && (
+                                <View style={styles.dropdownContainer}>
+                                    <View style={styles.dropdownList}>
+                                        <ScrollView
+                                            style={styles.dropdownScroll}
+                                            nestedScrollEnabled={true}
+                                            showsVerticalScrollIndicator={true}
+                                        >
+                                            {activeSubjects.length > 0 ? (
+                                                activeSubjects.map((s, idx) => (
+                                                    <Pressable
+                                                        key={s.id}
+                                                        style={[
+                                                            styles.dropdownItem,
+                                                            selectedSubjectId === s.id && styles.dropdownItemActive
+                                                        ]}
+                                                        onPress={() => {
+                                                            setSelectedSubjectId(s.id);
+                                                            setIsPickerOpen(false);
+                                                        }}
+                                                    >
+                                                        <View style={styles.labelLeft}>
+                                                            <View style={[styles.colorDot, { backgroundColor: SUBJECT_COLORS[idx % SUBJECT_COLORS.length] }]} />
+                                                            <Typography.Body2 bold color={selectedSubjectId === s.id ? COLORS.primary : COLORS.text}>
+                                                                {s.name}
+                                                            </Typography.Body2>
+                                                        </View>
+                                                        {selectedSubjectId === s.id && <Ionicons name="checkmark" size={18} color={COLORS.primary} />}
+                                                    </Pressable>
+                                                ))
+                                            ) : (
+                                                <View style={styles.emptySubjects}>
+                                                    <Typography.Body2 color={COLORS.textMuted}>등록된 과목이 없습니다.</Typography.Body2>
+                                                </View>
+                                            )}
+                                        </ScrollView>
+
+                                        {/* Dropdown Footer: Add Subject */}
+                                        <View style={styles.dropdownFooter}>
+                                            <TextInput
+                                                value={newSubjectName}
+                                                onChangeText={setNewSubjectName}
+                                                placeholder="새 과목 추가..."
+                                                placeholderTextColor={COLORS.textMuted}
+                                                style={styles.compactAddInput}
+                                                onSubmitEditing={() => {
+                                                    if (newSubjectName.trim()) {
+                                                        useAppStore.getState().addSubject(newSubjectName.trim());
+                                                        setNewSubjectName("");
+                                                    }
+                                                }}
+                                            />
+                                            <Pressable
+                                                onPress={() => {
+                                                    if (newSubjectName.trim()) {
+                                                        useAppStore.getState().addSubject(newSubjectName.trim());
+                                                        setNewSubjectName("");
+                                                    }
+                                                }}
+                                                disabled={!newSubjectName.trim()}
+                                                style={[styles.compactAddBtn, !newSubjectName.trim() && { opacity: 0.5 }]}
+                                            >
+                                                <Ionicons name="add" size={20} color={COLORS.white} />
+                                            </Pressable>
+                                        </View>
+                                    </View>
+                                </View>
+                            )}
                         </View>
 
                         {/* Title Input */}
@@ -191,8 +271,8 @@ export default function AddExamScreen() {
 
                         {error ? (
                             <Card variant="flat" padding="md" radius="xl" style={styles.errorAlert}>
-                                <Ionicons name="warning" size={16} color={COLORS.error} />
-                                <Typography.Label bold color={COLORS.error}>{error}</Typography.Label>
+                                <Ionicons name="warning-outline" size={18} color={COLORS.error} />
+                                <Typography.Body2 bold color={COLORS.error}>{error}</Typography.Body2>
                             </Card>
                         ) : null}
 
@@ -215,143 +295,11 @@ export default function AddExamScreen() {
                         disabled={!canSave}
                         loading={saving}
                         size="lg"
-                        rightIcon={!saving ? "chevron-forward" : undefined}
+                        icon={!saving ? "chevron-forward" : undefined}
+                        iconPosition="right"
                     />
                 </View>
 
-                {/* Unified Subject Picker & Manager Popover */}
-                {isPickerOpen && (
-                    <View style={styles.popoverOverlay}>
-                        <Pressable
-                            style={styles.popoverBackdrop}
-                            onPress={() => {
-                                setIsPickerOpen(false);
-                                setEditingSubjectId(null);
-                                setNewSubjectName("");
-                            }}
-                        />
-                        <Card padding="xl" radius="xxl" style={styles.pickerCard}>
-                            <View style={styles.pickerHeader}>
-                                <Typography.Subtitle1 bold>과목 선택</Typography.Subtitle1>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    leftIcon="close"
-                                    onPress={() => {
-                                        setIsPickerOpen(false);
-                                        setEditingSubjectId(null);
-                                        setNewSubjectName("");
-                                    }}
-                                    style={styles.pickerCloseBtn}
-                                    fullWidth={false}
-                                />
-                            </View>
-
-                            <ScrollView
-                                style={styles.pickerScroll}
-                                showsVerticalScrollIndicator={false}
-                                bounces={true}
-                                keyboardShouldPersistTaps="handled"
-                            >
-                                {activeSubjects.map((s) => (
-                                    <View key={s.id} style={styles.pickerItemRow}>
-                                        {editingSubjectId === s.id ? (
-                                            <View style={styles.editRow}>
-                                                <TextInput
-                                                    value={editingSubjectName}
-                                                    onChangeText={setEditingSubjectName}
-                                                    autoFocus
-                                                    style={styles.editInput}
-                                                    onSubmitEditing={() => {
-                                                        if (editingSubjectName.trim()) {
-                                                            useAppStore.getState().updateSubject(s.id, { name: editingSubjectName.trim() });
-                                                            setEditingSubjectId(null);
-                                                        }
-                                                    }}
-                                                />
-                                                <Pressable
-                                                    onPress={() => {
-                                                        if (editingSubjectName.trim()) {
-                                                            useAppStore.getState().updateSubject(s.id, { name: editingSubjectName.trim() });
-                                                            setEditingSubjectId(null);
-                                                        }
-                                                    }}
-                                                    style={styles.saveBtn}
-                                                >
-                                                    <Ionicons name="checkmark" size={16} color={COLORS.primary} />
-                                                </Pressable>
-                                            </View>
-                                        ) : (
-                                            <>
-                                                <Pressable
-                                                    style={styles.pickerItemLabel}
-                                                    onPress={() => {
-                                                        setSelectedSubjectId(s.id);
-                                                        setIsPickerOpen(false);
-                                                    }}
-                                                >
-                                                    <Typography.Body1 bold color={selectedSubjectId === s.id ? COLORS.primary : COLORS.text}>
-                                                        {s.name}
-                                                    </Typography.Body1>
-                                                    {selectedSubjectId === s.id && <Ionicons name="checkmark" size={18} color={COLORS.primary} />}
-                                                </Pressable>
-
-                                                <View style={styles.pickerItemActions}>
-                                                    <Pressable
-                                                        onPress={() => {
-                                                            setEditingSubjectId(s.id);
-                                                            setEditingSubjectName(s.name);
-                                                        }}
-                                                        style={styles.itemActionBtn}
-                                                    >
-                                                        <Ionicons name="create-outline" size={16} color={COLORS.textMuted} />
-                                                    </Pressable>
-                                                    <Pressable
-                                                        onPress={() => useAppStore.getState().deleteSubject(s.id)}
-                                                        style={styles.itemActionBtn}
-                                                    >
-                                                        <Ionicons name="trash-outline" size={16} color={COLORS.error} />
-                                                    </Pressable>
-                                                </View>
-                                            </>
-                                        )}
-                                    </View>
-                                ))}
-
-                                {/* Inline Add Row */}
-                                <View style={styles.addInlineRow}>
-                                    <View style={styles.addIconCircle}>
-                                        <Ionicons name="add" size={14} color={COLORS.textMuted} />
-                                    </View>
-                                    <TextInput
-                                        value={newSubjectName}
-                                        onChangeText={setNewSubjectName}
-                                        placeholder="새 과목 추가..."
-                                        placeholderTextColor={COLORS.textMuted}
-                                        style={styles.addInput}
-                                        onSubmitEditing={() => {
-                                            if (newSubjectName.trim()) {
-                                                useAppStore.getState().addSubject(newSubjectName.trim());
-                                                setNewSubjectName("");
-                                            }
-                                        }}
-                                    />
-                                    {newSubjectName.trim() ? (
-                                        <Pressable
-                                            onPress={() => {
-                                                useAppStore.getState().addSubject(newSubjectName.trim());
-                                                setNewSubjectName("");
-                                            }}
-                                            style={styles.addSubmitBtn}
-                                        >
-                                            <Ionicons name="arrow-up" size={16} color={COLORS.white} />
-                                        </Pressable>
-                                    ) : null}
-                                </View>
-                            </ScrollView>
-                        </Card>
-                    </View>
-                )}
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
@@ -367,11 +315,8 @@ const styles = StyleSheet.create({
         paddingBottom: SPACING.xl,
     },
     closeBtn: {
-        backgroundColor: COLORS.white,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        width: 36,
-        paddingHorizontal: 0,
+        backgroundColor: COLORS.surfaceVariant,
+        borderRadius: RADIUS.full,
     },
     formContainer: {
         paddingHorizontal: SPACING.xl,
@@ -408,7 +353,7 @@ const styles = StyleSheet.create({
     },
     textInput: {
         flex: 1,
-        fontSize: 16,
+        fontSize: TYPOGRAPHY.body1.fontSize,
         color: COLORS.text,
         fontWeight: '700',
         height: '100%',
@@ -444,115 +389,70 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: COLORS.border,
     },
-    // Popover / Picker Styling
-    popoverOverlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.3)',
-        zIndex: 5000,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: SPACING.xl,
+    // Inline Dropdown Styling
+    dropdownContainer: {
+        marginTop: 4,
+        zIndex: 1000,
     },
-    popoverBackdrop: {
-        ...StyleSheet.absoluteFillObject,
+    dropdownList: {
+        backgroundColor: COLORS.white,
+        borderRadius: RADIUS.xl,
+        borderWidth: 1.5,
+        borderColor: COLORS.primaryLight,
+        overflow: 'hidden',
+        ...SHADOWS.small,
     },
-    pickerCard: {
-        width: '100%',
-        maxWidth: 320,
-        backgroundColor: 'rgba(255, 255, 255, 0.98)',
-        maxHeight: '80%',
+    dropdownScroll: {
+        maxHeight: 240,
     },
-    pickerHeader: {
+    dropdownItem: {
         flexDirection: 'row',
+        alignItems: 'center',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: SPACING.md,
-    },
-    pickerCloseBtn: {
-        width: 28,
-        height: 28,
-        backgroundColor: COLORS.surfaceVariant,
-        paddingHorizontal: 0,
-    },
-    pickerScroll: {
-        paddingHorizontal: 0,
-    },
-    pickerItemRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 12,
+        paddingVertical: SPACING.md,
+        paddingHorizontal: SPACING.lg,
         borderBottomWidth: 1,
         borderBottomColor: 'rgba(0,0,0,0.03)',
     },
-    pickerItemLabel: {
-        flex: 1,
+    dropdownItemActive: {
+        backgroundColor: COLORS.primary + '08',
+    },
+    labelLeft: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        marginRight: 8,
+        gap: 12,
     },
-    pickerItemActions: {
-        flexDirection: 'row',
-        gap: 4,
+    colorDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
     },
-    itemActionBtn: {
-        width: 32,
-        height: 32,
-        borderRadius: 10,
+    emptySubjects: {
+        padding: SPACING.xl,
         alignItems: 'center',
-        justifyContent: 'center',
     },
-    addInlineRow: {
+    dropdownFooter: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 16,
-        marginTop: 4,
-    },
-    addIconCircle: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
+        padding: SPACING.sm,
         backgroundColor: COLORS.surfaceVariant,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 10,
+        gap: SPACING.sm,
     },
-    addInput: {
+    compactAddInput: {
         flex: 1,
-        fontSize: 16,
-        fontWeight: '700',
-        color: COLORS.text,
         height: 40,
-    },
-    addSubmitBtn: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: COLORS.text,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    editRow: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    editInput: {
-        flex: 1,
-        fontSize: 16,
-        fontWeight: '700',
+        backgroundColor: COLORS.white,
+        borderRadius: RADIUS.md,
+        paddingHorizontal: SPACING.md,
+        fontSize: 14,
+        fontWeight: '600',
         color: COLORS.text,
-        borderBottomWidth: 1.5,
-        borderBottomColor: COLORS.primary,
-        padding: 0,
-        height: 32,
     },
-    saveBtn: {
-        width: 32,
-        height: 32,
-        borderRadius: 8,
-        backgroundColor: COLORS.surfaceVariant,
+    compactAddBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: RADIUS.md,
+        backgroundColor: COLORS.primary,
         alignItems: 'center',
         justifyContent: 'center',
     },

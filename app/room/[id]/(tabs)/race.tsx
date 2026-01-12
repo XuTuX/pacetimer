@@ -10,9 +10,9 @@ import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
 import { Section } from "../../../../components/ui/Section";
 import { Typography } from "../../../../components/ui/Typography";
 import type { Database } from "../../../../lib/db-types";
-import { COLORS, SPACING } from "../../../../lib/theme";
 import { useSupabase } from "../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../lib/supabaseError";
+import { COLORS, RADIUS, SPACING } from "../../../../lib/theme";
 
 type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
@@ -123,16 +123,15 @@ export default function RaceScreen() {
                 rightElement={
                     canCreateExam ? (
                         <Button
-                            label=""
                             variant="ghost"
-                            leftIcon="add"
+                            size="sm"
+                            icon="add"
                             onPress={() => {
                                 if (roomId && roomId !== 'undefined') {
                                     router.push(`/room/${roomId}/add-exam`);
                                 }
                             }}
-                            style={{ width: 44, height: 44, borderRadius: 22 }}
-                            fullWidth={false}
+                            style={styles.headerBtn}
                         />
                     ) : undefined
                 }
@@ -141,7 +140,7 @@ export default function RaceScreen() {
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 {exams.length === 0 ? (
                     <View style={styles.emptyExamsContainer}>
-                        <Card variant="outline" padding="huge" style={styles.emptyExams}>
+                        <Card variant="outlined" padding="huge" style={styles.emptyExams}>
                             <Ionicons name="document-text-outline" size={48} color={COLORS.borderDark} />
                             <Typography.Body1 bold color={COLORS.textMuted} style={styles.emptyExamsText}>
                                 등록된 시험이 없습니다.
@@ -250,6 +249,10 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: COLORS.bg,
+    },
+    headerBtn: {
+        backgroundColor: COLORS.surfaceVariant,
+        borderRadius: RADIUS.full,
     },
     loadingContainer: {
         flex: 1,

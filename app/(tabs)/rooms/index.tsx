@@ -3,10 +3,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { RoomCard } from "../../../components/rooms/RoomCard";
 import { Button } from "../../../components/ui/Button";
 import { Card } from "../../../components/ui/Card";
+import { HeaderSettings } from "../../../components/ui/HeaderSettings";
 import { ScreenHeader } from "../../../components/ui/ScreenHeader";
 import { ThemedText } from "../../../components/ui/ThemedText";
 import type { Database } from "../../../lib/db-types";
@@ -15,7 +15,6 @@ import { formatSupabaseError } from "../../../lib/supabaseError";
 import { COLORS, RADIUS, SPACING } from "../../../lib/theme";
 
 type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
-type RoomMemberRow = Database["public"]["Tables"]["room_members"]["Row"];
 
 export default function RoomsIndexScreen() {
     const supabase = useSupabase();
@@ -37,7 +36,6 @@ export default function RoomsIndexScreen() {
                 .from("room_members")
                 .select("room_id")
                 .eq("user_id", userId ?? "");
-
             if (partError) throw partError;
 
             const myRoomIds = myParticipation?.map(p => p.room_id) || [];
@@ -45,7 +43,6 @@ export default function RoomsIndexScreen() {
                 .from("rooms")
                 .select("id")
                 .eq("owner_id", userId ?? "");
-
             if (hostError) throw hostError;
 
             const hostedRoomIds = hostedRooms?.map(r => r.id) || [];
@@ -78,13 +75,7 @@ export default function RoomsIndexScreen() {
 
     const handleJoin = async () => {
         const roomId = roomIdInput.trim();
-        if (!roomId) return;
-        if (!isLoaded) return;
-        if (!userId) {
-            setError("룸에 참여하려면 로그인해 주세요.");
-            return;
-        }
-
+        if (!roomId || !isLoaded || !userId) return;
         setJoining(true);
         setError(null);
         try {
@@ -93,13 +84,11 @@ export default function RoomsIndexScreen() {
                 .select("id")
                 .eq("id", roomId)
                 .single();
-
             if (roomMatchError || !roomData) throw new Error("해당 ID의 룸을 찾을 수 없습니다.");
 
             const { error: joinError } = await supabase
                 .from("room_members")
                 .insert({ room_id: roomData.id, user_id: userId });
-
             if (joinError && !joinError.message.includes("unique")) throw joinError;
 
             setRoomIdInput("");
@@ -112,31 +101,28 @@ export default function RoomsIndexScreen() {
         }
     };
 
-    const openRoom = (id: string) => {
-        router.push(`/room/${id}`);
-    };
-
-    const AddButton = (
-        <Pressable
-            onPress={() => router.push("/(tabs)/rooms/create")}
-            style={({ pressed }) => [styles.createBtn, pressed && { transform: [{ scale: 0.95 }] }]}
-        >
-            <Ionicons name="add" size={24} color={COLORS.white} />
-        </Pressable>
+    const RightActions = (
+        <View style={styles.headerActions}>
+            <Pressable
+                onPress={() => router.push("/(tabs)/rooms/create")}
+                style={({ pressed }) => [styles.createBtn, pressed && { transform: [{ scale: 0.95 }] }]}
+            >
+                <Ionicons name="add" size={24} color={COLORS.white} />
+            </Pressable>
+            <HeaderSettings />
+        </View>
     );
 
     return (
-        <SafeAreaView style={styles.container} edges={["top"]}>
+        <View style={styles.container}>
             <ScreenHeader
                 title="스터디 룸"
-                subtitle="함께 집중하는 스터디"
-                rightElement={AddButton}
+                rightElement={RightActions}
                 showBack={false}
-                style={{ borderBottomWidth: 0, paddingBottom: SPACING.sm }}
+                align="left"
             />
 
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-                {/* List Header */}
                 <View style={styles.listHeaderSection}>
                     <View style={styles.listInfo}>
                         <ThemedText variant="label" color={COLORS.textMuted} style={styles.sectionLabel}>나의 스터디 공간</ThemedText>
@@ -145,7 +131,6 @@ export default function RoomsIndexScreen() {
                     {loading && <ActivityIndicator size="small" color={COLORS.primary} />}
                 </View>
 
-                {/* Rooms List */}
                 <View style={styles.listSection}>
                     {hasLoadedOnce && rooms.length === 0 ? (
                         <Card variant="outlined" style={styles.emptyCard} padding="xl">
@@ -169,14 +154,13 @@ export default function RoomsIndexScreen() {
                                     key={room.id}
                                     room={room}
                                     isHost={room.owner_id === userId}
-                                    onPress={() => openRoom(room.id)}
+                                    onPress={() => router.push(`/room/${room.id}`)}
                                 />
                             ))}
                         </View>
                     )}
                 </View>
 
-                {/* Subtle Join Toggle */}
                 <View style={styles.footerSection}>
                     <Button
                         variant="ghost"
@@ -185,7 +169,6 @@ export default function RoomsIndexScreen() {
                         style={styles.idJoinLink}
                         size="sm"
                     />
-
                     {joining && (
                         <View style={styles.subtleJoinInput}>
                             <TextInput
@@ -209,14 +192,16 @@ export default function RoomsIndexScreen() {
                     {error ? <ThemedText style={styles.errorText} color={COLORS.error}>{error}</ThemedText> : null}
                 </View>
             </ScrollView>
-        </SafeAreaView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: COLORS.bg,
+    container: { flex: 1, backgroundColor: COLORS.bg },
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
     },
     content: {
         padding: SPACING.xxl,
@@ -224,17 +209,12 @@ const styles = StyleSheet.create({
         gap: SPACING.lg,
     },
     createBtn: {
-        width: 36,
-        height: 36,
+        width: 40,
+        height: 40,
         backgroundColor: COLORS.text,
-        borderRadius: 18,
+        borderRadius: 20,
         alignItems: "center",
         justifyContent: "center",
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
-        elevation: 4,
     },
     listHeaderSection: {
         flexDirection: 'row',
@@ -243,26 +223,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: 4,
         marginTop: SPACING.md,
     },
-    listInfo: {
-        gap: 4,
-    },
-    listTitle: {
-        // h2
-    },
-    sectionLabel: {
-        letterSpacing: 1.2,
-        textTransform: 'uppercase',
-    },
-    listSection: {
-        gap: SPACING.md,
-    },
-    roomList: {
-        gap: SPACING.md,
-    },
-    emptyCard: {
-        alignItems: "center",
-        borderStyle: 'dashed',
-    },
+    listInfo: { gap: 4 },
+    listTitle: {},
+    sectionLabel: { letterSpacing: 1.2, textTransform: 'uppercase' },
+    listSection: { gap: SPACING.md },
+    roomList: { gap: SPACING.md },
+    emptyCard: { alignItems: "center", borderStyle: 'dashed' },
     emptyIconCircle: {
         width: 80,
         height: 80,
@@ -272,24 +238,11 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         marginBottom: SPACING.lg,
     },
-    emptyTitle: {
-        marginBottom: SPACING.sm,
-    },
-    emptySubtitle: {
-        marginBottom: SPACING.lg,
-        lineHeight: 24,
-    },
-    emptyAction: {
-        width: '100%',
-    },
-    footerSection: {
-        marginTop: SPACING.md,
-        alignItems: 'center',
-        gap: SPACING.md,
-    },
-    idJoinLink: {
-        // ghost button default
-    },
+    emptyTitle: { marginBottom: SPACING.sm },
+    emptySubtitle: { marginBottom: SPACING.lg, lineHeight: 24 },
+    emptyAction: { width: '100%' },
+    footerSection: { marginTop: SPACING.md, alignItems: 'center', gap: SPACING.md },
+    idJoinLink: {},
     subtleJoinInput: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -302,12 +255,7 @@ const styles = StyleSheet.create({
         paddingRight: 6,
         width: '100%',
     },
-    miniInput: {
-        flex: 1,
-        fontSize: 16,
-        color: COLORS.text,
-        fontWeight: '600',
-    },
+    miniInput: { flex: 1, fontSize: 16, color: COLORS.text, fontWeight: '600' },
     miniJoinBtn: {
         width: 44,
         height: 44,
@@ -316,9 +264,5 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    errorText: {
-        fontSize: 13,
-        fontWeight: '600',
-        textAlign: 'center',
-    },
+    errorText: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
 });

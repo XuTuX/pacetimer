@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Animated, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { Button } from "../../../../components/ui/Button";
 import { Card } from "../../../../components/ui/Card";
 import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
@@ -12,7 +12,7 @@ import { Typography } from "../../../../components/ui/Typography";
 import type { Database } from "../../../../lib/db-types";
 import { useSupabase } from "../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../lib/supabaseError";
-import { COLORS, SHADOWS, SPACING } from "../../../../lib/theme";
+import { COLORS, RADIUS, SHADOWS, SPACING } from "../../../../lib/theme";
 
 type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
 type RoomMemberRow = Database["public"]["Tables"]["room_members"]["Row"];
@@ -161,16 +161,19 @@ export default function RoomHomeScreen() {
                 showBack={false}
                 rightElement={
                     <View style={styles.headerActions}>
-                        <Pressable onPress={handleShare} style={styles.headerBtn}>
-                            <Ionicons name="share-outline" size={20} color={COLORS.text} />
-                        </Pressable>
                         <Button
-                            label=""
                             variant="ghost"
-                            leftIcon="close"
+                            size="sm"
+                            icon="share-outline"
+                            onPress={handleShare}
+                            style={styles.headerBtn}
+                        />
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            icon="close"
                             onPress={() => router.replace('/(tabs)/rooms')}
-                            style={{ width: 44, height: 44, borderRadius: 22 }}
-                            fullWidth={false}
+                            style={styles.headerBtn}
                         />
                     </View>
                 }
@@ -250,7 +253,7 @@ export default function RoomHomeScreen() {
 
                 {/* Main Action / Stats Grid */}
                 <View style={styles.statsGrid}>
-                    <Card variant="outline" padding="md" style={styles.statCard}>
+                    <Card variant="outlined" padding="md" style={styles.statCard}>
                         <View style={[styles.statIconBox, { backgroundColor: COLORS.primaryLight }]}>
                             <Ionicons name="calendar" size={18} color={COLORS.primary} />
                         </View>
@@ -262,7 +265,7 @@ export default function RoomHomeScreen() {
                         </View>
                     </Card>
 
-                    <Card variant="outline" padding="md" style={styles.statCard}>
+                    <Card variant="outlined" padding="md" style={styles.statCard}>
                         <View style={[styles.statIconBox, { backgroundColor: COLORS.warningLight }]}>
                             <Ionicons name="ribbon" size={18} color={COLORS.warning} />
                         </View>
@@ -336,7 +339,7 @@ export default function RoomHomeScreen() {
                     <Button
                         label="친구 초대하기"
                         onPress={handleShare}
-                        leftIcon="share-social"
+                        icon="share-social"
                         variant="primary"
                         size="lg"
                     />
@@ -345,10 +348,9 @@ export default function RoomHomeScreen() {
                         <Button
                             label="스터디 룸 퇴장"
                             onPress={handleLeaveRoom}
-                            leftIcon="log-out-outline"
+                            icon="log-out-outline"
                             variant="ghost"
                             size="sm"
-                            fullWidth={false}
                         />
                     )}
                 </View>
@@ -409,14 +411,8 @@ const styles = StyleSheet.create({
         gap: SPACING.sm,
     },
     headerBtn: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: COLORS.white,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: COLORS.border,
+        backgroundColor: COLORS.surfaceVariant,
+        borderRadius: RADIUS.full,
     },
     scrollContent: {
         paddingBottom: 80,
