@@ -5,8 +5,13 @@ import React, { useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    Pressable,
     ScrollView,
     StyleSheet,
+    TextInput,
     TouchableOpacity,
     View
 } from 'react-native';
@@ -81,7 +86,48 @@ export default function SettingsScreen() {
         );
     };
 
-    const SettingItem = ({ icon, label, onPress, color = COLORS.text, showArrow = true }: any) => (
+    // Nickname Edit State
+    const [isNicknameModalVisible, setNicknameModalVisible] = useState(false);
+    const [newNickname, setNewNickname] = useState('');
+    const [profile, setProfile] = useState<{ display_name: string | null } | null>(null);
+
+    // Initial fetch for nickname
+    React.useEffect(() => {
+        if (!userId) return;
+        supabase.from('profiles').select('display_name').eq('id', userId).single()
+            .then(({ data, error }) => {
+                if (error) return;
+                // Force cast data as any because types are outdated
+                const profileData = data as any;
+                if (profileData) setProfile(profileData);
+                setNewNickname(profileData?.display_name || '');
+            });
+    }, [userId]);
+
+    const handleUpdateNickname = async () => {
+        if (!newNickname.trim() || !userId) return;
+        setLoading(true);
+        try {
+            // Force cast to any to bypass outdated types
+            const { error } = await supabase
+                .from('profiles')
+                .update({ display_name: newNickname.trim(), updated_at: new Date().toISOString() } as any)
+                .eq('id', userId);
+
+            if (error) throw error;
+
+            setProfile(prev => ({ ...prev, display_name: newNickname.trim() }));
+            setNicknameModalVisible(false);
+            Alert.alert("성공", "닉네임이 변경되었습니다.");
+        } catch (err) {
+            console.error(err);
+            Alert.alert("오류", "닉네임 변경에 실패했습니다.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const SettingItem = ({ icon, label, onPress, color = COLORS.text, showArrow = true, value }: any) => (
         <TouchableOpacity style={styles.item} onPress={onPress} activeOpacity={0.7}>
             <View style={styles.itemLeft}>
                 <View style={[styles.iconContainer, { backgroundColor: color + '10' }]}>
@@ -89,7 +135,10 @@ export default function SettingsScreen() {
                 </View>
                 <ThemedText style={[styles.itemLabel, { color }]}>{label}</ThemedText>
             </View>
-            {showArrow && <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {value && <ThemedText variant="body2" color={COLORS.textMuted}>{value}</ThemedText>}
+                {showArrow && <Ionicons name="chevron-forward" size={18} color={COLORS.textMuted} />}
+            </View>
         </TouchableOpacity>
     );
 
@@ -104,13 +153,25 @@ export default function SettingsScreen() {
                         <Ionicons name="person" size={32} color={COLORS.primary} />
                     </View>
                     <View style={styles.profileInfo}>
-                        <ThemedText variant="h3">{user?.fullName || '사용자'}</ThemedText>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <ThemedText variant="h3">{profile?.display_name || user?.fullName || '사용자'}</ThemedText>
+                            <TouchableOpacity onPress={() => setNicknameModalVisible(true)} hitSlop={10}>
+                                <Ionicons name="pencil" size={16} color={COLORS.textMuted} />
+                            </TouchableOpacity>
+                        </View>
                         <ThemedText variant="caption" color={COLORS.textMuted}>{user?.primaryEmailAddress?.emailAddress}</ThemedText>
                     </View>
                 </View>
 
                 {/* Account Section */}
                 <Card style={styles.menuCard} padding="none">
+                    <SettingItem
+                        icon="person-outline"
+                        label="닉네임 변경"
+                        value={profile?.display_name}
+                        onPress={() => setNicknameModalVisible(true)}
+                    />
+                    <View style={styles.divider} />
                     <SettingItem
                         icon="book-outline"
                         label="과목 관리"
@@ -149,6 +210,37 @@ export default function SettingsScreen() {
 
                 <View style={{ height: 60 }} />
             </ScrollView>
+
+            {/* Nickname Edit Modal */}
+            <Modal
+                visible={isNicknameModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setNicknameModalVisible(false)}
+            >
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
+                    <Pressable style={styles.modalBackdrop} onPress={() => setNicknameModalVisible(false)} />
+                    <View style={styles.modalContent}>
+                        <ThemedText variant="h3" style={{ marginBottom: 16 }}>닉네임 변경</ThemedText>
+                        <TextInput
+                            style={styles.modalInput}
+                            value={newNickname}
+                            onChangeText={setNewNickname}
+                            placeholder="새로운 닉네임"
+                            placeholderTextColor={COLORS.textMuted}
+                            autoFocus
+                        />
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity style={styles.modalBtnCancel} onPress={() => setNicknameModalVisible(false)}>
+                                <ThemedText color={COLORS.textMuted}>취소</ThemedText>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.modalBtnConfirm} onPress={handleUpdateNickname}>
+                                <ThemedText color={COLORS.white} style={{ fontWeight: '600' }}>저장</ThemedText>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </KeyboardAvoidingView>
+            </Modal>
 
             {loading && (
                 <View style={styles.loadingOverlay}>
@@ -239,5 +331,49 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 999,
+    },
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    modalBackdrop: {
+        ...StyleSheet.absoluteFillObject,
+    },
+    modalContent: {
+        width: '100%',
+        maxWidth: 320,
+        backgroundColor: COLORS.surface,
+        borderRadius: RADIUS.xl,
+        padding: 24,
+        ...SHADOWS.medium,
+    },
+    modalInput: {
+        height: 50,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: RADIUS.lg,
+        paddingHorizontal: 16,
+        fontSize: 16,
+        marginBottom: 20,
+        backgroundColor: COLORS.bg,
+    },
+    modalActions: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 12,
+    },
+    modalBtnCancel: {
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+    },
+    modalBtnConfirm: {
+        backgroundColor: COLORS.primary,
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: RADIUS.lg,
     },
 });

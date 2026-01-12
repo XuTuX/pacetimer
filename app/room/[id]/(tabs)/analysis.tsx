@@ -11,9 +11,9 @@ import { Section } from "../../../../components/ui/Section";
 import { StatCard } from "../../../../components/ui/StatCard";
 import { Typography } from "../../../../components/ui/Typography";
 import type { Database } from "../../../../lib/db-types";
-import { COLORS, SPACING } from "../../../../lib/theme";
 import { useSupabase } from "../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../lib/supabaseError";
+import { COLORS, SPACING } from "../../../../lib/theme";
 
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
 type RecordRow = Database["public"]["Tables"]["attempt_records"]["Row"];
@@ -499,7 +499,7 @@ export default function AnalysisScreen() {
                                     </View>
                                 </>
                             ) : (
-                                <Card variant="outline" padding="massive" radius="xl" style={styles.emptyDetailCard}>
+                                <Card variant="outlined" padding="massive" radius="xl" style={styles.emptyDetailCard}>
                                     <Ionicons name="lock-closed-outline" size={32} color={COLORS.textMuted} />
                                     <Typography.Body2 align="center" color={COLORS.textMuted} bold style={styles.emptyDetailText}>
                                         시험을 완료해야 자세한 분석을 볼 수 있습니다.

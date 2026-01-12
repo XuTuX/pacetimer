@@ -1,7 +1,8 @@
 import { useAuth, useUser } from "@clerk/clerk-expo";
+import { useRouter, useSegments } from "expo-router";
 import { useEffect, useRef } from "react";
-import { formatSupabaseError } from "../lib/supabaseError";
 import { useSupabase } from "../lib/supabase";
+import { formatSupabaseError } from "../lib/supabaseError";
 
 const warnDevOnly = (...args: unknown[]) => {
     if (__DEV__) {
@@ -9,19 +10,12 @@ const warnDevOnly = (...args: unknown[]) => {
     }
 };
 
-function toDisplayName(user: ReturnType<typeof useUser>["user"]): string | null {
-    if (!user) return null;
-    if (user.fullName) return user.fullName;
-    if (user.username) return user.username;
-
-    const combined = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
-    return combined.length > 0 ? combined : null;
-}
-
 export default function AuthBootstrap() {
     const { isLoaded: authLoaded, userId } = useAuth();
     const { isLoaded: userLoaded, user } = useUser();
     const supabase = useSupabase();
+    const router = useRouter();
+    const segments = useSegments();
 
     const upsertedForUserIdRef = useRef<string | null>(null);
     const inFlightRef = useRef(false);
@@ -39,29 +33,54 @@ export default function AuthBootstrap() {
         if (inFlightRef.current) return;
         inFlightRef.current = true;
 
-        const displayName = toDisplayName(user);
         const avatarUrl = user.imageUrl ?? null;
 
         (async () => {
-            const { error } = await supabase
+            // Check if profile exists
+            const { data: existingProfile, error: fetchError } = await supabase
                 .from("profiles")
-                .upsert(
-                    { id: userId, display_name: displayName, avatar_url: avatarUrl },
-                    { onConflict: "id" },
-            );
+                .select("display_name")
+                .eq("id", userId)
+                .single();
 
-            if (error) {
-                warnDevOnly("profiles.upsert 실패", formatSupabaseError(error));
-                return;
+            const profileData = existingProfile as any;
+
+            if (fetchError || !profileData) {
+                // New user: Create profile but leave display_name null to trigger setup screen
+                const { error } = await supabase
+                    .from("profiles")
+                    .upsert(
+                        { id: userId, avatar_url: avatarUrl },
+                        { onConflict: "id" },
+                    );
+                if (error) warnDevOnly("profiles.upsert 실패", formatSupabaseError(error));
+            } else {
+                // Existing user: Sync avatar only
+                await supabase
+                    .from("profiles")
+                    .update({ avatar_url: avatarUrl } as any)
+                    .eq("id", userId);
             }
 
             upsertedForUserIdRef.current = userId;
+
+            // ---------------------------------------------------------
+            // 닉네임(display_name) 설정 여부 확인
+            // ---------------------------------------------------------
+            const inSetup = segments[0] === "setup";
+            if (inSetup) return;
+
+            // If display_name is missing, redirect to setup
+            if (!profileData?.display_name) {
+                router.replace("/setup/profile" as any);
+            }
+
         })().catch((err) => {
             warnDevOnly("AuthBootstrap 실패", formatSupabaseError(err));
         }).finally(() => {
             inFlightRef.current = false;
         });
-    }, [authLoaded, userLoaded, userId, user, supabase]);
+    }, [authLoaded, userLoaded, userId, user, supabase, segments]);
 
     return null;
 }

@@ -20,7 +20,7 @@ interface ParticipantRowProps {
 export function ParticipantRow({ name, status, progress, lastUpdated, isMe, rank, customRightElement }: ParticipantRowProps) {
     return (
         <Card
-            variant={isMe ? "flat" : "outline"}
+            variant={isMe ? "flat" : "outlined"}
             padding="md"
             radius="xl"
             style={[

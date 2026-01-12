@@ -47,7 +47,12 @@ export default function LoginScreen() {
         transform: [{ translateY: translateY.value }],
     }));
 
+    const [isLoggingIn, setIsLoggingIn] = React.useState(false);
+
     const onSelectAuth = async (strategy: "google" | "apple") => {
+        if (isLoggingIn) return;
+
+        setIsLoggingIn(true);
         try {
             const startFlow = strategy === "google" ? startGoogleFlow : startAppleFlow;
             const { createdSessionId, setActive } = await startFlow();
@@ -60,6 +65,8 @@ export default function LoginScreen() {
             if (__DEV__) {
                 console.error("OAuth 오류", err);
             }
+        } finally {
+            setIsLoggingIn(false);
         }
     };
 
@@ -110,18 +117,20 @@ export default function LoginScreen() {
                         style={styles.buttonContainer}
                     >
                         <TouchableOpacity
-                            style={[styles.button, styles.appleButton]}
+                            style={[styles.button, styles.appleButton, isLoggingIn && { opacity: 0.7 }]}
                             onPress={() => onSelectAuth("apple")}
                             activeOpacity={0.9}
+                            disabled={isLoggingIn}
                         >
                             <Ionicons name="logo-apple" size={22} color="#FFFFFF" style={styles.buttonIcon} />
                             <Text style={[styles.buttonText, { color: "#FFFFFF" }]}>애플로 계속하기</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.button, styles.googleButton]}
+                            style={[styles.button, styles.googleButton, isLoggingIn && { opacity: 0.7 }]}
                             onPress={() => onSelectAuth("google")}
                             activeOpacity={0.9}
+                            disabled={isLoggingIn}
                         >
                             <Image
                                 source={require("../../assets/images/icon.png")} // 앱 아이콘이나 구글 아이콘 대용
