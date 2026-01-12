@@ -56,35 +56,107 @@ export default function DayDetail({ sessions, sessionStatsById, subjectsById, on
                     {sortedSessions.map((s) => {
                         const stats = sessionStatsById[s.id];
                         const { title } = getSessionUI(s);
-                        const subjectList = (stats?.subjectIds ?? [])
-                            .map((sid) => getSubjectName(sid, subjectsById));
 
-                        const displayTitle = subjectList.length > 0
-                            ? subjectList.join(', ')
-                            : title;
+                        const rawSubjectIds = stats?.subjectIds ?? [];
+                        const isRoom = rawSubjectIds.includes('__room_exam__') || s.title?.includes('[룸]');
+                        const isMockExam = s.mode === 'mock-exam';
+
+                        // Filter pseudo-subjects for the title
+                        const subjectIds = rawSubjectIds.filter(sid =>
+                            sid !== '__review__' && sid !== '__room_exam__' && !sid.startsWith('__legacy_category__:')
+                        );
+                        const subjectList = subjectIds.map((sid) => getSubjectName(sid, subjectsById));
+
+                        let displayTitle = subjectList.join(', ');
+                        if (!displayTitle) displayTitle = title;
+
+                        // Determine Style Specs
+                        let badgeConfig = null;
+                        let cardStyle = {};
+
+                        if (isRoom && isMockExam) {
+                            badgeConfig = {
+                                text: "ROOM • 모의고사",
+                                color: '#977A00', // Darker Gold
+                                bg: '#FFFDF2',
+                                border: '#F9F1C8'
+                            };
+                        } else if (isRoom) {
+                            badgeConfig = {
+                                text: "ROOM",
+                                color: COLORS.primary,
+                                bg: '#F8F9FF',
+                                border: 'transparent'
+                            };
+                            // Optional: Keep Room simple or give it a tint. Let's keep it clean but maybe a tiny tint.
+                            // User asked for "Room" to be distinct? Let's use primary tint.
+                            // badgeConfig.bg = COLORS.primary + '08';
+                        } else if (isMockExam) {
+                            badgeConfig = {
+                                text: "모의고사",
+                                color: '#2E7D32', // Forest Green
+                                bg: '#F4FBF6',
+                                border: '#D4EEE2'
+                            };
+                        }
+
+                        // Apply styles if badge is configured (meaning it's a special type)
+                        if (badgeConfig?.bg) {
+                            cardStyle = {
+                                backgroundColor: badgeConfig.bg,
+                                borderWidth: 1,
+                                borderColor: badgeConfig.border,
+                                shadowOpacity: 0, // Flatten it for a cleaner look? Or keep subtle shadow. Let's keep subtle.
+                                elevation: 0, // Flat look is more premium for colored cards usually
+                            };
+                        }
 
                         return (
-                            <Pressable
-                                key={s.id}
-                                onPress={() => onOpenSession(s.id)}
-                            >
-                                <Card variant="elevated" radius="lg" padding="lg">
-                                    <View style={styles.cardContent}>
-                                        <View style={styles.mainInfo}>
-                                            <ThemedText variant="h3" numberOfLines={1}>{displayTitle}</ThemedText>
-                                            <ThemedText variant="caption" color={COLORS.textMuted} style={{ marginTop: 4 }}>
-                                                {formatClockTime(s.startedAt)} 시작
-                                            </ThemedText>
+                            <View key={s.id} style={{ marginTop: badgeConfig ? 10 : 0 }}>
+                                <Pressable
+                                    onPress={() => onOpenSession(s.id)}
+                                >
+                                    <Card variant={badgeConfig ? 'flat' : 'elevated'} radius="lg" padding="lg" style={cardStyle}>
+                                        <View style={styles.cardContent}>
+                                            <View style={styles.mainInfo}>
+                                                <ThemedText variant="h3" numberOfLines={1} style={{ fontSize: 17, marginBottom: 2 }}>
+                                                    {displayTitle}
+                                                </ThemedText>
+
+                                                <ThemedText variant="caption" color={COLORS.textMuted}>
+                                                    {formatClockTime(s.startedAt)} 시작
+                                                </ThemedText>
+                                            </View>
+
+                                            <View style={styles.rightInfo}>
+                                                <ThemedText variant="h2" color={COLORS.primary} style={styles.durationValue}>
+                                                    {formatDurationMs(stats?.durationMs ?? 0)}
+                                                </ThemedText>
+                                                <Ionicons name="chevron-forward" size={16} color={COLORS.border} style={{ marginLeft: 8, opacity: 0.5 }} />
+                                            </View>
                                         </View>
-                                        <View style={styles.rightInfo}>
-                                            <ThemedText variant="h3" color={COLORS.primary} style={styles.durationValue}>
-                                                {formatDurationMs(stats?.durationMs ?? 0)}
-                                            </ThemedText>
-                                            <Ionicons name="chevron-forward" size={14} color={COLORS.border} style={{ marginLeft: 4 }} />
-                                        </View>
+                                    </Card>
+                                </Pressable>
+
+                                {badgeConfig && (
+                                    <View style={{
+                                        position: 'absolute',
+                                        top: -9,
+                                        left: 16,
+                                        backgroundColor: COLORS.bg,
+                                        paddingHorizontal: 6,
+                                        zIndex: 1,
+                                    }}>
+                                        <ThemedText style={{
+                                            color: badgeConfig.color,
+                                            fontSize: 11,
+                                            fontWeight: '700'
+                                        }}>
+                                            {badgeConfig.text}
+                                        </ThemedText>
                                     </View>
-                                </Card>
-                            </Pressable>
+                                )}
+                            </View>
                         );
                     })}
                 </View>
