@@ -8,21 +8,15 @@ import { COLORS } from '../../../lib/theme';
 
 export default function MockExamSetupScreen() {
     const router = useRouter();
-    const { subjects } = useAppStore();
+    const { subjects, activeSubjectId } = useAppStore();
 
-    const activeSubjects = subjects.filter(s => !s.isArchived);
+    const selectedSubject = subjects.find(s => s.id === activeSubjectId);
 
-    const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
+    // Default to the active subject if none selected (though home screen ensures this now)
     const [timeLimit, setTimeLimit] = useState('90');
     const [questionCount, setQuestionCount] = useState('20');
 
-    const toggleSubject = (id: string) => {
-        if (selectedSubjectIds.includes(id)) {
-            setSelectedSubjectIds(prev => prev.filter(sid => sid !== id));
-        } else {
-            setSelectedSubjectIds(prev => [...prev, id]);
-        }
-    };
+    // Subject selection removed as it's handled on the home screen
 
     // 시간 조절 (최소 1분)
     const adjustTime = (delta: number) => {
@@ -44,14 +38,14 @@ export default function MockExamSetupScreen() {
         const limit = parseInt(timeLimit);
         const qCount = parseInt(questionCount);
 
-        if (selectedSubjectIds.length === 0) return Alert.alert('확인', '최소 하나의 과목을 선택해주세요.');
+        if (!activeSubjectId) return Alert.alert('확인', '과목이 선택되지 않았습니다.');
         if (!limit || limit <= 0) return Alert.alert('확인', '진행 시간을 입력해주세요.');
         if (!qCount || qCount < 10) return Alert.alert('확인', '문제 수는 최소 10개 이상이어야 합니다.');
 
         router.push({
             pathname: '/modes/mock-exam/run',
             params: {
-                subjectIds: selectedSubjectIds.join(','),
+                subjectIds: activeSubjectId,
                 limitMin: limit.toString(),
                 totalQuestions: qCount.toString()
             }
@@ -69,23 +63,13 @@ export default function MockExamSetupScreen() {
             </View>
 
             <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-                {/* 1. 과목 선택 */}
-                <Text style={styles.label}>과목 선택</Text>
-                <View style={styles.subjectList}>
-                    {activeSubjects.length === 0 ? (
-                        <Text style={styles.emptyText}>추가된 과목이 없습니다.</Text>
-                    ) : (
-                        activeSubjects.map(sub => (
-                            <TouchableOpacity
-                                key={sub.id}
-                                style={[styles.subjectItem, selectedSubjectIds.includes(sub.id) && styles.subjectItemSelected]}
-                                onPress={() => toggleSubject(sub.id)}
-                            >
-                                <Text style={[styles.subjectName, selectedSubjectIds.includes(sub.id) && { color: COLORS.primary }]}>{sub.name}</Text>
-                                {selectedSubjectIds.includes(sub.id) && <Ionicons name="checkmark-circle" size={22} color={COLORS.primary} />}
-                            </TouchableOpacity>
-                        ))
-                    )}
+                {/* 선택된 과목 표시 */}
+                <View style={styles.selectedSubjectCard}>
+                    <Text style={styles.label}>선택된 과목</Text>
+                    <View style={styles.subjectInfo}>
+                        <Ionicons name="book" size={20} color={COLORS.primary} />
+                        <Text style={styles.selectedSubjectName}>{selectedSubject?.name || '선택된 과목 없음'}</Text>
+                    </View>
                 </View>
 
                 {/* 2. 시간 설정 */}
@@ -206,33 +190,24 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    subjectList: {
-        gap: 10,
-    },
-    subjectItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
+    selectedSubjectCard: {
         backgroundColor: COLORS.white,
-        borderRadius: 18,
+        borderRadius: 24,
+        padding: 24,
         borderWidth: 1,
         borderColor: COLORS.border,
+        marginBottom: 24,
     },
-    subjectItemSelected: {
-        borderColor: COLORS.primary,
-        backgroundColor: COLORS.primaryLight,
+    subjectInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        marginTop: 4,
     },
-    subjectName: {
-        fontSize: 16,
-        fontWeight: '700',
+    selectedSubjectName: {
+        fontSize: 20,
+        fontWeight: '800',
         color: COLORS.text,
-    },
-    emptyText: {
-        color: COLORS.textMuted,
-        textAlign: 'center',
-        paddingVertical: 20,
     },
     footer: {
         padding: 24,

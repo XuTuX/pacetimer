@@ -47,7 +47,6 @@ export default function DayDetail({ sessions, sessionStatsById, subjectsById, on
             <View style={styles.header}>
                 <View style={styles.headerTextWrapper}>
                     <ThemedText variant="h2" style={styles.dateLabel}>{formatDisplayDate(date, nowMs)}</ThemedText>
-                    <ThemedText variant="label" style={styles.sessionCount}>{sessions.length} sessions recorded</ThemedText>
                 </View>
                 <View style={styles.headerLine} />
             </View>
@@ -57,7 +56,7 @@ export default function DayDetail({ sessions, sessionStatsById, subjectsById, on
                     <View style={styles.emptyIconCircle}>
                         <Ionicons name="calendar-clear-outline" size={28} color={COLORS.border} />
                     </View>
-                    <ThemedText variant="body2" color={COLORS.textMuted} bold>No activity for this day</ThemedText>
+                    <ThemedText variant="body2" color={COLORS.textMuted}>No activity for this day</ThemedText>
                 </View>
             ) : (
                 <View style={styles.list}>
@@ -97,11 +96,11 @@ export default function DayDetail({ sessions, sessionStatsById, subjectsById, on
 
                                     <View style={styles.cardFooter}>
                                         <View style={styles.metaInfo}>
-                                            <ThemedText variant="caption" color={COLORS.textMuted} bold>{formatClockTime(s.startedAt)}</ThemedText>
+                                            <ThemedText variant="caption" color={COLORS.textMuted}>{formatClockTime(s.startedAt)}</ThemedText>
                                             <View style={styles.dot} />
-                                            <ThemedText variant="caption" color={COLORS.textMuted} bold numberOfLines={1} style={styles.subjectText}>
+                                            <ThemedText variant="caption" color={COLORS.textMuted} numberOfLines={1} style={styles.subjectText}>
                                                 {subjectsDisplay}
-                                                {moreCount > 0 && <ThemedText variant="caption" color={COLORS.primary} bold> +{moreCount}</ThemedText>}
+                                                {moreCount > 0 && <ThemedText variant="caption" color={COLORS.primary}> +{moreCount}</ThemedText>}
                                             </ThemedText>
                                         </View>
                                         <Ionicons name="chevron-forward" size={12} color={COLORS.border} />
@@ -131,9 +130,6 @@ const styles = StyleSheet.create({
     },
     dateLabel: {
         marginBottom: 2,
-    },
-    sessionCount: {
-        textTransform: 'uppercase',
     },
     headerLine: {
         flex: 1,
