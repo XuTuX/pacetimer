@@ -1,11 +1,26 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { LayoutAnimation, Platform, StyleSheet, Text, TouchableOpacity, UIManager, View } from 'react-native';
 import type { SessionStats } from '../../lib/recordsIndex';
 import { getSegmentDurationMs } from '../../lib/recordsIndex';
 import { formatClockTime, formatDurationMs } from '../../lib/studyDate';
 import { COLORS } from '../../lib/theme';
 import type { QuestionRecord, Segment, Session, Subject } from '../../lib/types';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+const PALETTE = {
+    gray50: '#F9FAFB',
+    gray100: '#F3F4F6',
+    gray200: '#E5E7EB',
+    gray300: '#D1D5DB',
+    gray400: '#9CA3AF',
+    gray500: '#6B7280',
+    gray600: '#4B5563',
+    gray800: '#1F2937',
+};
 
 function formatMMSS(ms: number) {
     const totalSeconds = Math.max(0, Math.floor(ms / 1000));
@@ -16,15 +31,24 @@ function formatMMSS(ms: number) {
 
 function getModeInfo(session: Session) {
     const isRoom = session.title?.startsWith('[룸]');
-    if (isRoom) return { label: 'ROOM', color: COLORS.primary, bg: COLORS.primaryLight + '40', icon: 'people' as const };
+    if (isRoom) return { label: 'ROOM', color: COLORS.primary, bg: 'rgba(52, 199, 89, 0.1)', icon: 'people' as const };
     if (session.mode === 'problem-solving') return { label: 'PERSONAL', color: '#8E8E93', bg: '#F2F2F7', icon: 'person' as const };
-    return { label: 'CHALLENGE', color: COLORS.primary, bg: COLORS.primaryLight, icon: 'flash' as const };
+    return { label: 'CHALLENGE', color: COLORS.primary, bg: 'rgba(52, 199, 89, 0.1)', icon: 'flash' as const };
 }
 
 function getSubjectName(subjectId: string, subjectsById: Record<string, Subject>) {
     if (subjectId === '__review__') return '검토';
     if (subjectId.startsWith('__legacy_category__:')) return '이전 데이터';
     return subjectsById[subjectId]?.name ?? '기타';
+}
+
+function formatDateFull(ms: number) {
+    const d = new Date(ms);
+    const month = d.getMonth() + 1;
+    const day = d.getDate();
+    const weekMap = ['일', '월', '화', '수', '목', '금', '토'];
+    const week = weekMap[d.getDay()];
+    return `${month}월 ${day}일 (${week})`;
 }
 
 type Props = {
@@ -39,6 +63,16 @@ type Props = {
 export default function SessionDetail({ nowMs, session, sessionStats, segments, questionsBySegmentId, subjectsById }: Props) {
     const [expandedSubjectId, setExpandedSubjectId] = useState<string | null>(null);
     const [expandedSegmentId, setExpandedSegmentId] = useState<string | null>(null);
+
+    const toggleSubject = (id: string) => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setExpandedSubjectId(prev => (prev === id ? null : id));
+    };
+
+    const toggleSegment = (id: string) => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setExpandedSegmentId(prev => (prev === id ? null : id));
+    };
 
     const grouped = useMemo(() => {
         const bySubject: Record<string, { subjectId: string; durationMs: number; questionCount: number; segments: Segment[] }> = {};
@@ -62,99 +96,120 @@ export default function SessionDetail({ nowMs, session, sessionStats, segments, 
 
     return (
         <View style={styles.container}>
-            <View style={styles.headerArea}>
-                <View style={styles.modeIndicator}>
-                    <Ionicons name={modeInfo.icon} size={12} color={modeInfo.color} />
-                    <Text style={[styles.modeLabel, { color: modeInfo.color }]}>{modeInfo.label}</Text>
+            {/* Header Section */}
+            <View style={styles.header}>
+                <View style={styles.topRow}>
+                    <View style={[styles.badge, { backgroundColor: modeInfo.bg }]}>
+                        <Ionicons name={modeInfo.icon} size={10} color={modeInfo.color} style={{ marginRight: 4 }} />
+                        <Text style={[styles.badgeText, { color: modeInfo.color }]}>{modeInfo.label}</Text>
+                    </View>
+                    <Text style={styles.dateText}>{formatDateFull(session.startedAt)}</Text>
                 </View>
-                <Text style={styles.sessionTitle}>{title}</Text>
-                <Text style={styles.sessionTimeRange}>
-                    {formatClockTime(session.startedAt)} 시작
-                </Text>
+                <Text style={styles.mainTitle}>{title}</Text>
+                <Text style={styles.subTitle}>{formatClockTime(session.startedAt)} 시작</Text>
             </View>
 
-            <View style={styles.statsGrid}>
-                <View style={styles.statBox}>
-                    <Text style={styles.statLabel}>Total Time</Text>
-                    <Text style={styles.statValue}>{formatDurationMs(sessionStats.durationMs)}</Text>
+            {/* Stats Overview - Bento Grid Style */}
+            <View style={styles.statsContainer}>
+                <View style={[styles.statCard, styles.statCardLarge]}>
+                    <View style={styles.statIconCircle}>
+                        <Ionicons name="time" size={18} color={COLORS.primary} />
+                    </View>
+                    <View>
+                        <Text style={styles.statLabel}>Total Time</Text>
+                        <Text style={styles.statValueLarge}>{formatDurationMs(sessionStats.durationMs)}</Text>
+                    </View>
                 </View>
-                <View style={styles.statBox}>
-                    <Text style={styles.statLabel}>Questions</Text>
-                    <Text style={styles.statValue}>{sessionStats.questionCount}</Text>
-                </View>
-                <View style={styles.statBox}>
-                    <Text style={styles.statLabel}>Segments</Text>
-                    <Text style={styles.statValue}>{sessionStats.segmentCount}</Text>
+                <View style={styles.statRightCol}>
+                    <View style={styles.statCardSmall}>
+                        <Text style={styles.statLabel}>Questions</Text>
+                        <Text style={styles.statValueMedium}>{sessionStats.questionCount}<Text style={styles.statUnit}> q</Text></Text>
+                    </View>
+                    <View style={styles.statCardSmall}>
+                        <Text style={styles.statLabel}>Segments</Text>
+                        <Text style={styles.statValueMedium}>{sessionStats.segmentCount}</Text>
+                    </View>
                 </View>
             </View>
 
-            <View style={styles.sectionDivider} />
+            <View style={styles.divider} />
 
-            <View style={styles.groupList}>
+            {/* Content List */}
+            <View style={styles.listContainer}>
                 {grouped.length === 0 ? (
                     <View style={styles.emptyState}>
-                        <Ionicons name="documents-outline" size={32} color={COLORS.border} />
-                        <Text style={styles.emptyText}>세부 기록이 없습니다</Text>
+                        <Ionicons name="cloud-offline-outline" size={48} color={PALETTE.gray300} />
+                        <Text style={styles.emptyText}>상세 기록이 존재하지 않습니다</Text>
                     </View>
                 ) : (
-                    grouped.map((g) => {
+                    grouped.map((g, i) => {
                         const isSubjectOpen = expandedSubjectId === g.subjectId;
                         return (
                             <View key={g.subjectId} style={styles.subjectGroup}>
                                 <TouchableOpacity
                                     style={styles.subjectHeader}
-                                    onPress={() => {
-                                        setExpandedSegmentId(null);
-                                        setExpandedSubjectId((prev) => (prev === g.subjectId ? null : g.subjectId));
-                                    }}
-                                    activeOpacity={0.7}
+                                    onPress={() => toggleSubject(g.subjectId)}
+                                    activeOpacity={0.6}
                                 >
-                                    <View style={styles.subjectInfo}>
+                                    <View style={styles.subjectInfoLeft}>
+                                        <View style={styles.subjectIndicator} />
                                         <Text style={styles.subjectName}>{getSubjectName(g.subjectId, subjectsById)}</Text>
-                                        <Text style={styles.subjectMeta}>{formatDurationMs(g.durationMs)}  ·  {g.questionCount}q</Text>
                                     </View>
-                                    <Ionicons name={isSubjectOpen ? 'chevron-up' : 'chevron-down'} size={16} color={COLORS.border} />
+                                    <View style={styles.subjectInfoRight}>
+                                        <Text style={styles.subjectStats}>{formatDurationMs(g.durationMs)}</Text>
+                                        <Ionicons
+                                            name="chevron-down"
+                                            size={16}
+                                            color={PALETTE.gray400}
+                                            style={{ transform: [{ rotate: isSubjectOpen ? '180deg' : '0deg' }], marginLeft: 8 }}
+                                        />
+                                    </View>
                                 </TouchableOpacity>
 
                                 {isSubjectOpen && (
                                     <View style={styles.segmentList}>
-                                        {g.segments.map((seg) => {
+                                        {g.segments.map((seg, idx) => {
                                             const segQuestions = questionsBySegmentId[seg.id] ?? [];
                                             const isSegOpen = expandedSegmentId === seg.id;
+                                            const isLast = idx === g.segments.length - 1;
                                             return (
-                                                <View key={seg.id} style={styles.segmentItem}>
+                                                <View key={seg.id} style={[styles.segmentItem, !isLast && styles.segmentBorder]}>
                                                     <TouchableOpacity
                                                         style={styles.segmentHeader}
-                                                        onPress={() => setExpandedSegmentId((prev) => (prev === seg.id ? null : seg.id))}
-                                                        activeOpacity={0.7}
+                                                        onPress={() => toggleSegment(seg.id)}
                                                     >
-                                                        <View style={styles.segmentInfo}>
-                                                            <Text style={styles.segmentTitle}>
-                                                                {formatClockTime(seg.startedAt)}
-                                                                {seg.endedAt ? ` – ${formatClockTime(seg.endedAt)}` : ''}
-                                                            </Text>
-                                                            <Text style={styles.segmentMeta}>
-                                                                {formatDurationMs(getSegmentDurationMs(seg, nowMs))}  ·  {segQuestions.length}q
-                                                            </Text>
+                                                        <View style={styles.segmentTimeLine}>
+                                                            <View style={styles.timeDot} />
+                                                            {!isLast && <View style={styles.timeLine} />}
                                                         </View>
-                                                        <Ionicons name={isSegOpen ? 'chevron-up' : 'chevron-down'} size={14} color={COLORS.border} />
+                                                        <View style={{ flex: 1 }}>
+                                                            <View style={styles.segmentRow}>
+                                                                <Text style={styles.segmentTimeRange}>
+                                                                    {formatClockTime(seg.startedAt)} - {seg.endedAt ? formatClockTime(seg.endedAt) : '...'}
+                                                                </Text>
+                                                                <Text style={styles.segmentDuration}>
+                                                                    {formatDurationMs(getSegmentDurationMs(seg, nowMs))}
+                                                                </Text>
+                                                            </View>
+                                                            {segQuestions.length > 0 && (
+                                                                <Text style={styles.segmentQuestionSummary}>
+                                                                    {segQuestions.length} 문제 풀이
+                                                                </Text>
+                                                            )}
+                                                        </View>
                                                     </TouchableOpacity>
 
-                                                    {isSegOpen && (
+                                                    {isSegOpen && segQuestions.length > 0 && (
                                                         <View style={styles.questionList}>
-                                                            {segQuestions.length === 0 ? (
-                                                                <Text style={styles.noQuestionsText}>진행된 문항이 없습니다.</Text>
-                                                            ) : (
-                                                                segQuestions.map((q) => (
-                                                                    <View key={q.id} style={styles.questionRow}>
-                                                                        <View style={styles.qNoWrapper}>
-                                                                            <Text style={styles.qNo}>Q{q.questionNo}</Text>
-                                                                        </View>
-                                                                        <Text style={styles.qTime}>{formatMMSS(q.durationMs)}</Text>
-                                                                        <Text style={styles.qClock}>{formatClockTime(q.startedAt)}</Text>
+                                                            {segQuestions.map((q) => (
+                                                                <View key={q.id} style={styles.questionItem}>
+                                                                    <View style={styles.qBadge}>
+                                                                        <Text style={styles.qBadgeText}>Q{q.questionNo}</Text>
                                                                     </View>
-                                                                ))
-                                                            )}
+                                                                    <Text style={styles.qDuration}>{formatMMSS(q.durationMs)}</Text>
+                                                                    <Text style={styles.qTimestamp}>{formatClockTime(q.startedAt)}</Text>
+                                                                </View>
+                                                            ))}
                                                         </View>
                                                     )}
                                                 </View>
@@ -172,136 +227,266 @@ export default function SessionDetail({ nowMs, session, sessionStats, segments, 
 }
 
 const styles = StyleSheet.create({
-    container: { gap: 24, paddingBottom: 20 },
-    headerArea: {
-        alignItems: 'center',
+    container: {
         paddingVertical: 10,
     },
-    modeIndicator: {
+    header: {
+        paddingHorizontal: 4,
+        marginBottom: 24,
+    },
+    topRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        justifyContent: 'space-between',
         marginBottom: 8,
     },
-    modeLabel: {
-        fontSize: 11,
-        fontWeight: '900',
-        letterSpacing: 1,
-    },
-    sessionTitle: {
-        fontSize: 24,
-        fontWeight: '900',
-        color: COLORS.text,
-        letterSpacing: -0.8,
-        textAlign: 'center',
-    },
-    sessionTimeRange: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: COLORS.textMuted,
-        marginTop: 6,
-    },
-    statsGrid: {
+    badge: {
         flexDirection: 'row',
-        backgroundColor: COLORS.white,
-        borderRadius: 24,
-        padding: 20,
+        alignItems: 'center',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    badgeText: {
+        fontSize: 10,
+        fontWeight: '700',
+    },
+    dateText: {
+        fontSize: 13,
+        color: PALETTE.gray500,
+        fontWeight: '500',
+    },
+    mainTitle: {
+        fontSize: 28,
+        fontWeight: '800',
+        color: COLORS.text,
+        letterSpacing: -0.5,
+        marginBottom: 4,
+    },
+    subTitle: {
+        fontSize: 14,
+        color: PALETTE.gray500,
+        fontWeight: '500',
+    },
+
+    // Stats Bento
+    statsContainer: {
+        flexDirection: 'row',
         gap: 12,
-        shadowColor: 'rgba(0,0,0,1)',
-        shadowOffset: { width: 0, height: 4 },
+        marginBottom: 24,
+    },
+    statCard: {
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        padding: 16,
+        justifyContent: 'space-between',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.03,
-        shadowRadius: 12,
+        shadowRadius: 8,
         elevation: 2,
     },
-    statBox: {
+    statCardLarge: {
+        flex: 1.3,
+        height: 110,
+    },
+    statRightCol: {
         flex: 1,
+        gap: 10,
+    },
+    statCardSmall: {
+        flex: 1,
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        justifyContent: 'space-between',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.03,
+        shadowRadius: 6,
+        elevation: 1,
+    },
+    statIconCircle: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: COLORS.primaryLight + '40',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 12,
     },
     statLabel: {
         fontSize: 11,
-        fontWeight: '700',
-        color: COLORS.textMuted,
+        fontWeight: '600',
+        color: PALETTE.gray500,
         textTransform: 'uppercase',
+        marginBottom: 4,
     },
-    statValue: {
-        fontSize: 16,
-        fontWeight: '900',
+    statValueLarge: {
+        fontSize: 22,
+        fontWeight: '800',
         color: COLORS.text,
     },
-    sectionDivider: {
-        height: 1,
-        backgroundColor: COLORS.border,
-        opacity: 0.5,
-        marginHorizontal: 12,
+    statValueMedium: {
+        fontSize: 17,
+        fontWeight: '700',
+        color: COLORS.text,
     },
-    groupList: { gap: 12 },
+    statUnit: {
+        fontSize: 12,
+        color: PALETTE.gray400,
+        fontWeight: '500',
+    },
+
+    divider: {
+        height: 1,
+        backgroundColor: PALETTE.gray100,
+        marginBottom: 20,
+    },
+
+    // List
+    listContainer: {
+        gap: 16,
+    },
     subjectGroup: {
-        backgroundColor: COLORS.white,
-        borderRadius: 24,
-        overflow: 'hidden',
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        padding: 4,
         borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.03)',
+        borderColor: PALETTE.gray100,
     },
     subjectHeader: {
-        padding: 20,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
+        padding: 16,
     },
-    subjectInfo: { gap: 2 },
-    subjectName: { fontSize: 18, fontWeight: '800', color: COLORS.text },
-    subjectMeta: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted },
+    subjectInfoLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    subjectIndicator: {
+        width: 4,
+        height: 16,
+        borderRadius: 2,
+        backgroundColor: COLORS.primary,
+    },
+    subjectName: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: COLORS.text,
+    },
+    subjectInfoRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    subjectStats: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: COLORS.text,
+        fontVariant: ['tabular-nums'],
+    },
     segmentList: {
+        paddingTop: 0,
+        paddingBottom: 8,
         paddingHorizontal: 16,
-        paddingBottom: 20,
-        gap: 12,
     },
     segmentItem: {
-        backgroundColor: COLORS.bg,
-        borderRadius: 20,
-        overflow: 'hidden',
+        paddingVertical: 12,
+    },
+    segmentBorder: {
+        borderBottomWidth: 1,
+        borderBottomColor: PALETTE.gray50,
     },
     segmentHeader: {
-        padding: 16,
         flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
     },
-    segmentInfo: { gap: 2 },
-    segmentTitle: { fontSize: 15, fontWeight: '800', color: COLORS.text },
-    segmentMeta: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted },
+    segmentTimeLine: {
+        width: 20,
+        alignItems: 'center',
+        marginRight: 12,
+        marginTop: 4,
+    },
+    timeDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: PALETTE.gray300,
+    },
+    timeLine: {
+        width: 1,
+        flex: 1,
+        backgroundColor: PALETTE.gray200,
+        marginTop: 4,
+    },
+    segmentRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 4,
+    },
+    segmentTimeRange: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: COLORS.text,
+    },
+    segmentDuration: {
+        fontSize: 13,
+        color: PALETTE.gray500,
+        fontVariant: ['tabular-nums'],
+    },
+    segmentQuestionSummary: {
+        fontSize: 12,
+        color: COLORS.primary,
+        fontWeight: '500',
+    },
     questionList: {
-        paddingHorizontal: 16,
-        paddingBottom: 16,
-        gap: 8,
+        marginLeft: 32,
+        marginTop: 8,
+        backgroundColor: PALETTE.gray50,
+        borderRadius: 8,
+        padding: 8,
+        gap: 6,
     },
-    questionRow: {
+    questionItem: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: 8,
-        borderTopWidth: 1,
-        borderTopColor: 'rgba(0,0,0,0.03)',
     },
-    qNoWrapper: {
-        backgroundColor: COLORS.primaryLight,
+    qBadge: {
+        backgroundColor: '#fff',
         paddingHorizontal: 6,
         paddingVertical: 2,
         borderRadius: 4,
+        borderWidth: 1,
+        borderColor: PALETTE.gray200,
     },
-    qNo: { fontSize: 11, fontWeight: '900', color: COLORS.primary },
-    qTime: { fontSize: 14, fontWeight: '800', color: COLORS.text, fontVariant: ['tabular-nums'] },
-    qClock: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted, fontVariant: ['tabular-nums'] },
-    noQuestionsText: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted, paddingVertical: 10, textAlign: 'center' },
+    qBadgeText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: PALETTE.gray600,
+    },
+    qDuration: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: COLORS.text,
+        fontVariant: ['tabular-nums'],
+    },
+    qTimestamp: {
+        fontSize: 11,
+        color: PALETTE.gray400,
+    },
     emptyState: {
         alignItems: 'center',
         paddingVertical: 40,
         gap: 12,
     },
     emptyText: {
+        color: PALETTE.gray400,
         fontSize: 14,
-        fontWeight: '700',
-        color: COLORS.textMuted,
     },
 });
