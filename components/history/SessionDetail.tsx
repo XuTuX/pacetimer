@@ -22,13 +22,6 @@ const PALETTE = {
     gray800: '#1F2937',
 };
 
-function formatMMSS(ms: number) {
-    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-    const m = Math.floor(totalSeconds / 60);
-    const s = totalSeconds % 60;
-    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-}
-
 function getModeInfo(session: Session) {
     const isRoom = session.title?.startsWith('[룸]');
     if (isRoom) return { label: 'ROOM', color: COLORS.primary, bg: 'rgba(52, 199, 89, 0.1)', icon: 'people' as const };
@@ -60,168 +53,195 @@ type Props = {
     subjectsById: Record<string, Subject>;
 };
 
+type MergedGroup = {
+    mainSubjectId: string;
+    durationMs: number;
+    questionCount: number;
+    questionRecords: QuestionRecord[];
+};
+
 export default function SessionDetail({ nowMs, session, sessionStats, segments, questionsBySegmentId, subjectsById }: Props) {
-    const [expandedSubjectId, setExpandedSubjectId] = useState<string | null>(null);
-    const [expandedSegmentId, setExpandedSegmentId] = useState<string | null>(null);
+    const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
+    const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
 
-    const toggleSubject = (id: string) => {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setExpandedSubjectId(prev => (prev === id ? null : id));
-    };
+    const mergedGroups = useMemo(() => {
+        const groups: MergedGroup[] = [];
+        let currentGroup: MergedGroup | null = null;
+        const sortedSegments = [...segments].sort((a, b) => a.startedAt - b.startedAt);
 
-    const toggleSegment = (id: string) => {
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setExpandedSegmentId(prev => (prev === id ? null : id));
-    };
+        for (const seg of sortedSegments) {
+            const segDuration = getSegmentDurationMs(seg, nowMs);
+            const segQuestions = questionsBySegmentId[seg.id] ?? [];
 
-    const grouped = useMemo(() => {
-        const bySubject: Record<string, { subjectId: string; durationMs: number; questionCount: number; segments: Segment[] }> = {};
-        for (const seg of segments) {
-            if (!bySubject[seg.subjectId]) {
-                bySubject[seg.subjectId] = { subjectId: seg.subjectId, durationMs: 0, questionCount: 0, segments: [] };
+            if (seg.subjectId === '__review__') {
+                if (currentGroup) {
+                    currentGroup.durationMs += segDuration;
+                    currentGroup.questionCount += segQuestions.length;
+                    currentGroup.questionRecords.push(...segQuestions);
+                } else {
+                    groups.push({
+                        mainSubjectId: '__review__',
+                        durationMs: segDuration,
+                        questionCount: segQuestions.length,
+                        questionRecords: [...segQuestions],
+                    });
+                }
+            } else {
+                const existingGroup = groups.find(g => g.mainSubjectId === seg.subjectId);
+                if (existingGroup) {
+                    existingGroup.durationMs += segDuration;
+                    existingGroup.questionCount += segQuestions.length;
+                    existingGroup.questionRecords.push(...segQuestions);
+                    currentGroup = existingGroup;
+                } else {
+                    const newGroup: MergedGroup = {
+                        mainSubjectId: seg.subjectId,
+                        durationMs: segDuration,
+                        questionCount: segQuestions.length,
+                        questionRecords: [...segQuestions],
+                    };
+                    groups.push(newGroup);
+                    currentGroup = newGroup;
+                }
             }
-            bySubject[seg.subjectId].segments.push(seg);
-            bySubject[seg.subjectId].durationMs += getSegmentDurationMs(seg, nowMs);
-            bySubject[seg.subjectId].questionCount += (questionsBySegmentId[seg.id]?.length ?? 0);
         }
-        const list = Object.values(bySubject);
-        for (const item of list) item.segments.sort((a, b) => a.startedAt - b.startedAt);
-        list.sort((a, b) => b.durationMs - a.durationMs);
-        return list;
+        return groups.sort((a, b) => b.durationMs - a.durationMs);
     }, [segments, nowMs, questionsBySegmentId]);
 
+    const handleSubjectPress = (subjectId: string) => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setSelectedSubjectId(subjectId);
+        setViewMode('detail');
+    };
+
+    const handleBack = () => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setViewMode('list');
+        setSelectedSubjectId(null);
+    };
+
     const modeInfo = getModeInfo(session);
-    // Strip all prefixes like [언어논리], [룸], or "Subject • "
     const title = (session.title ?? (session.mode === 'mock-exam' ? '모의고사' : '학습 세션')).replace(/^(\[.*?\]\s*|.*?•\s*)+/, '');
+
+    const renderDetailView = () => {
+        const group = mergedGroups.find(g => g.mainSubjectId === selectedSubjectId);
+        if (!group) return null;
+        const subjectName = getSubjectName(group.mainSubjectId, subjectsById);
+
+        return (
+            <View>
+                <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+                    <Ionicons name="chevron-back" size={20} color={COLORS.primary} />
+                    <Text style={styles.backButtonText}>목록으로</Text>
+                </TouchableOpacity>
+
+                <View style={styles.detailHeader}>
+                    <Text style={styles.detailTitle}>{subjectName}</Text>
+                    <Text style={styles.detailSubtitle}>
+                        {formatDurationMs(group.durationMs)} · {group.questionCount} 문제
+                    </Text>
+                </View>
+
+                <View style={styles.questionListContainer}>
+                    {group.questionRecords.length === 0 ? (
+                        <View style={styles.emptyQuestions}>
+                            <Text style={styles.emptyQuestionsText}>등록된 문항 기록이 없습니다.</Text>
+                        </View>
+                    ) : (
+                        group.questionRecords.map((q, idx) => (
+                            <View key={q.id} style={styles.questionRow}>
+                                <View style={styles.qIndexCircle}>
+                                    <Text style={styles.qIndexText}>{idx + 1}</Text>
+                                </View>
+                                <View style={styles.qInfo}>
+                                    <Text style={styles.qNo}>Q{q.questionNo}</Text>
+                                    <Text style={styles.qTimestamp}>{formatClockTime(q.startedAt)}</Text>
+                                </View>
+                                <Text style={styles.qDuration}>{formatDurationMs(q.durationMs)}</Text>
+                            </View>
+                        ))
+                    )}
+                </View>
+            </View>
+        );
+    };
 
     return (
         <View style={styles.container}>
-            {/* Header Section */}
-            <View style={styles.header}>
-                <View style={styles.topRow}>
-                    <View style={[styles.badge, { backgroundColor: modeInfo.bg }]}>
-                        <Ionicons name={modeInfo.icon} size={10} color={modeInfo.color} style={{ marginRight: 4 }} />
-                        <Text style={[styles.badgeText, { color: modeInfo.color }]}>{modeInfo.label}</Text>
-                    </View>
-                    <Text style={styles.dateText}>{formatDateFull(session.startedAt)}</Text>
-                </View>
-                <Text style={styles.mainTitle}>{title}</Text>
-                <Text style={styles.subTitle}>{formatClockTime(session.startedAt)} 시작</Text>
-            </View>
-
-            {/* Stats Overview - Bento Grid Style */}
-            <View style={styles.statsContainer}>
-                <View style={[styles.statCard, styles.statCardLarge]}>
-                    <View style={styles.statIconCircle}>
-                        <Ionicons name="time" size={18} color={COLORS.primary} />
-                    </View>
-                    <View>
-                        <Text style={styles.statLabel}>Total Time</Text>
-                        <Text style={styles.statValueLarge}>{formatDurationMs(sessionStats.durationMs)}</Text>
-                    </View>
-                </View>
-                <View style={styles.statRightCol}>
-                    <View style={styles.statCardSmall}>
-                        <Text style={styles.statLabel}>Questions</Text>
-                        <Text style={styles.statValueMedium}>{sessionStats.questionCount}<Text style={styles.statUnit}> q</Text></Text>
-                    </View>
-                    <View style={styles.statCardSmall}>
-                        <Text style={styles.statLabel}>Segments</Text>
-                        <Text style={styles.statValueMedium}>{sessionStats.segmentCount}</Text>
-                    </View>
-                </View>
-            </View>
-
-            <View style={styles.divider} />
-
-            {/* Content List */}
-            <View style={styles.listContainer}>
-                {grouped.length === 0 ? (
-                    <View style={styles.emptyState}>
-                        <Ionicons name="cloud-offline-outline" size={48} color={PALETTE.gray300} />
-                        <Text style={styles.emptyText}>상세 기록이 존재하지 않습니다</Text>
-                    </View>
-                ) : (
-                    grouped.map((g, i) => {
-                        const isSubjectOpen = expandedSubjectId === g.subjectId;
-                        return (
-                            <View key={g.subjectId} style={styles.subjectGroup}>
-                                <TouchableOpacity
-                                    style={styles.subjectHeader}
-                                    onPress={() => toggleSubject(g.subjectId)}
-                                    activeOpacity={0.6}
-                                >
-                                    <View style={styles.subjectInfoLeft}>
-                                        <View style={styles.subjectIndicator} />
-                                        <Text style={styles.subjectName}>{getSubjectName(g.subjectId, subjectsById)}</Text>
-                                    </View>
-                                    <View style={styles.subjectInfoRight}>
-                                        <Text style={styles.subjectStats}>{formatDurationMs(g.durationMs)}</Text>
-                                        <Ionicons
-                                            name="chevron-down"
-                                            size={16}
-                                            color={PALETTE.gray400}
-                                            style={{ transform: [{ rotate: isSubjectOpen ? '180deg' : '0deg' }], marginLeft: 8 }}
-                                        />
-                                    </View>
-                                </TouchableOpacity>
-
-                                {isSubjectOpen && (
-                                    <View style={styles.segmentList}>
-                                        {g.segments.map((seg, idx) => {
-                                            const segQuestions = questionsBySegmentId[seg.id] ?? [];
-                                            const isSegOpen = expandedSegmentId === seg.id;
-                                            const isLast = idx === g.segments.length - 1;
-                                            return (
-                                                <View key={seg.id} style={[styles.segmentItem, !isLast && styles.segmentBorder]}>
-                                                    <TouchableOpacity
-                                                        style={styles.segmentHeader}
-                                                        onPress={() => toggleSegment(seg.id)}
-                                                    >
-                                                        <View style={styles.segmentTimeLine}>
-                                                            <View style={styles.timeDot} />
-                                                            {!isLast && <View style={styles.timeLine} />}
-                                                        </View>
-                                                        <View style={{ flex: 1 }}>
-                                                            <View style={styles.segmentRow}>
-                                                                <Text style={styles.segmentTimeRange}>
-                                                                    {formatClockTime(seg.startedAt)} - {seg.endedAt ? formatClockTime(seg.endedAt) : '...'}
-                                                                </Text>
-                                                                <Text style={styles.segmentDuration}>
-                                                                    {formatDurationMs(getSegmentDurationMs(seg, nowMs))}
-                                                                </Text>
-                                                            </View>
-                                                            {segQuestions.length > 0 && (
-                                                                <Text style={styles.segmentQuestionSummary}>
-                                                                    {segQuestions.length} 문제 풀이
-                                                                </Text>
-                                                            )}
-                                                        </View>
-                                                    </TouchableOpacity>
-
-                                                    {isSegOpen && segQuestions.length > 0 && (
-                                                        <View style={styles.questionList}>
-                                                            {segQuestions.map((q) => (
-                                                                <View key={q.id} style={styles.questionItem}>
-                                                                    <View style={styles.qBadge}>
-                                                                        <Text style={styles.qBadgeText}>Q{q.questionNo}</Text>
-                                                                    </View>
-                                                                    <Text style={styles.qDuration}>{formatMMSS(q.durationMs)}</Text>
-                                                                    <Text style={styles.qTimestamp}>{formatClockTime(q.startedAt)}</Text>
-                                                                </View>
-                                                            ))}
-                                                        </View>
-                                                    )}
-                                                </View>
-                                            );
-                                        })}
-                                    </View>
-                                )}
+            {viewMode === 'list' && (
+                <>
+                    {/* Header */}
+                    <View style={styles.header}>
+                        <View style={styles.topRow}>
+                            <View style={[styles.badge, { backgroundColor: modeInfo.bg }]}>
+                                <Ionicons name={modeInfo.icon} size={10} color={modeInfo.color} style={{ marginRight: 4 }} />
+                                <Text style={[styles.badgeText, { color: modeInfo.color }]}>{modeInfo.label}</Text>
                             </View>
-                        );
-                    })
-                )}
-            </View>
+                            <Text style={styles.dateText}>{formatDateFull(session.startedAt)}</Text>
+                        </View>
+                        <Text style={styles.mainTitle}>{title}</Text>
+                        <Text style={styles.subTitle}>{formatClockTime(session.startedAt)} 시작</Text>
+                    </View>
+
+                    {/* Stats Summary Bento Grid */}
+                    <View style={styles.statsContainer}>
+                        {/* 왼쪽: 총 시간 (아이콘과 라벨이 한 줄) */}
+                        <View style={[styles.statCard, styles.statCardLarge]}>
+                            <View style={styles.statLabelRow}>
+                                <Ionicons name="time" size={14} color={COLORS.primary} />
+                                <Text style={styles.statLabel}>TOTAL TIME</Text>
+                            </View>
+                            <Text style={styles.statValueLarge}>{formatDurationMs(sessionStats.durationMs)}</Text>
+                        </View>
+
+                        {/* 오른쪽: 요약 정보 (문제수, 과목수) */}
+                        <View style={styles.statRightCol}>
+                            <View style={styles.statCardSmall}>
+                                <Text style={styles.statValueMedium}>{sessionStats.questionCount}문제</Text>
+                            </View>
+                            <View style={styles.statCardSmall}>
+                                <Text style={styles.statValueMedium}>{mergedGroups.length}과목</Text>
+                            </View>
+                        </View>
+                    </View>
+
+                    <View style={styles.divider} />
+
+                    {/* Content List */}
+                    <View style={styles.listContainer}>
+                        {mergedGroups.length === 0 ? (
+                            <View style={styles.emptyState}>
+                                <Ionicons name="cloud-offline-outline" size={48} color={PALETTE.gray300} />
+                                <Text style={styles.emptyText}>상세 기록이 존재하지 않습니다</Text>
+                            </View>
+                        ) : (
+                            mergedGroups.map((g) => {
+                                const subjectName = getSubjectName(g.mainSubjectId, subjectsById);
+                                return (
+                                    <TouchableOpacity
+                                        key={g.mainSubjectId}
+                                        style={styles.subjectCard}
+                                        onPress={() => handleSubjectPress(g.mainSubjectId)}
+                                        activeOpacity={0.6}
+                                    >
+                                        <View style={styles.subjectRow}>
+                                            <View style={styles.subjectInfo}>
+                                                <Text style={styles.subjectName}>{subjectName}</Text>
+                                                <Text style={styles.subjectStats}>
+                                                    {formatDurationMs(g.durationMs)} · {g.questionCount} 문제
+                                                </Text>
+                                            </View>
+                                            <Ionicons name="chevron-forward" size={20} color={PALETTE.gray400} />
+                                        </View>
+                                    </TouchableOpacity>
+                                );
+                            })
+                        )}
+                    </View>
+                </>
+            )}
+
+            {viewMode === 'detail' && renderDetailView()}
         </View>
     );
 }
@@ -269,7 +289,7 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
 
-    // Stats Bento
+    // Stats Grid
     statsContainer: {
         flexDirection: 'row',
         gap: 12,
@@ -279,7 +299,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
         borderRadius: 20,
         padding: 16,
-        justifyContent: 'space-between',
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.03,
@@ -288,7 +307,20 @@ const styles = StyleSheet.create({
     },
     statCardLarge: {
         flex: 1.3,
-        height: 110,
+        height: 100,
+        justifyContent: 'center',
+    },
+    statLabelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginBottom: 8,
+    },
+    statLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: PALETTE.gray400,
+        letterSpacing: 0.5,
     },
     statRightCol: {
         flex: 1,
@@ -299,46 +331,23 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
         borderRadius: 16,
         paddingHorizontal: 16,
-        paddingVertical: 12,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.03,
         shadowRadius: 6,
         elevation: 1,
     },
-    statIconCircle: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        backgroundColor: COLORS.primaryLight + '40',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 12,
-    },
-    statLabel: {
-        fontSize: 11,
-        fontWeight: '600',
-        color: PALETTE.gray500,
-        textTransform: 'uppercase',
-        marginBottom: 4,
-    },
     statValueLarge: {
-        fontSize: 22,
+        fontSize: 26,
         fontWeight: '800',
         color: COLORS.text,
+        letterSpacing: -0.5,
     },
     statValueMedium: {
-        fontSize: 17,
+        fontSize: 18,
         fontWeight: '700',
         color: COLORS.text,
-    },
-    statUnit: {
-        fontSize: 12,
-        color: PALETTE.gray400,
-        fontWeight: '500',
     },
 
     divider: {
@@ -347,138 +356,116 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
 
-    // List
+    // List & Detail Styles
     listContainer: {
-        gap: 16,
+        gap: 12,
     },
-    subjectGroup: {
+    subjectCard: {
         backgroundColor: '#fff',
+        padding: 16,
         borderRadius: 16,
-        padding: 4,
         borderWidth: 1,
         borderColor: PALETTE.gray100,
     },
-    subjectHeader: {
+    subjectRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: 16,
     },
-    subjectInfoLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-    },
-    subjectIndicator: {
-        width: 4,
-        height: 16,
-        borderRadius: 2,
-        backgroundColor: COLORS.primary,
+    subjectInfo: {
+        gap: 4,
     },
     subjectName: {
         fontSize: 16,
         fontWeight: '700',
         color: COLORS.text,
     },
-    subjectInfoRight: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
     subjectStats: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: COLORS.text,
-        fontVariant: ['tabular-nums'],
-    },
-    segmentList: {
-        paddingTop: 0,
-        paddingBottom: 8,
-        paddingHorizontal: 16,
-    },
-    segmentItem: {
-        paddingVertical: 12,
-    },
-    segmentBorder: {
-        borderBottomWidth: 1,
-        borderBottomColor: PALETTE.gray50,
-    },
-    segmentHeader: {
-        flexDirection: 'row',
-    },
-    segmentTimeLine: {
-        width: 20,
-        alignItems: 'center',
-        marginRight: 12,
-        marginTop: 4,
-    },
-    timeDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: PALETTE.gray300,
-    },
-    timeLine: {
-        width: 1,
-        flex: 1,
-        backgroundColor: PALETTE.gray200,
-        marginTop: 4,
-    },
-    segmentRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 4,
-    },
-    segmentTimeRange: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: COLORS.text,
-    },
-    segmentDuration: {
         fontSize: 13,
         color: PALETTE.gray500,
-        fontVariant: ['tabular-nums'],
-    },
-    segmentQuestionSummary: {
-        fontSize: 12,
-        color: COLORS.primary,
         fontWeight: '500',
     },
-    questionList: {
-        marginLeft: 32,
-        marginTop: 8,
-        backgroundColor: PALETTE.gray50,
-        borderRadius: 8,
-        padding: 8,
-        gap: 6,
+    backButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+        paddingVertical: 8,
     },
-    questionItem: {
+    backButtonText: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: COLORS.primary,
+        marginLeft: 4,
+    },
+    detailHeader: {
+        marginBottom: 24,
+        paddingHorizontal: 4,
+    },
+    detailTitle: {
+        fontSize: 24,
+        fontWeight: '800',
+        color: COLORS.text,
+        marginBottom: 4,
+    },
+    detailSubtitle: {
+        fontSize: 15,
+        color: PALETTE.gray500,
+        fontWeight: '600',
+    },
+    questionListContainer: {
+        gap: 12,
+    },
+    emptyQuestions: {
+        padding: 24,
+        alignItems: 'center',
+    },
+    emptyQuestionsText: {
+        color: PALETTE.gray400,
+        fontSize: 14,
+    },
+    questionRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-    },
-    qBadge: {
         backgroundColor: '#fff',
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 4,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderRadius: 16,
         borderWidth: 1,
-        borderColor: PALETTE.gray200,
+        borderColor: PALETTE.gray100,
     },
-    qBadgeText: {
-        fontSize: 10,
+    qIndexCircle: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: PALETTE.gray100,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+    },
+    qIndexText: {
+        fontSize: 11,
         fontWeight: '700',
-        color: PALETTE.gray600,
+        color: PALETTE.gray500,
     },
-    qDuration: {
-        fontSize: 12,
-        fontWeight: '600',
+    qInfo: {
+        flex: 1,
+    },
+    qNo: {
+        fontSize: 15,
+        fontWeight: '700',
         color: COLORS.text,
-        fontVariant: ['tabular-nums'],
+        marginBottom: 2,
     },
     qTimestamp: {
         fontSize: 11,
         color: PALETTE.gray400,
+    },
+    qDuration: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: COLORS.primary,
+        fontVariant: ['tabular-nums'],
     },
     emptyState: {
         alignItems: 'center',

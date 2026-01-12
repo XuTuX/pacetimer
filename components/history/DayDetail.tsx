@@ -8,6 +8,7 @@ import type { Session, Subject } from '../../lib/types';
 import { Card } from '../ui/Card';
 import { ThemedText } from '../ui/ThemedText';
 
+// --- Helper Logic ---
 function getSubjectName(subjectId: string, subjectsById: Record<string, Subject>) {
     if (subjectId === '__review__') return '검토';
     if (subjectId.startsWith('__legacy_category__:')) return '이전 데이터';
@@ -37,19 +38,24 @@ export default function DayDetail({ sessions, sessionStatsById, subjectsById, on
 
     return (
         <View style={styles.container}>
+            {/* Header Area */}
             <View style={styles.header}>
-                <View style={styles.headerTextWrapper}>
-                    <ThemedText variant="h2" style={styles.dateLabel}>{formatDisplayDate(date, nowMs)}</ThemedText>
-                </View>
-                <View style={styles.headerLine} />
+                <ThemedText variant="h2" style={styles.dateLabel}>
+                    {formatDisplayDate(date, nowMs)}
+                </ThemedText>
+                <ThemedText variant="caption" color={COLORS.textMuted}>
+                    총 {sortedSessions.length}개의 기록
+                </ThemedText>
             </View>
 
             {sortedSessions.length === 0 ? (
                 <View style={styles.emptyState}>
                     <View style={styles.emptyIconCircle}>
-                        <Ionicons name="calendar-clear-outline" size={28} color={COLORS.border} />
+                        <Ionicons name="calendar-clear-outline" size={32} color={COLORS.border} />
                     </View>
-                    <ThemedText variant="body2" color={COLORS.textMuted}>이 날은 학습 기록이 없습니다</ThemedText>
+                    <ThemedText variant="body2" color={COLORS.textMuted}>
+                        학습 기록이 없습니다
+                    </ThemedText>
                 </View>
             ) : (
                 <View style={styles.list}>
@@ -61,102 +67,76 @@ export default function DayDetail({ sessions, sessionStatsById, subjectsById, on
                         const isRoom = rawSubjectIds.includes('__room_exam__') || s.title?.includes('[룸]');
                         const isMockExam = s.mode === 'mock-exam';
 
-                        // Filter pseudo-subjects for the title
+                        // Subject Name Construction
                         const subjectIds = rawSubjectIds.filter(sid =>
                             sid !== '__review__' && sid !== '__room_exam__' && !sid.startsWith('__legacy_category__:')
                         );
                         const subjectList = subjectIds.map((sid) => getSubjectName(sid, subjectsById));
-
                         let displayTitle = subjectList.join(', ');
                         if (!displayTitle) displayTitle = title;
 
-                        // Determine Style Specs
-                        let badgeConfig = null;
-                        let cardStyle = {};
+                        // --- Design Configuration ---
+                        // Define theme colors for different types
+                        let themeColor = COLORS.primary;
+                        let badgeText = null;
 
+                        // Priority: Room+Mock > Mock > Room > Default
                         if (isRoom && isMockExam) {
-                            badgeConfig = {
-                                text: "ROOM • 모의고사",
-                                color: '#977A00', // Darker Gold
-                                bg: '#FFFDF2',
-                                border: '#F9F1C8'
-                            };
-                        } else if (isRoom) {
-                            badgeConfig = {
-                                text: "ROOM",
-                                color: COLORS.primary,
-                                bg: '#F8F9FF',
-                                border: 'transparent'
-                            };
-                            // Optional: Keep Room simple or give it a tint. Let's keep it clean but maybe a tiny tint.
-                            // User asked for "Room" to be distinct? Let's use primary tint.
-                            // badgeConfig.bg = COLORS.primary + '08';
+                            themeColor = '#D4AF37'; // Gold
+                            badgeText = "ROOM • 모의고사";
                         } else if (isMockExam) {
-                            badgeConfig = {
-                                text: "모의고사",
-                                color: '#2E7D32', // Forest Green
-                                bg: '#F4FBF6',
-                                border: '#D4EEE2'
-                            };
-                        }
-
-                        // Apply styles if badge is configured (meaning it's a special type)
-                        if (badgeConfig?.bg) {
-                            cardStyle = {
-                                backgroundColor: badgeConfig.bg,
-                                borderWidth: 1,
-                                borderColor: badgeConfig.border,
-                                shadowOpacity: 0, // Flatten it for a cleaner look? Or keep subtle shadow. Let's keep subtle.
-                                elevation: 0, // Flat look is more premium for colored cards usually
-                            };
+                            themeColor = '#2E7D32'; // Green
+                            badgeText = "모의고사";
+                        } else if (isRoom) {
+                            themeColor = '#5C6BC0'; // Indigo
+                            badgeText = "ROOM";
                         }
 
                         return (
-                            <View key={s.id} style={{ marginTop: badgeConfig ? 10 : 0 }}>
-                                <Pressable
-                                    onPress={() => onOpenSession(s.id)}
-                                >
-                                    <Card variant={badgeConfig ? 'flat' : 'elevated'} radius="lg" padding="lg" style={cardStyle}>
-                                        <View style={styles.cardContent}>
-                                            <View style={styles.mainInfo}>
-                                                <ThemedText variant="h3" numberOfLines={1} style={{ fontSize: 17, marginBottom: 2 }}>
-                                                    {displayTitle}
-                                                </ThemedText>
+                            <Pressable
+                                key={s.id}
+                                onPress={() => onOpenSession(s.id)}
+                                style={({ pressed }) => [
+                                    styles.cardWrapper,
+                                    pressed && styles.pressed
+                                ]}
+                            >
+                                <Card variant="elevated" radius="md" padding="none" style={styles.card}>
+                                    {/* Left Color Indicator Bar */}
+                                    <View style={[styles.indicatorBar, { backgroundColor: themeColor }]} />
 
-                                                <ThemedText variant="caption" color={COLORS.textMuted}>
-                                                    {formatClockTime(s.startedAt)} 시작
+                                    <View style={styles.cardContent}>
+                                        <View style={styles.mainInfo}>
+                                            {/* Top Row: Badges & Time */}
+                                            <View style={styles.metaRow}>
+                                                {badgeText && (
+                                                    <View style={[styles.badge, { backgroundColor: themeColor + '15' }]}>
+                                                        <ThemedText style={[styles.badgeText, { color: themeColor }]}>
+                                                            {badgeText}
+                                                        </ThemedText>
+                                                    </View>
+                                                )}
+                                                <ThemedText variant="caption" color={COLORS.textMuted} style={styles.startTimeText}>
+                                                    {formatClockTime(s.startedAt)}
                                                 </ThemedText>
                                             </View>
 
-                                            <View style={styles.rightInfo}>
-                                                <ThemedText variant="h2" color={COLORS.primary} style={styles.durationValue}>
-                                                    {formatDurationMs(stats?.durationMs ?? 0)}
-                                                </ThemedText>
-                                                <Ionicons name="chevron-forward" size={16} color={COLORS.border} style={{ marginLeft: 8, opacity: 0.5 }} />
-                                            </View>
+                                            {/* Middle: Title */}
+                                            <ThemedText variant="h3" numberOfLines={1} style={styles.titleText}>
+                                                {displayTitle}
+                                            </ThemedText>
                                         </View>
-                                    </Card>
-                                </Pressable>
 
-                                {badgeConfig && (
-                                    <View style={{
-                                        position: 'absolute',
-                                        top: -9,
-                                        left: 16,
-                                        backgroundColor: COLORS.bg,
-                                        paddingHorizontal: 6,
-                                        zIndex: 1,
-                                    }}>
-                                        <ThemedText style={{
-                                            color: badgeConfig.color,
-                                            fontSize: 11,
-                                            fontWeight: '700'
-                                        }}>
-                                            {badgeConfig.text}
-                                        </ThemedText>
+                                        {/* Right: Duration */}
+                                        <View style={styles.rightInfo}>
+                                            <ThemedText variant="h2" style={[styles.durationValue, { color: themeColor }]}>
+                                                {formatDurationMs(stats?.durationMs ?? 0)}
+                                            </ThemedText>
+                                            <Ionicons name="chevron-forward" size={14} color={COLORS.border} />
+                                        </View>
                                     </View>
-                                )}
-                            </View>
+                                </Card>
+                            </Pressable>
                         );
                     })}
                 </View>
@@ -170,51 +150,94 @@ const styles = StyleSheet.create({
         paddingBottom: SPACING.xl,
     },
     header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: SPACING.xxl,
         paddingHorizontal: 4,
-    },
-    headerTextWrapper: {
-        marginRight: SPACING.lg,
+        marginBottom: SPACING.lg,
+        marginTop: SPACING.sm,
     },
     dateLabel: {
-        marginBottom: 2,
-    },
-    headerLine: {
-        flex: 1,
-        height: 1,
-        backgroundColor: COLORS.border,
-        opacity: 0.5,
+        fontSize: 22,
+        fontWeight: '700',
+        marginBottom: 4,
     },
     list: {
         gap: SPACING.md,
     },
+    cardWrapper: {
+        borderRadius: 12, // Match Card radius
+    },
+    pressed: {
+        opacity: 0.9,
+        transform: [{ scale: 0.995 }],
+    },
+    card: {
+        flexDirection: 'row',
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: COLORS.border + '40', // Very subtle border
+        backgroundColor: COLORS.bg, // Clean background
+    },
+    indicatorBar: {
+        width: 5,
+        height: '100%',
+    },
     cardContent: {
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        paddingVertical: SPACING.md,
+        paddingHorizontal: SPACING.md,
     },
     mainInfo: {
         flex: 1,
-        marginRight: 16,
+        justifyContent: 'center',
+        gap: 6,
+    },
+    metaRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    badge: {
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+        alignSelf: 'flex-start',
+    },
+    badgeText: {
+        fontSize: 10,
+        fontWeight: '700',
+    },
+    startTimeText: {
+        fontSize: 12,
+        includeFontPadding: false,
+    },
+    titleText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: COLORS.text,
     },
     rightInfo: {
         flexDirection: 'row',
         alignItems: 'center',
+        paddingLeft: 12,
+        gap: 4,
     },
     durationValue: {
+        fontSize: 18,
+        fontWeight: '700',
         fontVariant: ['tabular-nums'],
     },
     emptyState: {
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 60,
-        opacity: 0.8,
+        paddingVertical: 80,
+        opacity: 0.6,
     },
     emptyIconCircle: {
-        width: 64,
-        height: 64,
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: COLORS.bg,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 16,
