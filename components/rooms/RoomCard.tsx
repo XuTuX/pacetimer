@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import type { Database } from '../../lib/db-types';
-import { COLORS, RADIUS, SPACING } from '../../lib/theme';
+import { COLORS } from '../../lib/theme';
 import { Card } from '../ui/Card'; // Assuming ui components are in components/ui
 import { ThemedText } from '../ui/ThemedText';
 
@@ -31,40 +31,32 @@ export function RoomCard({ room, isHost, onPress }: RoomCardProps) {
                     pressed && { opacity: 0.8 }
                 ]}
             >
-                <View style={styles.iconCircle}>
-                    <Ionicons name="apps-outline" size={22} color={COLORS.primary} />
+                <View style={styles.iconContainer}>
+                    <View style={styles.iconCircle}>
+                        <Ionicons name="library" size={24} color={COLORS.primary} />
+                    </View>
                 </View>
 
                 <View style={styles.content}>
-                    <View style={styles.header}>
+                    <View style={styles.topRow}>
                         <ThemedText variant="h3" style={styles.name} numberOfLines={1}>{room.name}</ThemedText>
                         {isHost && (
-                            <View style={styles.hostBadge}>
-                                <Ionicons name="star" size={10} color={COLORS.white} />
-                                <ThemedText variant="label" style={styles.hostText}>호스트</ThemedText>
+                            <View style={styles.hostIndicator}>
+                                <Ionicons name="star" size={12} color="#EAA300" />
+                                <ThemedText style={styles.hostText}>HOST</ThemedText>
                             </View>
                         )}
                     </View>
 
-                    {room.description && (
+                    {room.description ? (
                         <ThemedText variant="body2" color={COLORS.textMuted} numberOfLines={1} style={styles.description}>
                             {room.description}
                         </ThemedText>
-                    )}
+                    ) : null}
 
-                    <View style={styles.meta}>
-                        <View style={styles.idBadge}>
-                            <ThemedText variant="label" color={COLORS.textMuted} style={styles.idLabel}>ID</ThemedText>
-                            <ThemedText variant="caption" style={styles.idValue}>{shortId}</ThemedText>
-                        </View>
-                        <View style={styles.typeBadge}>
-                            <ThemedText variant="label" color={COLORS.textMuted}>스터디 룸</ThemedText>
-                        </View>
+                    <View style={styles.footer}>
+                        <ThemedText style={styles.idText}>ID: {room.id.slice(0, 6)}</ThemedText>
                     </View>
-                </View>
-
-                <View style={styles.chevron}>
-                    <Ionicons name="chevron-forward" size={18} color={COLORS.border} />
                 </View>
             </Pressable>
         </Card>
@@ -73,79 +65,78 @@ export function RoomCard({ room, isHost, onPress }: RoomCardProps) {
 
 const styles = StyleSheet.create({
     card: {
-        padding: 0, // Remove default padding since we use inner pressable
-        borderRadius: RADIUS.lg,
+        borderRadius: 20,
+        backgroundColor: COLORS.surface,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.06,
+        shadowRadius: 12,
+        elevation: 2,
     },
     container: {
         flexDirection: 'row',
-        alignItems: 'center',
-        padding: SPACING.md, // 16 or 18
-        gap: SPACING.md,
+        padding: 20,
+        gap: 16,
+        alignItems: 'center', // Changed to center vertically
+    },
+    iconContainer: {
+        justifyContent: 'center',
     },
     iconCircle: {
-        width: 52,
-        height: 52,
-        borderRadius: RADIUS.md,
+        width: 48,
+        height: 48,
+        borderRadius: 16,
         backgroundColor: COLORS.primaryLight,
         alignItems: 'center',
         justifyContent: 'center',
     },
     content: {
         flex: 1,
-        gap: 6,
+        justifyContent: 'center',
+        gap: 4,
     },
-    header: {
+    topRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        justifyContent: 'space-between',
+        marginBottom: 2,
     },
     name: {
+        fontSize: 17,
+        fontWeight: '700',
+        color: COLORS.text,
         flex: 1,
+        marginRight: 8,
     },
-    hostBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 3,
-        backgroundColor: COLORS.primary,
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: RADIUS.sm,
-    },
-    hostText: {
-        color: COLORS.white,
-    },
-    description: {
-        marginTop: -2,
-    },
-    meta: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        marginTop: 2,
-    },
-    idBadge: {
+    hostIndicator: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
+        backgroundColor: '#FFF8E6', // Very warm light yellow
         paddingHorizontal: 8,
         paddingVertical: 4,
-        backgroundColor: COLORS.surfaceVariant,
-        borderRadius: RADIUS.sm,
+        borderRadius: 12,
     },
-    idLabel: {
+    hostText: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: '#EAA300', // Gold/Orange
+        letterSpacing: 0.5,
+    },
+    description: {
+        fontSize: 14,
+        color: COLORS.textMuted,
+        marginBottom: 8,
+    },
+    footer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    idText: {
+        fontSize: 12,
+        color: COLORS.textMuted,
         opacity: 0.7,
+        fontFamily: Platform.select({ ios: 'Courier', android: 'monospace', default: 'monospace' }),
+        fontWeight: '500',
     },
-    idValue: {
-        fontWeight: '700',
-        fontFamily: 'monospace', // Keep monospace if desired, or use default
-    },
-    typeBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        backgroundColor: 'rgba(0,0,0,0.03)',
-        borderRadius: RADIUS.sm,
-    },
-    chevron: {
-        marginLeft: 4,
-    }
 });

@@ -35,8 +35,9 @@ export function Button({
     fullWidth = false,
     style,
     disabled,
+    textStyle: customTextStyle,
     ...props
-}: ButtonProps) {
+}: ButtonProps & { textStyle?: StyleProp<TextStyle> }) {
 
     const getBackgroundColor = () => {
         if (disabled) return COLORS.surfaceVariant;
@@ -109,6 +110,7 @@ export function Button({
             fontSize: getFontSize(),
             fontWeight: '700',
         },
+        customTextStyle,
     ];
 
     return (

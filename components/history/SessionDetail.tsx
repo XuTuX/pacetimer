@@ -22,11 +22,15 @@ const PALETTE = {
     gray800: '#1F2937',
 };
 
-function getModeInfo(session: Session) {
-    const isRoom = session.title?.startsWith('[룸]');
-    if (isRoom) return { label: 'ROOM', color: COLORS.primary, bg: 'rgba(52, 199, 89, 0.1)', icon: 'people' as const };
-    if (session.mode === 'problem-solving') return { label: 'PERSONAL', color: '#8E8E93', bg: '#F2F2F7', icon: 'person' as const };
-    return { label: 'CHALLENGE', color: COLORS.primary, bg: 'rgba(52, 199, 89, 0.1)', icon: 'flash' as const };
+function getModeInfo(session: Session, stats: SessionStats) {
+    const isRoom = session.title?.startsWith('[룸]') || stats.subjectIds.includes('__room_exam__');
+    const isMock = session.mode === 'mock-exam';
+
+    if (isRoom && isMock) return { label: '룸 • 모의고사', color: '#D4AF37', bg: 'rgba(212, 175, 55, 0.1)', icon: 'people' as const };
+    if (isRoom) return { label: '룸', color: COLORS.primary, bg: 'rgba(52, 199, 89, 0.1)', icon: 'people' as const };
+    if (isMock) return { label: '모의고사', color: '#2E7D32', bg: 'rgba(46, 125, 50, 0.1)', icon: 'clipboard' as const };
+
+    return null;
 }
 
 function getSubjectName(subjectId: string, subjectsById: Record<string, Subject>) {
@@ -120,8 +124,12 @@ export default function SessionDetail({ nowMs, session, sessionStats, segments, 
         setSelectedSubjectId(null);
     };
 
-    const modeInfo = getModeInfo(session);
-    const title = (session.title ?? (session.mode === 'mock-exam' ? '모의고사' : '학습 세션')).replace(/^(\[.*?\]\s*|.*?•\s*)+/, '');
+    const modeInfo = getModeInfo(session, sessionStats);
+    const rawTitle = (session.title ?? (session.mode === 'mock-exam' ? '모의고사' : '학습 세션')).replace(/^(\[.*?\]\s*|.*?•\s*)+/, '');
+
+    const isDefaultTitle = !session.title;
+    const headerTitle = isDefaultTitle ? `${formatClockTime(session.startedAt)} 시작` : rawTitle;
+    const headerSubtitle = isDefaultTitle ? null : `${formatClockTime(session.startedAt)} 시작`;
 
     const renderDetailView = () => {
         const group = mergedGroups.find(g => g.mainSubjectId === selectedSubjectId);
@@ -173,13 +181,15 @@ export default function SessionDetail({ nowMs, session, sessionStats, segments, 
                     {/* Header */}
                     <View style={styles.header}>
                         <View style={styles.topRow}>
-                            <View style={[styles.badge, { backgroundColor: modeInfo.bg }]}>
-                                <Ionicons name={modeInfo.icon} size={10} color={modeInfo.color} style={{ marginRight: 4 }} />
-                                <Text style={[styles.badgeText, { color: modeInfo.color }]}>{modeInfo.label}</Text>
-                            </View>
+                            {modeInfo && (
+                                <View style={[styles.badge, { backgroundColor: modeInfo.bg }]}>
+                                    <Ionicons name={modeInfo.icon} size={10} color={modeInfo.color} style={{ marginRight: 4 }} />
+                                    <Text style={[styles.badgeText, { color: modeInfo.color }]}>{modeInfo.label}</Text>
+                                </View>
+                            )}
                         </View>
-                        <Text style={styles.mainTitle}>{title}</Text>
-                        <Text style={styles.subTitle}>{formatClockTime(session.startedAt)} 시작</Text>
+                        <Text style={styles.mainTitle}>{headerTitle}</Text>
+                        {headerSubtitle && <Text style={styles.subTitle}>{headerSubtitle}</Text>}
                     </View>
 
                     {/* Stats Summary Bento Grid */}
@@ -216,7 +226,7 @@ export default function SessionDetail({ nowMs, session, sessionStats, segments, 
                         ) : (
                             mergedGroups.map((g) => {
                                 const rawSubjectName = getSubjectName(g.mainSubjectId, subjectsById);
-                                const subjectName = (rawSubjectName === '기타' && title) ? title : rawSubjectName;
+                                const subjectName = (rawSubjectName === '기타' && rawTitle) ? rawTitle : rawSubjectName;
                                 return (
                                     <TouchableOpacity
                                         key={g.mainSubjectId}

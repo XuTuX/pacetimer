@@ -123,16 +123,8 @@ export default function RoomsIndexScreen() {
             />
 
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-                <View style={styles.listHeaderSection}>
-                    <View style={styles.listInfo}>
-                        <ThemedText variant="h3" style={styles.listTitle}>
-                            참여 중인 룸 <ThemedText color={COLORS.primary} style={{ fontWeight: '800' }}>{rooms.length}</ThemedText>
-                        </ThemedText>
-                    </View>
-                    {loading && <ActivityIndicator size="small" color={COLORS.primary} />}
-                </View>
-
                 <View style={styles.listSection}>
+                    {loading && <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 20 }} />}
                     {hasLoadedOnce && rooms.length === 0 ? (
                         <Card variant="outlined" style={styles.emptyCard} padding="xl">
                             <View style={styles.emptyIconCircle}>
@@ -146,6 +138,7 @@ export default function RoomsIndexScreen() {
                                 label="새 룸 만들기"
                                 onPress={() => router.push("/(tabs)/rooms/create")}
                                 style={styles.emptyAction}
+                                variant="primary" // Explicitly primary
                             />
                         </Card>
                     ) : (
@@ -168,6 +161,7 @@ export default function RoomsIndexScreen() {
                         label={joining ? "닫기" : "ID로 참여하기"}
                         onPress={() => setJoining(!joining)}
                         style={styles.idJoinLink}
+                        textStyle={styles.idJoinText}
                         size="sm"
                     />
                     {joining && (
@@ -251,14 +245,31 @@ const styles = StyleSheet.create({
         paddingRight: 6,
         width: '100%',
     },
-    miniInput: { flex: 1, fontSize: 16, color: COLORS.text, fontWeight: '600' },
+    miniInput: { flex: 1, fontSize: 15, color: COLORS.text, fontWeight: '500' },
     miniJoinBtn: {
         width: 44,
         height: 44,
-        borderRadius: RADIUS.sm,
-        backgroundColor: COLORS.primaryLight,
+        borderRadius: RADIUS.md,
+        backgroundColor: COLORS.primary, // Changed to primary for better visibility
         alignItems: 'center',
         justifyContent: 'center',
     },
-    errorText: { fontSize: 13, fontWeight: '600', textAlign: 'center' },
+    errorText: { fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 8 },
+    countBadge: {
+        backgroundColor: COLORS.surfaceVariant,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: RADIUS.full,
+    },
+    countText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: COLORS.text,
+        opacity: 0.8,
+    },
+    idJoinText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: COLORS.textMuted,
+    },
 });
