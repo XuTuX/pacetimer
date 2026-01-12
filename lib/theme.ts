@@ -43,6 +43,7 @@ export const COLORS = {
 };
 
 export const SPACING = {
+    none: 0,
     xs: 4,
     sm: 8,
     md: 12,
@@ -54,6 +55,7 @@ export const SPACING = {
 };
 
 export const RADIUS = {
+    none: 0,
     xs: 4,
     sm: 8,
     md: 12,
@@ -62,6 +64,7 @@ export const RADIUS = {
     xxl: 24,
     full: 9999,
 };
+
 
 export const TYPOGRAPHY = {
     h1: {

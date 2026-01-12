@@ -2,7 +2,18 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Dimensions, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+    Dimensions,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View
+} from 'react-native';
 import SproutVisual from '../../components/SproutVisual';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -19,7 +30,10 @@ const { height } = Dimensions.get('window');
 export default function HomeScreen() {
     const router = useRouter();
     const { subjects, addSubject, activeSubjectId, setActiveSubjectId, sessions, segments, activeSegmentId, stopwatch } = useAppStore();
-    const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
+
+    // 모달(Bottom Sheet) 상태 관리
+    const [isModalVisible, setModalVisible] = React.useState(false);
+
     const [newSubjectName, setNewSubjectName] = React.useState('');
     const [isAdding, setIsAdding] = React.useState(false);
     const [now, setNow] = React.useState(Date.now());
@@ -92,64 +106,30 @@ export default function HomeScreen() {
                     </View>
                 </Card>
 
+                {/* --- 과목 선택 버튼 영역 --- */}
                 <View style={styles.subjectWrapper}>
                     <ThemedText variant="label" color={COLORS.textMuted} style={styles.label}>공부 과목</ThemedText>
-                    <View style={{ zIndex: 10 }}>
-                        <TouchableOpacity
-                            style={[styles.selector, isDropdownOpen && styles.selectorActive]}
-                            onPress={() => setIsDropdownOpen(!isDropdownOpen)}
-                            activeOpacity={0.8}
-                        >
-                            <ThemedText style={[styles.selectorText, !selectedSubject && styles.placeholder]}>
-                                {selectedSubject ? selectedSubject.name : "과목을 선택하세요"}
-                            </ThemedText>
-                            <Ionicons name={isDropdownOpen ? "chevron-up" : "chevron-down"} size={16} color={COLORS.textMuted} />
-                        </TouchableOpacity>
 
-                        {isDropdownOpen && (
-                            <View style={styles.dropdownWindow}>
-                                <ScrollView style={styles.dropdownScroll} bounces={false}>
-                                    {subjects.map(s => (
-                                        <TouchableOpacity
-                                            key={s.id}
-                                            style={styles.dropdownItem}
-                                            onPress={() => {
-                                                setActiveSubjectId(s.id);
-                                                setIsDropdownOpen(false);
-                                            }}
-                                        >
-                                            <ThemedText style={[styles.dropdownItemText, activeSubjectId === s.id && styles.activeItemText]}>
-                                                {s.name}
-                                            </ThemedText>
-                                            {activeSubjectId === s.id && <Ionicons name="checkmark" size={16} color={COLORS.primary} />}
-                                        </TouchableOpacity>
-                                    ))}
-
-                                    {!isAdding ? (
-                                        <TouchableOpacity style={styles.addItemRow} onPress={() => setIsAdding(true)}>
-                                            <Ionicons name="add" size={18} color={COLORS.primary} />
-                                            <ThemedText style={styles.addItemText}>새 과목 추가</ThemedText>
-                                        </TouchableOpacity>
-                                    ) : (
-                                        <View style={styles.inputRow}>
-                                            <TextInput
-                                                style={styles.inlineInput}
-                                                placeholder="과목명..."
-                                                value={newSubjectName}
-                                                onChangeText={setNewSubjectName}
-                                                autoFocus
-                                                onSubmitEditing={handleAddSubject}
-                                            />
-                                            <TouchableOpacity onPress={handleAddSubject}>
-                                                <Ionicons name="checkmark-circle" size={24} color={COLORS.primary} />
-                                            </TouchableOpacity>
-                                        </View>
-                                    )}
-                                </ScrollView>
+                    <TouchableOpacity
+                        style={styles.selector}
+                        onPress={() => {
+                            setModalVisible(true);
+                            Haptics.selectionAsync();
+                        }}
+                        activeOpacity={0.8}
+                    >
+                        <View style={styles.selectorLeft}>
+                            <View style={[styles.iconBox, selectedSubject ? styles.iconBoxActive : null]}>
+                                <Ionicons name="book" size={16} color={selectedSubject ? COLORS.white : COLORS.textMuted} />
                             </View>
-                        )}
-                    </View>
+                            <ThemedText style={[styles.selectorText, !selectedSubject && styles.placeholder]}>
+                                {selectedSubject ? selectedSubject.name : "과목을 선택해주세요"}
+                            </ThemedText>
+                        </View>
+                        <Ionicons name="chevron-up" size={16} color={COLORS.textMuted} style={{ transform: [{ rotate: '180deg' }] }} />
+                    </TouchableOpacity>
                 </View>
+                {/* ----------------------- */}
 
                 <View style={styles.bottomActions}>
                     <Button
@@ -163,7 +143,7 @@ export default function HomeScreen() {
                             else if (activeSubjectId) router.push('/timer');
                             else {
                                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                                setIsDropdownOpen(true);
+                                setModalVisible(true); // 과목 안 골랐으면 모달 띄우기
                             }
                         }}
                     />
@@ -178,6 +158,83 @@ export default function HomeScreen() {
                     />
                 </View>
             </ScrollView>
+
+            {/* --- Bottom Sheet Modal --- */}
+            <Modal
+                visible={isModalVisible}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setModalVisible(false)}
+            >
+                {/* 배경 클릭 시 닫기 위한 Pressable */}
+                <Pressable style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                        style={styles.modalKeyboardAvoid}
+                    >
+                        {/* 모달 컨텐츠 (터치 전파 방지) */}
+                        <Pressable style={styles.modalContent} onPress={e => e.stopPropagation()}>
+                            <View style={styles.modalHeader}>
+                                <ThemedText style={styles.modalTitle}>과목 선택</ThemedText>
+                                <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeBtn}>
+                                    <Ionicons name="close" size={24} color={COLORS.textMuted} />
+                                </TouchableOpacity>
+                            </View>
+
+                            <ScrollView style={styles.modalScroll} bounces={false}>
+                                {subjects.map(s => (
+                                    <TouchableOpacity
+                                        key={s.id}
+                                        style={[styles.modalItem, activeSubjectId === s.id && styles.modalItemActive]}
+                                        onPress={() => {
+                                            setActiveSubjectId(s.id);
+                                            setModalVisible(false); // 선택 시 바로 닫힘
+                                            Haptics.selectionAsync();
+                                        }}
+                                    >
+                                        <ThemedText style={[styles.modalItemText, activeSubjectId === s.id && styles.activeItemText]}>
+                                            {s.name}
+                                        </ThemedText>
+                                        {activeSubjectId === s.id && (
+                                            <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+                                        )}
+                                    </TouchableOpacity>
+                                ))}
+
+                                {/* 새 과목 추가 영역 */}
+                                <View style={styles.modalAddSection}>
+                                    {!isAdding ? (
+                                        <TouchableOpacity
+                                            style={styles.addItemRow}
+                                            onPress={() => setIsAdding(true)}
+                                        >
+                                            <View style={styles.addIconCircle}>
+                                                <Ionicons name="add" size={20} color={COLORS.primary} />
+                                            </View>
+                                            <ThemedText style={styles.addItemText}>새 과목 추가하기</ThemedText>
+                                        </TouchableOpacity>
+                                    ) : (
+                                        <View style={styles.inputRow}>
+                                            <TextInput
+                                                style={styles.modalInput}
+                                                placeholder="새 과목 이름..."
+                                                value={newSubjectName}
+                                                onChangeText={setNewSubjectName}
+                                                autoFocus
+                                                onSubmitEditing={handleAddSubject}
+                                                returnKeyType="done"
+                                            />
+                                            <TouchableOpacity onPress={handleAddSubject} style={styles.confirmBtn}>
+                                                <Ionicons name="arrow-up" size={20} color={COLORS.white} />
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
+                                </View>
+                            </ScrollView>
+                        </Pressable>
+                    </KeyboardAvoidingView>
+                </Pressable>
+            </Modal>
         </View>
     );
 }
@@ -208,9 +265,10 @@ const styles = StyleSheet.create({
         marginBottom: 4,
     },
     timeText: {},
+
+    // Selector Button Styles
     subjectWrapper: {
         marginTop: SPACING.xl,
-        position: 'relative',
     },
     label: {
         marginBottom: SPACING.sm,
@@ -221,48 +279,90 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         backgroundColor: COLORS.surface,
-        height: 52,
+        height: 56,
         paddingHorizontal: SPACING.lg,
         borderRadius: RADIUS.lg,
         borderWidth: 1,
         borderColor: COLORS.border,
+        ...SHADOWS.small,
     },
-    selectorActive: {
-        borderColor: COLORS.primary,
+    selectorLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    iconBox: {
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        backgroundColor: COLORS.bg,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    iconBoxActive: {
+        backgroundColor: COLORS.primary,
     },
     selectorText: {
-        fontSize: 15,
+        fontSize: 16,
         fontWeight: '600',
         color: COLORS.text,
     },
     placeholder: {
         color: COLORS.textMuted,
+        fontWeight: '500',
     },
-    dropdownWindow: {
-        position: 'absolute',
-        top: 58,
-        left: 0,
-        right: 0,
+
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+        justifyContent: 'flex-end',
+    },
+    modalKeyboardAvoid: {
+        width: '100%',
+    },
+    modalContent: {
         backgroundColor: COLORS.surface,
-        borderRadius: RADIUS.lg,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        maxHeight: 200,
-        ...SHADOWS.medium,
-        zIndex: 100,
+        borderTopLeftRadius: RADIUS.xl, // 24
+        borderTopRightRadius: RADIUS.xl,
+        paddingBottom: 40, // 하단 아이폰 홈 바 여유 공간
+        maxHeight: height * 0.7, // 화면의 70%까지만 차지
+        minHeight: 200,
+        ...SHADOWS.large,
     },
-    dropdownScroll: {
-        padding: SPACING.xs,
-    },
-    dropdownItem: {
+    modalHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: SPACING.md,
-        borderRadius: RADIUS.md,
+        padding: SPACING.lg,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border,
     },
-    dropdownItemText: {
-        fontSize: 15,
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+    },
+    closeBtn: {
+        padding: 4,
+    },
+    modalScroll: {
+        padding: SPACING.lg,
+    },
+    modalItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(0,0,0,0.05)',
+    },
+    modalItemActive: {
+        backgroundColor: 'rgba(0,0,0,0.02)',
+        marginHorizontal: -SPACING.lg,
+        paddingHorizontal: SPACING.lg + SPACING.lg, // active state negative margin hack for full width bg
+    },
+    modalItemText: {
+        fontSize: 16,
         color: COLORS.text,
         fontWeight: '500',
     },
@@ -270,36 +370,57 @@ const styles = StyleSheet.create({
         color: COLORS.primary,
         fontWeight: '700',
     },
+
+    // Modal Add Section
+    modalAddSection: {
+        marginTop: SPACING.md,
+        marginBottom: SPACING.xl,
+    },
     addItemRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: SPACING.md,
-        gap: 6,
-        borderTopWidth: 1,
-        borderTopColor: COLORS.border,
-        marginTop: 4,
+        paddingVertical: 12,
+        gap: 12,
+    },
+    addIconCircle: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: 'rgba(0,0,0,0.05)',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     addItemText: {
-        fontSize: 14,
+        fontSize: 15,
         color: COLORS.primary,
         fontWeight: '600',
     },
     inputRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: SPACING.sm,
         gap: 8,
     },
-    inlineInput: {
+    modalInput: {
         flex: 1,
+        height: 48,
         backgroundColor: COLORS.bg,
-        height: 36,
-        borderRadius: RADIUS.sm,
-        paddingHorizontal: 10,
-        fontSize: 14,
+        borderRadius: RADIUS.lg,
+        paddingHorizontal: 16,
+        fontSize: 16,
+        borderWidth: 1,
+        borderColor: COLORS.primary,
     },
+    confirmBtn: {
+        width: 48,
+        height: 48,
+        borderRadius: RADIUS.full,
+        backgroundColor: COLORS.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
     bottomActions: {
-        marginTop: SPACING.xl,
+        marginTop: 'auto',
         marginBottom: SPACING.xl,
         gap: SPACING.sm,
     },
