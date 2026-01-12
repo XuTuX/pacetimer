@@ -135,8 +135,6 @@ export default function HomeScreen() {
                 <View style={styles.centerContent}>
                     {/* --- 과목 선택 버튼 영역 --- */}
                     <View style={styles.subjectWrapper}>
-                        <ThemedText variant="label" color={COLORS.textMuted} style={styles.label}>공부 과목</ThemedText>
-
                         <TouchableOpacity
                             style={styles.selector}
                             onPress={() => {
@@ -147,10 +145,10 @@ export default function HomeScreen() {
                         >
                             <View style={styles.selectorLeft}>
                                 <View style={[styles.iconBox, selectedSubject ? styles.iconBoxActive : null]}>
-                                    <Ionicons name="book" size={16} color={selectedSubject ? COLORS.white : COLORS.textMuted} />
+                                    <Ionicons name="book" size={18} color={selectedSubject ? COLORS.primary : COLORS.textMuted} />
                                 </View>
                                 <ThemedText style={[styles.selectorText, !selectedSubject && styles.placeholder]}>
-                                    {selectedSubject ? selectedSubject.name : "과목을 선택해주세요"}
+                                    {selectedSubject ? selectedSubject.name : "공부할 과목을 선택하세요"}
                                 </ThemedText>
                             </View>
                             <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
@@ -386,20 +384,14 @@ const styles = StyleSheet.create({
     subjectWrapper: {
         marginTop: SPACING.sm,
     },
-    label: {
-        marginBottom: SPACING.sm,
-        marginLeft: SPACING.xs,
-        fontSize: 12,
-        fontWeight: '600',
-    },
     selector: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         backgroundColor: COLORS.surface,
-        height: 68,
-        paddingHorizontal: SPACING.lg,
-        borderRadius: RADIUS.xl,
+        height: 60,
+        paddingHorizontal: SPACING.xl,
+        borderRadius: RADIUS.full,
         borderWidth: 1,
         borderColor: COLORS.border,
         ...SHADOWS.small,
@@ -410,19 +402,19 @@ const styles = StyleSheet.create({
         gap: 16,
     },
     iconBox: {
-        width: 40,
-        height: 40,
-        borderRadius: RADIUS.md,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
         backgroundColor: COLORS.bg,
         alignItems: 'center',
         justifyContent: 'center',
     },
     iconBoxActive: {
-        backgroundColor: COLORS.primary,
+        backgroundColor: COLORS.primaryLight,
     },
     selectorText: {
-        fontSize: 18,
-        fontWeight: '700',
+        fontSize: 16,
+        fontWeight: '600',
         color: COLORS.text,
     },
     placeholder: {

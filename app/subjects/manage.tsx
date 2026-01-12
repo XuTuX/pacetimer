@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { ScreenHeader } from '../../components/ui/ScreenHeader';
+import { ThemedText } from '../../components/ui/ThemedText';
 import { useAppStore } from '../../lib/store';
-import { COLORS } from '../../lib/theme';
-import { Subject } from '../../lib/types';
+import { COLORS, RADIUS, SHADOWS } from '../../lib/theme';
 
 export default function SubjectManageScreen() {
     const router = useRouter();
@@ -14,8 +15,9 @@ export default function SubjectManageScreen() {
     const [isAdding, setIsAdding] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editName, setEditName] = useState('');
+    const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+    const [subjectToDelete, setSubjectToDelete] = useState<string | null>(null);
 
-    // Filter archived and sort by order
     const activeSubjects = subjects
         .filter(s => !s.isArchived)
         .sort((a, b) => a.order - b.order);
@@ -23,162 +25,173 @@ export default function SubjectManageScreen() {
     const handleAdd = () => {
         const name = newSubjectName.trim();
         if (!name) return;
-        if (name.length > 20) {
-            Alert.alert('오류', '이름은 20자 이하로 입력해 주세요.');
-            return;
-        }
-        if (activeSubjects.some(s => s.name.toLowerCase() === name.toLowerCase())) {
-            Alert.alert('오류', '이미 있는 과목 이름입니다.');
-            return;
-        }
-
         addSubject(name);
         setNewSubjectName('');
         setIsAdding(false);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     };
 
     const handleDelete = (id: string) => {
-        Alert.alert(
-            '과목 삭제',
-            '이 과목을 삭제할까요? 기존 기록은 유지됩니다.',
-            [
-                { text: '취소', style: 'cancel' },
-                {
-                    text: '삭제',
-                    style: 'destructive',
-                    onPress: () => deleteSubject(id),
-                },
-            ]
-        );
+        setSubjectToDelete(id);
+        setIsDeleteModalVisible(true);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     };
 
-    const startEdit = (subject: Subject) => {
-        setEditingId(subject.id);
-        setEditName(subject.name);
+    const confirmDelete = () => {
+        if (subjectToDelete) {
+            deleteSubject(subjectToDelete);
+            setSubjectToDelete(null);
+            setIsDeleteModalVisible(false);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
     };
 
     const saveEdit = () => {
-        if (!editingId) return;
-        const name = editName.trim();
-        if (!name) return;
-        if (name.length > 20) {
-            Alert.alert('오류', '이름은 20자 이하로 입력해 주세요.');
+        if (!editingId || !editName.trim()) {
+            setEditingId(null);
             return;
         }
-        // Check duplicates (excluding self)
-        if (activeSubjects.some(s => s.id !== editingId && s.name.toLowerCase() === name.toLowerCase())) {
-            Alert.alert('오류', '이미 있는 과목 이름입니다.');
-            return;
-        }
-
-        updateSubject(editingId, { name });
+        updateSubject(editingId, { name: editName.trim() });
         setEditingId(null);
-        setEditName('');
-    };
-
-    const moveSubject = (index: number, direction: 'up' | 'down') => {
-        if (direction === 'up' && index === 0) return;
-        if (direction === 'down' && index === activeSubjects.length - 1) return;
-
-        const targetIndex = direction === 'up' ? index - 1 : index + 1;
-        const currentSubject = activeSubjects[index];
-        const targetSubject = activeSubjects[targetIndex];
-
-        // Swap orders
-        updateSubject(currentSubject.id, { order: targetSubject.order });
-        updateSubject(targetSubject.id, { order: currentSubject.order });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color={COLORS.text} />
-                </TouchableOpacity>
-                <Text style={styles.title}>과목 관리</Text>
-                <TouchableOpacity onPress={() => setIsAdding(!isAdding)} style={styles.addButtonIcon}>
-                    <Ionicons name={isAdding ? "close" : "add"} size={24} color={COLORS.primary} />
-                </TouchableOpacity>
-            </View>
-
-            {/* Add New Subject Input */}
-            {isAdding && (
-                <View style={styles.inputContainer}>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="새 과목 이름"
-                        placeholderTextColor={COLORS.gray}
-                        value={newSubjectName}
-                        onChangeText={setNewSubjectName}
-                        autoFocus
-                    />
-                    <TouchableOpacity style={styles.addButton} onPress={handleAdd}>
-                        <Text style={styles.addButtonText}>추가</Text>
+        <View style={styles.container}>
+            <ScreenHeader
+                title=""
+                onBack={() => router.back()}
+                rightElement={
+                    <TouchableOpacity
+                        onPress={() => {
+                            setIsAdding(!isAdding);
+                            Haptics.selectionAsync();
+                        }}
+                        style={styles.addIconBtn}
+                    >
+                        <Ionicons name={isAdding ? "close" : "add"} size={28} color={COLORS.primary} />
                     </TouchableOpacity>
-                </View>
-            )}
+                }
+            />
 
-            {/* List */}
-            <FlatList
-                data={activeSubjects}
-                keyExtractor={item => item.id}
-                contentContainerStyle={styles.listContent}
-                renderItem={({ item, index }) => (
-                    <View style={styles.card}>
-                        {editingId === item.id ? (
-                            <View style={styles.editContainer}>
-                                <TextInput
-                                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                                    value={editName}
-                                    onChangeText={setEditName}
-                                    autoFocus
-                                />
-                                <TouchableOpacity onPress={saveEdit} style={styles.iconButton}>
-                                    <Ionicons name="checkmark" size={20} color={COLORS.primary} />
-                                </TouchableOpacity>
-                                <TouchableOpacity onPress={() => setEditingId(null)} style={styles.iconButton}>
-                                    <Ionicons name="close" size={20} color={COLORS.gray} />
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.content}>
+                <View style={styles.card}>
+                    <ThemedText style={styles.cardTitle}>과목 관리</ThemedText>
+
+                    <FlatList
+                        data={activeSubjects}
+                        keyExtractor={item => item.id}
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={styles.list}
+                        renderItem={({ item }) => (
+                            <View style={[styles.item, editingId === item.id && styles.itemEditing]}>
+                                <View style={styles.itemDot} />
+                                {editingId === item.id ? (
+                                    <TextInput
+                                        style={styles.editInput}
+                                        value={editName}
+                                        onChangeText={setEditName}
+                                        autoFocus
+                                        onBlur={saveEdit}
+                                        onSubmitEditing={saveEdit}
+                                        returnKeyType="done"
+                                    />
+                                ) : (
+                                    <TouchableOpacity
+                                        style={styles.nameContainer}
+                                        onPress={() => {
+                                            setEditingId(item.id);
+                                            setEditName(item.name);
+                                            Haptics.selectionAsync();
+                                        }}
+                                    >
+                                        <ThemedText style={styles.itemName}>{item.name}</ThemedText>
+                                    </TouchableOpacity>
+                                )}
+
+                                <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.deleteBtn}>
+                                    <Ionicons name="trash-outline" size={18} color={COLORS.textMuted} />
                                 </TouchableOpacity>
                             </View>
-                        ) : (
-                            <>
-                                <View style={styles.cardContent}>
-                                    <Text style={styles.subjectName}>{item.name}</Text>
-                                </View>
-
-                                <View style={styles.actions}>
-                                    {/* Reorder Buttons */}
-                                    <View style={styles.reorderContainer}>
-                                        <TouchableOpacity
-                                            onPress={() => moveSubject(index, 'up')}
-                                            disabled={index === 0}
-                                            style={[styles.iconButton, index === 0 && styles.disabledIcon]}
-                                        >
-                                            <Ionicons name="chevron-up" size={20} color={COLORS.gray} />
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            onPress={() => moveSubject(index, 'down')}
-                                            disabled={index === activeSubjects.length - 1}
-                                            style={[styles.iconButton, index === activeSubjects.length - 1 && styles.disabledIcon]}
-                                        >
-                                            <Ionicons name="chevron-down" size={20} color={COLORS.gray} />
-                                        </TouchableOpacity>
-                                    </View>
-
-                                    <TouchableOpacity onPress={() => startEdit(item)} style={styles.iconButton}>
-                                        <Ionicons name="pencil-outline" size={20} color={COLORS.text} />
-                                    </TouchableOpacity>
-                                    <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.iconButton}>
-                                        <Ionicons name="trash-outline" size={20} color={COLORS.error} />
-                                    </TouchableOpacity>
-                                </View>
-                            </>
                         )}
+                        ItemSeparatorComponent={() => <View style={styles.separator} />}
+                        ListEmptyComponent={
+                            <View style={styles.emptyContainer}>
+                                <ThemedText color={COLORS.textMuted} variant="caption">과목이 없습니다.</ThemedText>
+                            </View>
+                        }
+                    />
+                </View>
+            </KeyboardAvoidingView>
+
+            {/* 과목 추가 모달 */}
+            <Modal
+                visible={isAdding}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setIsAdding(false)}
+            >
+                <Pressable style={styles.modalOverlay} onPress={() => setIsAdding(false)}>
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                        style={styles.modalContentWrapper}
+                    >
+                        <Pressable style={styles.addModalCard} onPress={e => e.stopPropagation()}>
+                            <ThemedText style={styles.modalTitle}>새 과목 추가</ThemedText>
+                            <View style={styles.modalInputRow}>
+                                <TextInput
+                                    style={styles.modalInput}
+                                    placeholder="과목 이름을 입력하세요"
+                                    placeholderTextColor={COLORS.textMuted}
+                                    value={newSubjectName}
+                                    onChangeText={setNewSubjectName}
+                                    autoFocus
+                                    onSubmitEditing={handleAdd}
+                                    returnKeyType="done"
+                                />
+                                <TouchableOpacity onPress={handleAdd} style={styles.modalConfirmBtn}>
+                                    <Ionicons name="add" size={24} color={COLORS.white} />
+                                </TouchableOpacity>
+                            </View>
+                        </Pressable>
+                    </KeyboardAvoidingView>
+                </Pressable>
+            </Modal>
+
+            {/* 삭제 확인 모달 */}
+            <Modal
+                visible={isDeleteModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setIsDeleteModalVisible(false)}
+            >
+                <Pressable style={styles.modalOverlay} onPress={() => setIsDeleteModalVisible(false)}>
+                    <View style={styles.deleteModalCard}>
+                        <View style={styles.deleteIconBox}>
+                            <Ionicons name="trash" size={32} color={COLORS.error} />
+                        </View>
+                        <ThemedText style={styles.deleteTitle}>과목 삭제</ThemedText>
+                        <ThemedText style={styles.deleteDescription}>
+                            이 과목을 삭제하시겠습니까? 관련 데이터가 모두 삭제됩니다.
+                        </ThemedText>
+                        <View style={styles.deleteActionRow}>
+                            <TouchableOpacity
+                                style={styles.cancelBtn}
+                                onPress={() => setIsDeleteModalVisible(false)}
+                            >
+                                <ThemedText style={styles.cancelBtnText}>취소</ThemedText>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.confirmDeleteBtn}
+                                onPress={confirmDelete}
+                            >
+                                <ThemedText style={styles.confirmDeleteBtnText}>삭제</ThemedText>
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                )}
-            />
-        </SafeAreaView>
+                </Pressable>
+            </Modal>
+        </View>
     );
 }
 
@@ -187,95 +200,187 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: COLORS.bg,
     },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.border,
-    },
-    backButton: {
-        marginRight: 16,
-    },
-    title: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: COLORS.text,
-        flex: 1,
-    },
-    addButtonIcon: {
+    addIconBtn: {
         padding: 4,
     },
-    inputContainer: {
-        flexDirection: 'row',
-        padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.border,
-        alignItems: 'center',
-    },
-    input: {
+    content: {
         flex: 1,
-        backgroundColor: '#fff',
-        borderRadius: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        fontSize: 16,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        marginRight: 12,
-        color: COLORS.text,
-    },
-    addButton: {
-        backgroundColor: COLORS.primary,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 8,
-    },
-    addButtonText: {
-        color: '#fff',
-        fontWeight: '600',
-    },
-    listContent: {
-        padding: 16,
+        paddingHorizontal: 24,
+        paddingTop: 12,
     },
     card: {
-        backgroundColor: '#fff',
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 12,
+        backgroundColor: COLORS.white,
+        borderRadius: 40,
+        padding: 30,
+        ...SHADOWS.medium,
+        maxHeight: '85%',
+    },
+    cardTitle: {
+        fontSize: 22,
+        fontWeight: '800',
+        marginBottom: 24,
+        color: COLORS.text,
+        textAlign: 'center',
+    },
+    list: {
+        paddingBottom: 20,
+    },
+    item: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        paddingVertical: 18,
+    },
+    itemEditing: {
+        backgroundColor: COLORS.bg,
+        borderRadius: RADIUS.md,
+        paddingHorizontal: 8,
+    },
+    itemDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: COLORS.primary,
+        marginRight: 12,
+    },
+    nameContainer: {
+        flex: 1,
+    },
+    itemName: {
+        fontSize: 17,
+        fontWeight: '600',
+        color: COLORS.text,
+    },
+    editInput: {
+        flex: 1,
+        fontSize: 17,
+        fontWeight: '600',
+        color: COLORS.primaryDark,
+        padding: 0,
+    },
+    deleteBtn: {
+        padding: 8,
+    },
+    separator: {
+        height: 1,
+        backgroundColor: COLORS.border,
+        opacity: 0.3,
+    },
+    emptyContainer: {
+        paddingVertical: 60,
+        alignItems: 'center',
+    },
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+    },
+    modalContentWrapper: {
+        width: '100%',
+        alignItems: 'center',
+    },
+    addModalCard: {
+        width: '100%',
+        backgroundColor: COLORS.surface,
+        borderRadius: 32,
+        padding: 24,
+        ...SHADOWS.heavy,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: '800',
+        color: COLORS.text,
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    modalInputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    modalInput: {
+        flex: 1,
+        height: 56,
+        backgroundColor: COLORS.bg,
+        borderRadius: RADIUS.xl,
+        paddingHorizontal: 20,
+        fontSize: 16,
+        color: COLORS.text,
         borderWidth: 1,
         borderColor: COLORS.border,
     },
-    editContainer: {
-        flex: 1,
-        flexDirection: 'row',
+    modalConfirmBtn: {
+        width: 56,
+        height: 56,
+        borderRadius: RADIUS.xl,
+        backgroundColor: COLORS.primary,
         alignItems: 'center',
+        justifyContent: 'center',
+        ...SHADOWS.small,
     },
-    cardContent: {
-        flex: 1,
+    // Delete Modal Styles
+    deleteModalCard: {
+        width: '85%',
+        backgroundColor: COLORS.surface,
+        borderRadius: 32,
+        padding: 30,
+        alignItems: 'center',
+        ...SHADOWS.heavy,
     },
-    subjectName: {
-        fontSize: 18,
-        fontWeight: '500',
+    deleteIconBox: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: COLORS.errorLight,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 20,
+    },
+    deleteTitle: {
+        fontSize: 20,
+        fontWeight: '800',
         color: COLORS.text,
+        marginBottom: 12,
     },
-    actions: {
+    deleteDescription: {
+        fontSize: 15,
+        color: COLORS.textMuted,
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: 30,
+    },
+    deleteActionRow: {
         flexDirection: 'row',
+        gap: 12,
+        width: '100%',
+    },
+    cancelBtn: {
+        flex: 1,
+        height: 56,
+        borderRadius: RADIUS.xl,
+        backgroundColor: COLORS.bg,
         alignItems: 'center',
-        gap: 8,
+        justifyContent: 'center',
     },
-    reorderContainer: {
-        flexDirection: 'column',
-        marginRight: 8,
+    cancelBtnText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: COLORS.textMuted,
     },
-    iconButton: {
-        padding: 4,
+    confirmDeleteBtn: {
+        flex: 1,
+        height: 56,
+        borderRadius: RADIUS.xl,
+        backgroundColor: COLORS.error,
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...SHADOWS.small,
     },
-    disabledIcon: {
-        opacity: 0.3,
+    confirmDeleteBtnText: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: COLORS.white,
     },
 });

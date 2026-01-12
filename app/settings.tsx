@@ -14,7 +14,7 @@ import { Card } from '../components/ui/Card';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ThemedText } from '../components/ui/ThemedText';
 import { useSupabase } from '../lib/supabase';
-import { COLORS, RADIUS, SPACING } from '../lib/theme';
+import { COLORS, RADIUS, SHADOWS, SPACING } from '../lib/theme';
 
 export default function SettingsScreen() {
     const { signOut, userId } = useAuth();
@@ -110,7 +110,6 @@ export default function SettingsScreen() {
                 </View>
 
                 {/* Account Section */}
-                <ThemedText variant="label" color={COLORS.textMuted} style={styles.sectionLabel}>계정 및 학습</ThemedText>
                 <Card style={styles.menuCard} padding="none">
                     <SettingItem
                         icon="book-outline"
@@ -120,7 +119,7 @@ export default function SettingsScreen() {
                 </Card>
 
                 {/* Support Section */}
-                <ThemedText variant="label" color={COLORS.textMuted} style={styles.sectionLabel}>앱 정보</ThemedText>
+                <View style={styles.sectionSpacer} />
                 <Card style={styles.menuCard} padding="none">
                     <SettingItem icon="information-circle-outline" label="버전 정보" showArrow={false} />
                     <View style={styles.divider} />
@@ -131,7 +130,7 @@ export default function SettingsScreen() {
                 </Card>
 
                 {/* Danger Zone */}
-                <ThemedText variant="label" color={COLORS.error} style={[styles.sectionLabel, { marginTop: 40 }]}>기타</ThemedText>
+                <View style={styles.sectionSpacer} />
                 <Card style={styles.menuCard} padding="none">
                     <SettingItem
                         icon="log-out-outline"
@@ -172,31 +171,34 @@ const styles = StyleSheet.create({
     profileSection: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 30,
+        paddingVertical: 40,
         gap: 20,
+        justifyContent: 'center',
     },
     avatar: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        backgroundColor: COLORS.primaryLight,
+        width: 72,
+        height: 72,
+        borderRadius: 36,
+        backgroundColor: COLORS.surface,
         alignItems: 'center',
         justifyContent: 'center',
+        ...SHADOWS.small,
+        borderWidth: 1,
+        borderColor: COLORS.border,
     },
     profileInfo: {
         flex: 1,
         gap: 4,
     },
-    sectionLabel: {
-        marginLeft: 4,
-        marginBottom: 12,
-        marginTop: 24,
-        letterSpacing: 1,
+    sectionSpacer: {
+        height: 12,
     },
     menuCard: {
         backgroundColor: COLORS.surface,
-        borderRadius: RADIUS.xl,
+        borderRadius: RADIUS.xxl,
         overflow: 'hidden',
+        ...SHADOWS.small,
+        marginBottom: 8,
     },
     item: {
         flexDirection: 'row',
