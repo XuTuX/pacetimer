@@ -54,65 +54,77 @@ export default function HistoryScreen() {
         return Object.values(index.dayStatsByDate).sort((a, b) => b.date.localeCompare(a.date));
     }, [index.dayStatsByDate]);
 
+    // 마킹 로직
     const markedDates = useMemo(() => {
         const marks: any = {};
+
+        // 1. 학습 데이터 마킹
         for (const day of dayList) {
             const totalMinutes = day.durationMs / 60000;
             if (totalMinutes <= 0) continue;
 
-            let color = COLORS.primaryLight;
+            let color = COLORS.primary + '33';
             let textColor = COLORS.text;
 
-            if (totalMinutes >= 360) { // 6h+: 3단계
+            if (totalMinutes >= 360) {
                 color = COLORS.primary;
                 textColor = COLORS.white;
-            } else if (totalMinutes >= 180) { // 3h+: 2단계
-                color = COLORS.primary + '80';
+            } else if (totalMinutes >= 180) {
+                color = COLORS.primary + '99';
                 textColor = COLORS.white;
-            } else if (totalMinutes > 0) { // 1단계
-                color = COLORS.primary + '33';
-                textColor = COLORS.text;
-            } else {
-                color = 'rgba(0,0,0,0.03)';
-                textColor = COLORS.text;
             }
 
             marks[day.date] = {
                 customStyles: {
                     container: {
                         backgroundColor: color,
-                        borderRadius: 8,
-                        width: 42,
-                        height: 42,
+                        borderRadius: 12,
+                        width: 38,
+                        height: 38,
                         justifyContent: 'center',
                         alignItems: 'center',
-                        borderWidth: 2,
-                        borderColor: 'transparent',
                     },
-                    text: { color: textColor, fontWeight: '700', fontSize: 16, textAlign: 'center' },
+                    text: {
+                        color: textColor,
+                        fontWeight: '700', // 데이터 있는 날은 약간 굵게
+                        fontSize: 14
+                    },
                 },
             };
         }
 
-        if (marks[selectedDate]) {
-            marks[selectedDate].customStyles.container.borderColor = COLORS.primary;
-            marks[selectedDate].customStyles.text.color = marks[selectedDate].customStyles.text.color === COLORS.white ? COLORS.white : COLORS.primary;
-        } else {
-            marks[selectedDate] = {
-                customStyles: {
-                    container: {
-                        borderWidth: 2,
-                        borderColor: COLORS.primary,
-                        borderRadius: 8,
-                        width: 42,
-                        height: 42,
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                    },
-                    text: { color: COLORS.primary, fontWeight: '700', fontSize: 16, textAlign: 'center' },
+        // 2. 선택된 날짜 처리
+        const isMarked = !!marks[selectedDate];
+        const existingStyle = isMarked ? marks[selectedDate].customStyles : null;
+
+        const finalBackgroundColor = existingStyle ? existingStyle.container.backgroundColor : 'transparent';
+        const finalTextColor = existingStyle ? existingStyle.text.color : COLORS.primary;
+
+        marks[selectedDate] = {
+            customStyles: {
+                container: {
+                    backgroundColor: finalBackgroundColor,
+                    borderWidth: 2,
+                    borderColor: COLORS.primary,
+                    borderRadius: 12,
+                    width: 38,
+                    height: 38,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    shadowColor: COLORS.primary,
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.15, // 그림자도 살짝 연하게 조정
+                    shadowRadius: 3,
+                    elevation: 3,
                 },
-            };
-        }
+                text: {
+                    color: finalTextColor,
+                    fontWeight: '700', // [수정됨] 900 -> 700 (자연스러운 굵기)
+                    fontSize: 14,
+                },
+            },
+        };
+
         return marks;
     }, [dayList, selectedDate]);
 
@@ -131,19 +143,7 @@ export default function HistoryScreen() {
                 contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
             >
                 <View style={styles.historyWrapper}>
-                    <View style={styles.legendContainer}>
-                        <View style={styles.legendRow}>
-                            <Text style={styles.legendText}>3h 미만</Text>
-                            <View style={styles.legendStages}>
-                                <View style={[styles.legendBox, { backgroundColor: COLORS.primary + '33' }]} />
-                                <View style={[styles.legendBox, { backgroundColor: COLORS.primary + '80' }]} />
-                                <View style={[styles.legendBox, { backgroundColor: COLORS.primary }]} />
-                            </View>
-                            <Text style={styles.legendText}>6h 이상</Text>
-                        </View>
-                    </View>
-
-                    <View style={styles.calendarWrapper}>
+                    <View style={styles.calendarContainer}>
                         <Calendar
                             current={selectedDate}
                             onDayPress={(day: { dateString: string }) => setSelectedDate(day.dateString)}
@@ -153,30 +153,89 @@ export default function HistoryScreen() {
                             theme={{
                                 todayTextColor: COLORS.primary,
                                 arrowColor: COLORS.text,
-                                textDayFontWeight: '700',
-                                textMonthFontWeight: '900',
-                                textDayHeaderFontWeight: '800',
-                                textDayFontSize: 16,
-                                textMonthFontSize: 18,
-                                calendarBackground: 'transparent',
+
+                                // 요일 헤더
+                                textSectionTitleColor: '#666666',
+                                textDayHeaderFontWeight: '700',
+                                textDayHeaderFontSize: 13,
+
+                                // 월 제목
+                                textMonthFontWeight: '800',
+                                textMonthFontSize: 20,
+
+                                // 날짜 텍스트
+                                textDayFontWeight: '600', // 기본 날짜 굵기
+                                textDayFontSize: 15,
                                 dayTextColor: COLORS.text,
-                                textSectionTitleColor: COLORS.textMuted,
+
+                                calendarBackground: 'transparent',
+
+                                // @ts-ignore
+                                'stylesheet.calendar.header': {
+                                    header: {
+                                        flexDirection: 'row',
+                                        justifyContent: 'space-between',
+                                        paddingHorizontal: 10,
+                                        alignItems: 'center',
+                                        marginBottom: 20,
+                                        marginTop: 10,
+                                    },
+                                    monthText: {
+                                        fontSize: 22,
+                                        fontWeight: '800',
+                                        color: COLORS.text,
+                                    },
+                                    week: {
+                                        marginTop: 10,
+                                        flexDirection: 'row',
+                                        justifyContent: 'space-around',
+                                        paddingBottom: 10,
+                                        borderBottomWidth: 1,
+                                        borderBottomColor: '#F0F0F0',
+                                        marginBottom: 10,
+                                    }
+                                },
+                                // @ts-ignore
+                                'stylesheet.day.basic': {
+                                    base: {
+                                        width: 38,
+                                        height: 38,
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                    }
+                                }
                             }}
                             enableSwipeMonths={true}
                         />
+
+                        {/* 히트맵 범례 */}
+                        <View style={styles.heatmapLegend}>
+                            <Text style={styles.legendLabel}>Less</Text>
+                            <View style={styles.legendSteps}>
+                                <View style={[styles.legendBox, { backgroundColor: COLORS.primary + '33' }]} />
+                                <View style={[styles.legendBox, { backgroundColor: COLORS.primary + '99' }]} />
+                                <View style={[styles.legendBox, { backgroundColor: COLORS.primary }]} />
+                            </View>
+                            <Text style={styles.legendLabel}>More</Text>
+                        </View>
                     </View>
 
-                    <DayDetail
-                        date={selectedDate}
-                        nowMs={nowMs}
-                        sessions={index.sessionsByDate[selectedDate] ?? []}
-                        sessionStatsById={index.sessionStatsById}
-                        subjectsById={subjectsById}
-                        onOpenSession={(sessionId) => setSelectedSessionId(sessionId)}
-                    />
+                    <View style={styles.divider} />
+
+                    <View style={styles.listContainer}>
+                        <DayDetail
+                            date={selectedDate}
+                            nowMs={nowMs}
+                            sessions={index.sessionsByDate[selectedDate] ?? []}
+                            sessionStatsById={index.sessionStatsById}
+                            subjectsById={subjectsById}
+                            onOpenSession={(sessionId) => setSelectedSessionId(sessionId)}
+                        />
+                    </View>
                 </View>
             </ScrollView>
 
+            {/* Session Detail Modal */}
             {selectedSessionId && (() => {
                 const session = index.sessionsById[selectedSessionId];
                 const sessionStats = index.sessionStatsById[selectedSessionId];
@@ -185,11 +244,11 @@ export default function HistoryScreen() {
                     <View style={[StyleSheet.absoluteFill, { backgroundColor: COLORS.bg, zIndex: 100 }]}>
                         <ScreenHeader
                             title="세션 상세"
-                            subtitle={`${formatDisplayDate(session.studyDate, nowMs)} · ${session.studyDate}`}
+                            subtitle={`${formatDisplayDate(session.studyDate, nowMs)}`}
                             onBack={() => setSelectedSessionId(null)}
                         />
                         <ScrollView
-                            style={{ flex: 1, backgroundColor: COLORS.bg }}
+                            style={{ flex: 1 }}
                             contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}
                             showsVerticalScrollIndicator={false}
                         >
@@ -210,44 +269,47 @@ export default function HistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: COLORS.bg },
-    content: { flex: 1 },
-    historyWrapper: {
-        paddingHorizontal: 24,
-        paddingTop: 8,
-        gap: 24,
+    container: {
+        flex: 1,
+        backgroundColor: COLORS.bg
     },
-    calendarWrapper: {
-        borderRadius: 32,
-        overflow: 'hidden',
-        padding: 0,
+    content: {
+        flex: 1
     },
-    legendContainer: {
-        alignItems: 'flex-end',
-        paddingHorizontal: 12,
-        marginBottom: -8,
+    historyWrapper: {},
+    calendarContainer: {
+        paddingHorizontal: 20,
+        marginBottom: 8,
     },
-    legendRow: {
+    heatmapLegend: {
         flexDirection: 'row',
         alignItems: 'center',
+        justifyContent: 'flex-end',
+        marginTop: 10,
         gap: 8,
-        backgroundColor: COLORS.surfaceVariant,
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 12,
     },
-    legendStages: {
+    legendSteps: {
         flexDirection: 'row',
         gap: 4,
     },
     legendBox: {
-        width: 10,
-        height: 10,
-        borderRadius: 3,
+        width: 14,
+        height: 14,
+        borderRadius: 4,
     },
-    legendText: {
-        fontSize: 10,
-        fontWeight: '700',
-        color: COLORS.textMuted,
+    legendLabel: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: '#888',
     },
+    divider: {
+        height: 1,
+        backgroundColor: '#F0F0F0',
+        marginHorizontal: 24,
+        marginVertical: 20,
+    },
+    listContainer: {
+        paddingHorizontal: 24,
+        minHeight: 300,
+    }
 });
