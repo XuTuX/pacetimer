@@ -18,7 +18,8 @@ type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
 
 type RoomWithDetails = RoomRow & {
     room_members: { count: number }[];
-    room_exams: { created_at: string }[];
+    room_exams: { id: string; created_at: string }[];
+    unsolved_count?: number;
 };
 
 export default function RoomsIndexScreen() {
@@ -60,12 +61,29 @@ export default function RoomsIndexScreen() {
 
             const { data: roomsData, error: roomsError } = await supabase
                 .from("rooms")
-                .select("*, room_members(count), room_exams(created_at)")
+                .select("*, room_members(count), room_exams(id, created_at)")
                 .in("id", allRoomIds)
                 .order("created_at", { ascending: false });
             if (roomsError) throw roomsError;
 
-            setRooms((roomsData as any) ?? []);
+            // 내가 푼 시험 정보 가져오기
+            const { data: myAttempts, error: attemptsError } = await supabase
+                .from("attempts")
+                .select("exam_id")
+                .eq("user_id", userId ?? "")
+                .in("room_id", allRoomIds);
+
+            if (attemptsError) throw attemptsError;
+
+            const mySolvedExamIds = new Set(myAttempts?.map(a => a.exam_id));
+
+            const enrichedRooms = (roomsData as any)?.map((room: any) => {
+                const totalExams = room.room_exams || [];
+                const unsolved = totalExams.filter((e: any) => !mySolvedExamIds.has(e.id)).length;
+                return { ...room, unsolved_count: unsolved };
+            });
+
+            setRooms(enrichedRooms ?? []);
         } catch (err) {
             setError(formatSupabaseError(err));
         } finally {
@@ -152,13 +170,9 @@ export default function RoomsIndexScreen() {
                                 <RoomCard
                                     key={room.id}
                                     room={room}
-                                    isHost={room.owner_id === userId}
                                     onPress={() => router.push(`/room/${room.id}`)}
                                     participantCount={room.room_members?.[0]?.count}
-                                    hasNewExam={room.room_exams?.some(e => {
-                                        const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
-                                        return (Date.now() - new Date(e.created_at).getTime()) < threeDaysMs;
-                                    })}
+                                    unsolvedCount={room.unsolved_count}
                                 />
                             ))}
                         </View>

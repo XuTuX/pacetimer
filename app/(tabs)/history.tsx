@@ -297,13 +297,13 @@ export default function HistoryScreen() {
 
                         {/* 히트맵 범례 */}
                         <View style={styles.heatmapLegend}>
-                            <Text style={styles.legendLabel}>Less</Text>
+                            <Text style={styles.legendLabel}>3시간 이내</Text>
                             <View style={styles.legendSteps}>
                                 <View style={[styles.legendBox, { backgroundColor: COLORS.primary + '33' }]} />
                                 <View style={[styles.legendBox, { backgroundColor: COLORS.primary + '99' }]} />
                                 <View style={[styles.legendBox, { backgroundColor: COLORS.primary }]} />
                             </View>
-                            <Text style={styles.legendLabel}>More</Text>
+                            <Text style={styles.legendLabel}>6시간 이상</Text>
                         </View>
                     </View>
 

@@ -9,68 +9,53 @@ type Room = Database['public']['Tables']['rooms']['Row'];
 
 interface RoomCardProps {
     room: Room;
-    isHost: boolean;
     onPress: () => void;
     participantCount?: number;
-    hasNewExam?: boolean;
+    unsolvedCount?: number; // 안 푼 시험 개수 (0이면 안 보임)
 }
 
-export function RoomCard({ room, isHost, onPress, participantCount, hasNewExam }: RoomCardProps) {
+export function RoomCard({ room, onPress, participantCount, unsolvedCount = 0 }: RoomCardProps) {
     return (
-        <Card
-            variant="elevated"
-            padding="none" // Custom padding in container
-            style={styles.card}
-            onTouchEnd={onPress}
-        >
+        <Card variant="elevated" padding="none" style={styles.card}>
             <Pressable
                 onPress={onPress}
                 style={({ pressed }) => [
                     styles.container,
-                    pressed && { opacity: 0.8 }
+                    pressed && { backgroundColor: 'rgba(0,0,0,0.02)' }
                 ]}
             >
-                <View style={styles.iconCircle}>
-                    <Ionicons name="library" size={20} color={COLORS.primary} />
-                </View>
-
                 <View style={styles.content}>
-                    <View style={styles.header}>
-                        <ThemedText variant="subtitle1" style={styles.name} numberOfLines={1}>
-                            {room.name}
-                        </ThemedText>
-                        {hasNewExam && (
-                            <View style={styles.newBadge}>
-                                <ThemedText style={styles.newBadgeText}>NEW EXAM</ThemedText>
-                            </View>
-                        )}
-                    </View>
+                    {/* 제목 */}
+                    <ThemedText variant="subtitle1" style={styles.name} numberOfLines={1}>
+                        {room.name}
+                    </ThemedText>
 
-                    <View style={styles.subContent}>
-                        {room.description ? (
-                            <ThemedText variant="body2" color={COLORS.textMuted} numberOfLines={1} style={styles.description}>
-                                {room.description}
-                            </ThemedText>
-                        ) : (
-                            <View style={styles.spacer} />
-                        )}
-                    </View>
-
+                    {/* 부제 및 참여 인원 통합 라인 */}
                     <View style={styles.metaRow}>
-                        {participantCount !== undefined && (
-                            <View style={styles.metaItem}>
-                                <Ionicons name="people-outline" size={14} color={COLORS.textMuted} />
-                                <ThemedText style={styles.metaText}>{participantCount}</ThemedText>
-                            </View>
-                        )}
-                        {isHost && (
-                            <View style={styles.hostBadge}>
-                                <Ionicons name="star" size={10} color="#EAA300" />
-                                <ThemedText style={styles.hostText}>HOST</ThemedText>
-                            </View>
-                        )}
+                        <ThemedText variant="body2" color={COLORS.textMuted} numberOfLines={1} style={styles.description}>
+                            {room.description || "참여 코드로 입장 가능한 방"}
+                        </ThemedText>
+
+                        <View style={styles.separator} />
+
+                        <View style={styles.countInfo}>
+                            <Ionicons name="people-outline" size={12} color={COLORS.textMuted} />
+                            <ThemedText style={styles.countText}>{participantCount || 0}</ThemedText>
+                        </View>
                     </View>
                 </View>
+
+                {/* 우측 이동 아이콘 */}
+                <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} style={styles.chevron} />
+
+                {/* 우측 상단 알림 배지 */}
+                {unsolvedCount > 0 && (
+                    <View style={styles.badge}>
+                        <ThemedText style={styles.badgeText}>
+                            {unsolvedCount > 99 ? '99+' : unsolvedCount}
+                        </ThemedText>
+                    </View>
+                )}
             </Pressable>
         </Card>
     );
@@ -78,91 +63,77 @@ export function RoomCard({ room, isHost, onPress, participantCount, hasNewExam }
 
 const styles = StyleSheet.create({
     card: {
-        borderRadius: 16,
+        borderRadius: 20,
         backgroundColor: COLORS.surface,
+        marginBottom: 12,
+        overflow: 'visible', // 배지가 카드 밖으로 살짝 나가게 할 경우를 위해 visible
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.04)',
+        elevation: 2,
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 }, // Reduced shadow
-        shadowOpacity: 0.04,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
         shadowRadius: 8,
-        elevation: 1,
     },
     container: {
+        position: 'relative',
         flexDirection: 'row',
-        padding: 16, // Reduced padding
-        gap: 12,
         alignItems: 'center',
-    },
-    iconCircle: {
-        width: 40, // Smaller icon circle
-        height: 40,
-        borderRadius: 12,
-        backgroundColor: COLORS.primaryLight,
-        alignItems: 'center',
-        justifyContent: 'center',
+        paddingVertical: 20,
+        paddingHorizontal: 20,
     },
     content: {
         flex: 1,
-        justifyContent: 'center',
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 2,
     },
     name: {
         fontWeight: '700',
+        fontSize: 17,
         color: COLORS.text,
-        flex: 1,
-        marginRight: 8,
-    },
-    subContent: {
-        marginBottom: 6,
-    },
-    description: {
-        fontSize: 13,
-    },
-    spacer: {
-        height: 0,
+        marginBottom: 4,
     },
     metaRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
     },
-    metaItem: {
+    description: {
+        fontSize: 13,
+        maxWidth: '70%', // 설명이 너무 길어지지 않게 조절
+    },
+    separator: {
+        width: 1,
+        height: 10,
+        backgroundColor: 'rgba(0,0,0,0.1)',
+        marginHorizontal: 8,
+    },
+    countInfo: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        gap: 3,
     },
-    metaText: {
+    countText: {
         fontSize: 12,
         color: COLORS.textMuted,
         fontWeight: '500',
     },
-    newBadge: {
-        backgroundColor: '#FFE5E5',
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 6,
+    chevron: {
+        marginLeft: 8,
+        opacity: 0.3,
     },
-    newBadgeText: {
-        fontSize: 10,
-        fontWeight: '800',
-        color: '#FF3B30',
-    },
-    hostBadge: {
-        flexDirection: 'row',
+    badge: {
+        position: 'absolute',
+        top: -6,
+        right: -6,
+        backgroundColor: '#FF3B30',
+        minWidth: 18,
+        height: 18,
+        borderRadius: 9,
+        justifyContent: 'center',
         alignItems: 'center',
-        gap: 3,
-        backgroundColor: '#FFF8E6',
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 6,
+        paddingHorizontal: 5,
     },
-    hostText: {
+    badgeText: {
+        color: 'white',
         fontSize: 10,
-        fontWeight: '800',
-        color: '#EAA300',
+        fontWeight: '700',
     },
 });
