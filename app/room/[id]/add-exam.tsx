@@ -5,12 +5,13 @@ import React, { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "../../../components/ui/Button";
+import { Card } from "../../../components/ui/Card";
 import { ScreenHeader } from "../../../components/ui/ScreenHeader";
 import { Typography } from "../../../components/ui/Typography";
 import { useAppStore } from "../../../lib/store";
 import { useSupabase } from "../../../lib/supabase";
 import { formatSupabaseError } from "../../../lib/supabaseError";
-import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from "../../../lib/theme";
+import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from "../../../lib/theme";
 
 const SUBJECT_COLORS = [
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#82E0AA'
@@ -269,20 +270,20 @@ export default function AddExamScreen() {
                         </View>
 
                         {error ? (
-                            <View style={styles.errorAlert}>
+                            <Card variant="flat" padding="md" radius="xl" style={styles.errorAlert}>
                                 <Ionicons name="warning-outline" size={18} color={COLORS.error} />
                                 <Typography.Body2 bold color={COLORS.error}>{error}</Typography.Body2>
-                            </View>
+                            </Card>
                         ) : null}
 
-                        <View style={styles.tipBox}>
+                        <Card variant="flat" padding="md" radius="xl" style={styles.tipBox}>
                             <View style={styles.tipIcon}>
                                 <Ionicons name="bulb" size={14} color={COLORS.white} />
                             </View>
                             <Typography.Caption bold color={COLORS.textMuted} style={{ flex: 1 }}>
                                 생성 후 모든 멤버의 Race 탭에 바로 표시됩니다.
                             </Typography.Caption>
-                        </View>
+                        </Card>
                     </View>
                 </ScrollView>
 
@@ -345,6 +346,7 @@ const styles = StyleSheet.create({
     },
     modernInputActive: {
         borderColor: COLORS.primary,
+        ...SHADOWS.small,
     },
     modernValue: {
         flex: 1,
@@ -365,16 +367,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: SPACING.sm,
         backgroundColor: COLORS.errorLight,
-        padding: SPACING.md,
-        borderRadius: RADIUS.md,
     },
     tipBox: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: SPACING.md,
         backgroundColor: COLORS.surfaceVariant,
-        padding: SPACING.md,
-        borderRadius: RADIUS.md,
     },
     tipIcon: {
         width: 24,
@@ -388,6 +386,8 @@ const styles = StyleSheet.create({
         padding: SPACING.xl,
         paddingBottom: Platform.OS === 'ios' ? 0 : SPACING.xl,
         backgroundColor: COLORS.white,
+        borderTopWidth: 1,
+        borderTopColor: COLORS.border,
     },
     // Inline Dropdown Styling
     dropdownContainer: {
@@ -400,6 +400,7 @@ const styles = StyleSheet.create({
         borderWidth: 1.5,
         borderColor: COLORS.primaryLight,
         overflow: 'hidden',
+        ...SHADOWS.small,
     },
     dropdownScroll: {
         maxHeight: 240,

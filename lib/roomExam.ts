@@ -23,3 +23,24 @@ export function getRoomExamSubjectFromTitle(title?: string): string | null {
 
     return null;
 }
+
+export function getRoomExamDisplayTitle(title?: string): string {
+    if (!title) return '';
+
+    const trimmed = title.trim();
+    if (!trimmed) return '';
+
+    const withoutRoomTag = trimmed.replace(/^\[룸\]\s*/i, '').trim();
+
+    const bulletMatch = withoutRoomTag.match(/^(.*?)\s*•\s*(.+)$/);
+    if (bulletMatch && bulletMatch[2]) {
+        return bulletMatch[2].trim();
+    }
+
+    const bracketMatch = withoutRoomTag.match(/^\[(.*?)\]\s*(.+)$/);
+    if (bracketMatch && bracketMatch[2]) {
+        return bracketMatch[2].trim();
+    }
+
+    return withoutRoomTag;
+}

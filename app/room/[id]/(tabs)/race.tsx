@@ -10,7 +10,7 @@ import type { Database } from "../../../../lib/db-types";
 import { useSupabase } from "../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../lib/supabaseError";
 import { COLORS, RADIUS, SHADOWS, SPACING } from "../../../../lib/theme";
-import { getRoomExamSubjectFromTitle } from "../../../../lib/roomExam";
+import { getRoomExamSubjectFromTitle, getRoomExamDisplayTitle } from "../../../../lib/roomExam";
 
 type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
@@ -147,9 +147,9 @@ export default function RaceScreen() {
                                                 {isCompleted && <Text style={styles.doneLabel}>완료</Text>}
                                             </View>
 
-                                            <Text style={styles.examTitle} numberOfLines={2}>
-                                                {item.title}
-                                            </Text>
+                                        <Text style={styles.examTitle} numberOfLines={2}>
+                                            {getRoomExamDisplayTitle(item.title) || "모의고사"}
+                                        </Text>
 
                                             <View style={styles.cardBottom}>
                                                 <View style={styles.infoRow}>
