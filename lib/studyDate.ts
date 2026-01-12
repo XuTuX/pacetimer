@@ -3,7 +3,10 @@ const STUDY_DAY_SHIFT_MS = 6 * 60 * 60 * 1000;
 
 export function getStudyDateKey(timestampMs: number): string {
     const shifted = new Date(timestampMs - STUDY_DAY_SHIFT_MS);
-    return shifted.toISOString().slice(0, 10);
+    const year = shifted.getFullYear();
+    const month = String(shifted.getMonth() + 1).padStart(2, '0');
+    const day = String(shifted.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
 export function formatDisplayDate(dateKey: string, nowMs: number = Date.now()): string {

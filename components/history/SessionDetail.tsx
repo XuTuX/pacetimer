@@ -177,7 +177,6 @@ export default function SessionDetail({ nowMs, session, sessionStats, segments, 
                                 <Ionicons name={modeInfo.icon} size={10} color={modeInfo.color} style={{ marginRight: 4 }} />
                                 <Text style={[styles.badgeText, { color: modeInfo.color }]}>{modeInfo.label}</Text>
                             </View>
-                            <Text style={styles.dateText}>{formatDateFull(session.startedAt)}</Text>
                         </View>
                         <Text style={styles.mainTitle}>{title}</Text>
                         <Text style={styles.subTitle}>{formatClockTime(session.startedAt)} 시작</Text>
@@ -216,7 +215,8 @@ export default function SessionDetail({ nowMs, session, sessionStats, segments, 
                             </View>
                         ) : (
                             mergedGroups.map((g) => {
-                                const subjectName = getSubjectName(g.mainSubjectId, subjectsById);
+                                const rawSubjectName = getSubjectName(g.mainSubjectId, subjectsById);
+                                const subjectName = (rawSubjectName === '기타' && title) ? title : rawSubjectName;
                                 return (
                                     <TouchableOpacity
                                         key={g.mainSubjectId}
@@ -332,6 +332,7 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         paddingHorizontal: 16,
         justifyContent: 'center',
+        alignItems: 'center',
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.03,

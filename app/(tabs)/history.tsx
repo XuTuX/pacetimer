@@ -328,10 +328,13 @@ export default function HistoryScreen() {
                 const session = index.sessionsById[selectedSessionId];
                 const sessionStats = index.sessionStatsById[selectedSessionId];
                 if (!session || !sessionStats) return null;
+
+                const isMock = session.mode === 'mock-exam' || session.title?.includes('[룸]');
+                const headerTitle = isMock ? '모의고사' : '학습 세션';
                 return (
                     <View style={[StyleSheet.absoluteFill, { backgroundColor: COLORS.bg, zIndex: 100 }]}>
                         <ScreenHeader
-                            title="세션 상세"
+                            title={headerTitle}
                             subtitle={`${formatDisplayDate(session.studyDate, nowMs)}`}
                             onBack={() => setSelectedSessionId(null)}
                         />
