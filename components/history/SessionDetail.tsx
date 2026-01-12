@@ -1,11 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useMemo, useState } from 'react';
-import { LayoutAnimation, Platform, StyleSheet, Text, TouchableOpacity, UIManager, View } from 'react-native';
+import { LayoutAnimation, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, UIManager, View } from 'react-native';
 import type { SessionStats } from '../../lib/recordsIndex';
 import { getSegmentDurationMs } from '../../lib/recordsIndex';
-import { formatClockTime, formatDurationMs } from '../../lib/studyDate';
+import { formatClockTime, formatDisplayDate, formatDurationMs } from '../../lib/studyDate';
 import { COLORS } from '../../lib/theme';
 import type { QuestionRecord, Segment, Session, Subject } from '../../lib/types';
+import { ScreenHeader } from '../ui/ScreenHeader';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -55,6 +56,7 @@ type Props = {
     segments: Segment[];
     questionsBySegmentId: Record<string, QuestionRecord[]>;
     subjectsById: Record<string, Subject>;
+    onClose: () => void;
 };
 
 type MergedGroup = {
@@ -64,7 +66,7 @@ type MergedGroup = {
     questionRecords: QuestionRecord[];
 };
 
-export default function SessionDetail({ nowMs, session, sessionStats, segments, questionsBySegmentId, subjectsById }: Props) {
+export default function SessionDetail({ nowMs, session, sessionStats, segments, questionsBySegmentId, subjectsById, onClose }: Props) {
     const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
     const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
 
@@ -134,15 +136,11 @@ export default function SessionDetail({ nowMs, session, sessionStats, segments, 
     const renderDetailView = () => {
         const group = mergedGroups.find(g => g.mainSubjectId === selectedSubjectId);
         if (!group) return null;
-        const subjectName = getSubjectName(group.mainSubjectId, subjectsById);
+        const rawSubjectName = getSubjectName(group.mainSubjectId, subjectsById);
+        const subjectName = (rawSubjectName === '기타' && rawTitle) ? rawTitle : rawSubjectName;
 
         return (
             <View>
-                <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-                    <Ionicons name="chevron-back" size={20} color={COLORS.primary} />
-                    <Text style={styles.backButtonText}>목록으로</Text>
-                </TouchableOpacity>
-
                 <View style={styles.detailHeader}>
                     <Text style={styles.detailTitle}>{subjectName}</Text>
                     <Text style={styles.detailSubtitle}>
@@ -162,7 +160,7 @@ export default function SessionDetail({ nowMs, session, sessionStats, segments, 
                                     <Text style={styles.qIndexText}>{idx + 1}</Text>
                                 </View>
                                 <View style={styles.qInfo}>
-                                    <Text style={styles.qNo}>Q{q.questionNo}</Text>
+                                    <Text style={styles.qNo}>문제 {q.questionNo}</Text>
                                     <Text style={styles.qTimestamp}>{formatClockTime(q.startedAt)}</Text>
                                 </View>
                                 <Text style={styles.qDuration}>{formatDurationMs(q.durationMs)}</Text>
@@ -174,84 +172,136 @@ export default function SessionDetail({ nowMs, session, sessionStats, segments, 
         );
     };
 
+    // --- Header Configuration ---
+    let navTitle = '';
+    let navSubtitle: string | undefined;
+    let showNavBack = false;
+    let navBackIcon: 'chevron-back' | undefined;
+    let navBackAction: (() => void) | undefined;
+    let navRightElement: React.ReactNode = null;
+
+    if (viewMode === 'list') {
+        const isMock = session.mode === 'mock-exam' || session.title?.includes('[룸]');
+        navTitle = isMock ? '모의고사' : '학습 세션';
+        navSubtitle = formatDisplayDate(session.studyDate, nowMs);
+
+        // List Mode: No back button on left, Close button on right
+        showNavBack = false;
+        navRightElement = (
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close-outline" size={28} color={COLORS.text} />
+            </TouchableOpacity>
+        );
+    } else {
+        // Detail View
+        const group = mergedGroups.find(g => g.mainSubjectId === selectedSubjectId);
+        const rawSubjectName = group ? getSubjectName(group.mainSubjectId, subjectsById) : '';
+        const subjectName = (rawSubjectName === '기타' && rawTitle) ? rawTitle : rawSubjectName;
+
+        navTitle = subjectName;
+        navSubtitle = group ? `${formatDurationMs(group.durationMs)} · ${group.questionCount} 문제` : undefined;
+
+        // Detail Mode: Back button on left (chevron), nothing on right
+        showNavBack = true;
+        navBackIcon = 'chevron-back';
+        navBackAction = handleBack;
+    }
+
     return (
-        <View style={styles.container}>
-            {viewMode === 'list' && (
-                <>
-                    {/* Header */}
-                    <View style={styles.header}>
-                        <View style={styles.topRow}>
-                            {modeInfo && (
-                                <View style={[styles.badge, { backgroundColor: modeInfo.bg }]}>
-                                    <Ionicons name={modeInfo.icon} size={10} color={modeInfo.color} style={{ marginRight: 4 }} />
-                                    <Text style={[styles.badgeText, { color: modeInfo.color }]}>{modeInfo.label}</Text>
-                                </View>
-                            )}
-                        </View>
-                        <Text style={styles.mainTitle}>{headerTitle}</Text>
-                        {headerSubtitle && <Text style={styles.subTitle}>{headerSubtitle}</Text>}
-                    </View>
-
-                    {/* Stats Summary Bento Grid */}
-                    <View style={styles.statsContainer}>
-                        {/* 왼쪽: 총 시간 (아이콘과 라벨이 한 줄) */}
-                        <View style={[styles.statCard, styles.statCardLarge]}>
-                            <View style={styles.statLabelRow}>
-                                <Ionicons name="time" size={14} color={COLORS.primary} />
-                                <Text style={styles.statLabel}>TOTAL TIME</Text>
-                            </View>
-                            <Text style={styles.statValueLarge}>{formatDurationMs(sessionStats.durationMs)}</Text>
-                        </View>
-
-                        {/* 오른쪽: 요약 정보 (문제수, 과목수) */}
-                        <View style={styles.statRightCol}>
-                            <View style={styles.statCardSmall}>
-                                <Text style={styles.statValueMedium}>{sessionStats.questionCount}문제</Text>
-                            </View>
-                            <View style={styles.statCardSmall}>
-                                <Text style={styles.statValueMedium}>{mergedGroups.length}과목</Text>
-                            </View>
-                        </View>
-                    </View>
-
-                    <View style={styles.divider} />
-
-                    {/* Content List */}
-                    <View style={styles.listContainer}>
-                        {mergedGroups.length === 0 ? (
-                            <View style={styles.emptyState}>
-                                <Ionicons name="cloud-offline-outline" size={48} color={PALETTE.gray300} />
-                                <Text style={styles.emptyText}>상세 기록이 존재하지 않습니다</Text>
-                            </View>
-                        ) : (
-                            mergedGroups.map((g) => {
-                                const rawSubjectName = getSubjectName(g.mainSubjectId, subjectsById);
-                                const subjectName = (rawSubjectName === '기타' && rawTitle) ? rawTitle : rawSubjectName;
-                                return (
-                                    <TouchableOpacity
-                                        key={g.mainSubjectId}
-                                        style={styles.subjectCard}
-                                        onPress={() => handleSubjectPress(g.mainSubjectId)}
-                                        activeOpacity={0.6}
-                                    >
-                                        <View style={styles.subjectRow}>
-                                            <View style={styles.subjectInfo}>
-                                                <Text style={styles.subjectName}>{subjectName}</Text>
-                                                <Text style={styles.subjectStats}>
-                                                    {formatDurationMs(g.durationMs)} · {g.questionCount} 문제
-                                                </Text>
-                                            </View>
-                                            <Ionicons name="chevron-forward" size={20} color={PALETTE.gray400} />
+        <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
+            <ScreenHeader
+                title={navTitle}
+                subtitle={navSubtitle}
+                showBack={showNavBack}
+                onBack={navBackAction}
+                backIconName={navBackIcon}
+                rightElement={navRightElement}
+                align="center"
+            />
+            <ScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}
+                showsVerticalScrollIndicator={false}
+            >
+                <View style={styles.container}>
+                    {viewMode === 'list' && (
+                        <>
+                            {/* Header */}
+                            <View style={styles.header}>
+                                <View style={styles.topRow}>
+                                    {modeInfo && (
+                                        <View style={[styles.badge, { backgroundColor: modeInfo.bg }]}>
+                                            <Ionicons name={modeInfo.icon} size={10} color={modeInfo.color} style={{ marginRight: 4 }} />
+                                            <Text style={[styles.badgeText, { color: modeInfo.color }]}>{modeInfo.label}</Text>
                                         </View>
-                                    </TouchableOpacity>
-                                );
-                            })
-                        )}
-                    </View>
-                </>
-            )}
+                                    )}
+                                </View>
+                                <Text style={styles.mainTitle}>{headerTitle}</Text>
+                                {headerSubtitle && <Text style={styles.subTitle}>{headerSubtitle}</Text>}
+                            </View>
 
-            {viewMode === 'detail' && renderDetailView()}
+                            {/* Stats Summary Bento Grid */}
+                            <View style={styles.statsContainer}>
+                                {/* 왼쪽: 총 시간 (아이콘과 라벨이 한 줄) */}
+                                <View style={[styles.statCard, styles.statCardLarge]}>
+                                    <View style={styles.statLabelRow}>
+                                        <Ionicons name="time" size={14} color={COLORS.primary} />
+                                        <Text style={styles.statLabel}>TOTAL TIME</Text>
+                                    </View>
+                                    <Text style={styles.statValueLarge}>{formatDurationMs(sessionStats.durationMs)}</Text>
+                                </View>
+
+                                {/* 오른쪽: 요약 정보 (문제수, 과목수) */}
+                                <View style={styles.statRightCol}>
+                                    <View style={styles.statCardSmall}>
+                                        <Text style={styles.statValueMedium}>{sessionStats.questionCount}문제</Text>
+                                    </View>
+                                    <View style={styles.statCardSmall}>
+                                        <Text style={styles.statValueMedium}>{mergedGroups.length}과목</Text>
+                                    </View>
+                                </View>
+                            </View>
+
+                            <View style={styles.divider} />
+
+                            {/* Content List */}
+                            <View style={styles.listContainer}>
+                                {mergedGroups.length === 0 ? (
+                                    <View style={styles.emptyState}>
+                                        <Ionicons name="cloud-offline-outline" size={48} color={PALETTE.gray300} />
+                                        <Text style={styles.emptyText}>상세 기록이 존재하지 않습니다</Text>
+                                    </View>
+                                ) : (
+                                    mergedGroups.map((g) => {
+                                        const rawSubjectName = getSubjectName(g.mainSubjectId, subjectsById);
+                                        const subjectName = (rawSubjectName === '기타' && rawTitle) ? rawTitle : rawSubjectName;
+                                        return (
+                                            <TouchableOpacity
+                                                key={g.mainSubjectId}
+                                                style={styles.subjectCard}
+                                                onPress={() => handleSubjectPress(g.mainSubjectId)}
+                                                activeOpacity={0.6}
+                                            >
+                                                <View style={styles.subjectRow}>
+                                                    <View style={styles.subjectInfo}>
+                                                        <Text style={styles.subjectName}>{subjectName}</Text>
+                                                        <Text style={styles.subjectStats}>
+                                                            {formatDurationMs(g.durationMs)} · {g.questionCount} 문제
+                                                        </Text>
+                                                    </View>
+                                                    <Ionicons name="chevron-forward" size={20} color={PALETTE.gray400} />
+                                                </View>
+                                            </TouchableOpacity>
+                                        );
+                                    })
+                                )}
+                            </View>
+                        </>
+                    )}
+
+                    {viewMode === 'detail' && renderDetailView()}
+                </View>
+            </ScrollView>
         </View>
     );
 }
@@ -396,17 +446,24 @@ const styles = StyleSheet.create({
         color: PALETTE.gray500,
         fontWeight: '500',
     },
-    backButton: {
+    backButtonStyle: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 16,
         paddingVertical: 8,
+        paddingHorizontal: 12,
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: PALETTE.gray200,
+        alignSelf: 'flex-start',
+        marginTop: 8,
+        marginBottom: 16,
     },
     backButtonText: {
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: '600',
-        color: COLORS.primary,
-        marginLeft: 4,
+        color: COLORS.text,
+        marginLeft: 6,
     },
     detailHeader: {
         marginBottom: 24,

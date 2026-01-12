@@ -15,7 +15,7 @@ import { HeaderSettings } from '../../components/ui/HeaderSettings';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { buildRecordsIndex } from '../../lib/recordsIndex';
 import { useAppStore } from '../../lib/store';
-import { formatDisplayDate, getStudyDateKey } from '../../lib/studyDate';
+import { getStudyDateKey } from '../../lib/studyDate';
 import { COLORS } from '../../lib/theme';
 
 LocaleConfig.locales['kr'] = {
@@ -329,29 +329,17 @@ export default function HistoryScreen() {
                 const sessionStats = index.sessionStatsById[selectedSessionId];
                 if (!session || !sessionStats) return null;
 
-                const isMock = session.mode === 'mock-exam' || session.title?.includes('[룸]');
-                const headerTitle = isMock ? '모의고사' : '학습 세션';
                 return (
                     <View style={[StyleSheet.absoluteFill, { backgroundColor: COLORS.bg, zIndex: 100 }]}>
-                        <ScreenHeader
-                            title={headerTitle}
-                            subtitle={`${formatDisplayDate(session.studyDate, nowMs)}`}
-                            onBack={() => setSelectedSessionId(null)}
+                        <SessionDetail
+                            nowMs={nowMs}
+                            session={session}
+                            sessionStats={sessionStats}
+                            segments={index.segmentsBySessionId[session.id] ?? []}
+                            questionsBySegmentId={index.questionsBySegmentId}
+                            subjectsById={subjectsById}
+                            onClose={() => setSelectedSessionId(null)}
                         />
-                        <ScrollView
-                            style={{ flex: 1 }}
-                            contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}
-                            showsVerticalScrollIndicator={false}
-                        >
-                            <SessionDetail
-                                nowMs={nowMs}
-                                session={session}
-                                sessionStats={sessionStats}
-                                segments={index.segmentsBySessionId[session.id] ?? []}
-                                questionsBySegmentId={index.questionsBySegmentId}
-                                subjectsById={subjectsById}
-                            />
-                        </ScrollView>
                     </View>
                 );
             })()}

@@ -14,6 +14,7 @@ interface ScreenHeaderProps {
     onBack?: () => void;
     style?: ViewStyle;
     align?: 'left' | 'center';
+    backIconName?: keyof typeof Ionicons.glyphMap;
 }
 
 export function ScreenHeader({
@@ -23,7 +24,8 @@ export function ScreenHeader({
     rightElement,
     onBack,
     style,
-    align = 'center'
+    align = 'center',
+    backIconName = 'chevron-back'
 }: ScreenHeaderProps) {
     const router = useRouter();
     const insets = useSafeAreaInsets();
@@ -42,7 +44,7 @@ export function ScreenHeader({
                                     pressed && styles.pressed
                                 ]}
                             >
-                                <Ionicons name="chevron-back" size={24} color={COLORS.text} />
+                                <Ionicons name={backIconName} size={24} color={COLORS.text} />
                             </Pressable>
                         )}
                     </View>

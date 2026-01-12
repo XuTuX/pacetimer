@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons'; // ⭐️ 다시 추가
 import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { DateRange, SubjectFilter } from '../../lib/analytics-utils';
@@ -23,7 +23,7 @@ export const AnalyticsHeader: React.FC<Props> = ({
     const [isShowingModal, setIsShowingModal] = useState(false);
 
     const getSelectedLabel = () => {
-        if (selectedFilter === 'all') return '전체';
+        if (selectedFilter === 'all') return '전체 과목';
         if (selectedFilter === 'mock') return '모의고사';
         const subject = subjects.find(s => s.id === selectedFilter);
         return subject ? subject.name : '과목';
@@ -32,22 +32,17 @@ export const AnalyticsHeader: React.FC<Props> = ({
     return (
         <View style={styles.container}>
             <View style={styles.topRow}>
-                {/* 1. 과목 선택 (콤팩트 드롭다운) */}
+                {/* 1. 과목 선택 (열림 표시 화살표 추가) */}
                 <TouchableOpacity
                     style={styles.subjectDropdown}
                     onPress={() => setIsShowingModal(true)}
                     activeOpacity={0.8}
                 >
-                    <Ionicons
-                        name={selectedFilter === 'mock' ? 'medal' : 'layers'}
-                        size={16}
-                        color={COLORS.primary}
-                    />
                     <Text style={styles.subjectTitle} numberOfLines={1}>{getSelectedLabel()}</Text>
                     <Ionicons name="chevron-down" size={14} color={COLORS.textMuted} />
                 </TouchableOpacity>
 
-                {/* 2. 날짜 선택 세그먼트 (함께 한 줄에 배치) */}
+                {/* 2. 날짜 선택 세그먼트 */}
                 <View style={styles.segmentedControl}>
                     {(['today', '7days', '30days'] as DateRange[]).map((r) => (
                         <TouchableOpacity
@@ -86,7 +81,6 @@ export const AnalyticsHeader: React.FC<Props> = ({
                                     }}
                                 >
                                     <Text style={[styles.optionText, selectedFilter === 'all' && styles.optionTextActive]}>전체 과목</Text>
-                                    {selectedFilter === 'all' && <Ionicons name="checkmark" size={16} color={COLORS.primary} />}
                                 </TouchableOpacity>
 
                                 <TouchableOpacity
@@ -96,11 +90,7 @@ export const AnalyticsHeader: React.FC<Props> = ({
                                         setIsShowingModal(false);
                                     }}
                                 >
-                                    <View style={styles.optionLeft}>
-                                        <Ionicons name="medal" size={14} color={selectedFilter === 'mock' ? COLORS.primary : COLORS.textMuted} />
-                                        <Text style={[styles.optionText, selectedFilter === 'mock' && styles.optionTextActive]}>모의고사</Text>
-                                    </View>
-                                    {selectedFilter === 'mock' && <Ionicons name="checkmark" size={16} color={COLORS.primary} />}
+                                    <Text style={[styles.optionText, selectedFilter === 'mock' && styles.optionTextActive]}>모의고사</Text>
                                 </TouchableOpacity>
 
                                 <View style={styles.divider} />
@@ -115,7 +105,6 @@ export const AnalyticsHeader: React.FC<Props> = ({
                                         }}
                                     >
                                         <Text style={[styles.optionText, selectedFilter === s.id && styles.optionTextActive]}>{s.name}</Text>
-                                        {selectedFilter === s.id && <Ionicons name="checkmark" size={16} color={COLORS.primary} />}
                                     </TouchableOpacity>
                                 ))}
                             </ScrollView>
@@ -140,16 +129,17 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     subjectDropdown: {
-        flex: 1.2, // 주도적인 크기 유지
+        flex: 0.7,
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: COLORS.white,
-        paddingHorizontal: 14,
+        paddingLeft: 20, // 왼쪽 여백을 조금 더 줌 (화살표가 오른쪽에 있으므로)
+        paddingRight: 12,
         paddingVertical: 12,
         borderRadius: RADIUS.lg,
         borderWidth: 1,
         borderColor: COLORS.border,
-        gap: 8,
+        gap: 4,
         ...SHADOWS.small,
     },
     subjectTitle: {
@@ -157,6 +147,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '700',
         color: COLORS.text,
+        textAlign: 'center',
     },
     segmentedControl: {
         flex: 1,
@@ -190,7 +181,7 @@ const styles = StyleSheet.create({
     },
     dropdownPositioner: {
         position: 'absolute',
-        top: 152, // ⭐️ 한 줄로 올라감에 따라 위치 재조정
+        top: 152,
         left: SPACING.xxl,
     },
     dropdownCard: {
@@ -204,23 +195,15 @@ const styles = StyleSheet.create({
         borderColor: COLORS.border,
     },
     optionItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
         paddingHorizontal: 12,
-        paddingVertical: 10,
+        paddingVertical: 12,
         borderRadius: RADIUS.md,
     },
     optionItemActive: {
         backgroundColor: COLORS.surfaceVariant,
     },
-    optionLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
     optionText: {
-        fontSize: 13,
+        fontSize: 14,
         fontWeight: '600',
         color: COLORS.text,
     },
