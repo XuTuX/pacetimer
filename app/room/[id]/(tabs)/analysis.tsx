@@ -3,7 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
-import Svg, { Line, Rect } from "react-native-svg";
+import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Rect, Stop, Text as SvgText } from "react-native-svg";
 import { Card } from "../../../../components/ui/Card";
 import { CompareRow } from "../../../../components/ui/CompareRow";
 import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
@@ -11,9 +11,9 @@ import { Section } from "../../../../components/ui/Section";
 import { StatCard } from "../../../../components/ui/StatCard";
 import { Typography } from "../../../../components/ui/Typography";
 import type { Database } from "../../../../lib/db-types";
+import { getRoomExamSubjectFromTitle } from "../../../../lib/roomExam";
 import { useSupabase } from "../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../lib/supabaseError";
-import { getRoomExamSubjectFromTitle } from "../../../../lib/roomExam";
 import { COLORS, SPACING } from "../../../../lib/theme";
 
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
@@ -51,6 +51,7 @@ export default function AnalysisScreen() {
     const [loading, setLoading] = useState(true);
     const [participants, setParticipants] = useState<ParticipantResult[]>([]);
     const [subjectStats, setSubjectStats] = useState<{ subject: string; avgPerQ: number }[]>([]);
+    const [myAttempts, setMyAttempts] = useState<any[]>([]); // All my attempts in this room
     const [error, setError] = useState<string | null>(null);
 
     // React to param changes (e.g. from Race tab)
@@ -182,6 +183,21 @@ export default function AnalysisScreen() {
         }
     }, [roomId, userId, supabase]);
 
+    const loadMyAttempts = useCallback(async () => {
+        try {
+            const { data, error } = await supabase
+                .from("attempts")
+                .select("*, room_exams!inner(id, title, created_at, total_questions)")
+                .eq("room_exams.room_id", roomId)
+                .eq("user_id", userId)
+                .order("created_at", { ascending: true });
+
+            if (data) setMyAttempts(data);
+        } catch (err) {
+            console.error("loadMyAttempts error:", err);
+        }
+    }, [roomId, userId, supabase]);
+
     useFocusEffect(
         useCallback(() => {
             const init = async () => {
@@ -190,16 +206,19 @@ export default function AnalysisScreen() {
                     setLoading(true);
                     await loadExams();
                     await loadRoomStats();
+                    if (userId) await loadMyAttempts();
                 } else if (selectedExamId) {
+                    // Update my attempts in background if needed
+                    if (userId) loadMyAttempts();
                     // If we have exams and a selected one, load its data
-                    await loadExamData(selectedExamId);
+                    await loadExamData(selectedExamId!);
                 } else {
                     // No exams or no selection
                     setLoading(false);
                 }
             };
             init();
-        }, [roomId, selectedExamId, exams.length, loadExams, loadExamData])
+        }, [roomId, selectedExamId, exams.length, loadExams, loadExamData, loadMyAttempts, userId])
     );
 
     const uniqueSubjects = useMemo(() => {
@@ -305,7 +324,7 @@ export default function AnalysisScreen() {
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 {/* Subject Filter Chips */}
-                {uniqueSubjects.length > 2 && (
+                {uniqueSubjects.length > 1 && (
                     <View style={styles.chipSection}>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipScroll}>
                             {uniqueSubjects.map(s => (
@@ -320,6 +339,119 @@ export default function AnalysisScreen() {
                         </ScrollView>
                     </View>
                 )}
+
+                {/* Subject Evolution Graph */}
+                {selectedSubject !== "전체" && (() => {
+                    const history = myAttempts
+                        .filter(a => (getRoomExamSubjectFromTitle(a.room_exams.title) ?? "기타") === selectedSubject)
+                        .map(a => ({
+                            id: a.id,
+                            title: a.room_exams.title,
+                            date: new Date(a.created_at),
+                            val: a.duration_ms / (a.room_exams.total_questions || 1) // Time per question
+                        }));
+
+                    if (history.length < 2) {
+                        return (
+                            <Section
+                                title={`${selectedSubject} 성장 그래프`}
+                                description="문항당 평균 소요 시간 변화"
+                                rightElement={<Ionicons name="stats-chart" size={18} color={COLORS.primary} />}
+                            >
+                                <Card padding="lg" radius="xl" style={styles.chartCard}>
+                                    <View style={{ height: 100, alignItems: 'center', justifyContent: 'center' }}>
+                                        <Typography.Body2 color={COLORS.textMuted} align="center">
+                                            데이터가 충분하지 않습니다.{"\n"}
+                                            최소 2회 이상의 시험 응시가 필요합니다.
+                                        </Typography.Body2>
+                                    </View>
+                                </Card>
+                            </Section>
+                        );
+                    }
+
+                    const graphWidth = Math.min(width - 48, 500);
+                    const height = 160;
+                    const padding = 20;
+
+                    const maxVal = Math.max(...history.map(h => h.val));
+                    const minVal = Math.min(...history.map(h => h.val));
+                    const valRange = maxVal - minVal || 1;
+
+                    // Points for the line
+                    const points = history.map((h, i) => {
+                        const x = padding + (i / (history.length - 1)) * (graphWidth - 2 * padding);
+                        const normalizedY = (h.val - minVal) / valRange;
+                        const y = height - padding - (normalizedY * (height - 2 * padding));
+                        return { x, y, val: h.val, date: h.date };
+                    });
+
+                    const pathd = "M" + points.map(p => `${p.x},${p.y}`).join(" L");
+
+                    return (
+                        <Section
+                            title={`${selectedSubject} 성장 그래프`}
+                            description="문항당 평균 소요 시간 변화"
+                            rightElement={<Ionicons name="stats-chart" size={18} color={COLORS.primary} />}
+                        >
+                            <Card padding="lg" radius="xl" style={styles.chartCard}>
+                                <Svg width={graphWidth} height={height}>
+                                    <Defs>
+                                        <LinearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+                                            <Stop offset="0" stopColor={COLORS.primary} stopOpacity="0.2" />
+                                            <Stop offset="1" stopColor={COLORS.primary} stopOpacity="0" />
+                                        </LinearGradient>
+                                    </Defs>
+                                    {/* Grid Lines */}
+                                    <Line x1={padding} y1={padding} x2={graphWidth - padding} y2={padding} stroke={COLORS.border} strokeWidth={1} strokeDasharray="4 4" />
+                                    <Line x1={padding} y1={height - padding} x2={graphWidth - padding} y2={height - padding} stroke={COLORS.border} strokeWidth={1} />
+
+                                    {/* Area Fill (requires closing the path) */}
+                                    {points.length > 1 && (
+                                        <Path
+                                            d={`${pathd} L${points[points.length - 1].x},${height - padding} L${points[0].x},${height - padding} Z`}
+                                            fill="url(#grad)"
+                                        />
+                                    )}
+
+                                    {/* Line */}
+                                    <Path d={pathd} stroke={COLORS.primary} strokeWidth={2} fill="none" />
+
+                                    {/* Dots */}
+                                    {points.map((p, i) => (
+                                        <G key={i}>
+                                            <Circle cx={p.x} cy={p.y} r={4} fill={COLORS.white} stroke={COLORS.primary} strokeWidth={2} />
+                                            {/* Show label for first and last, or all if few */}
+                                            {(i === 0 || i === points.length - 1 || points.length < 6) && (
+                                                <SvgText
+                                                    x={p.x}
+                                                    y={p.y - 10}
+                                                    fontSize="10"
+                                                    fill={COLORS.textMuted}
+                                                    textAnchor="middle"
+                                                >
+                                                    {formatDuration(p.val)}
+                                                </SvgText>
+                                            )}
+                                            <SvgText
+                                                x={p.x}
+                                                y={height - 5}
+                                                fontSize="10"
+                                                fill={COLORS.textMuted}
+                                                textAnchor="middle"
+                                            >
+                                                {`${p.date.getMonth() + 1}.${p.date.getDate()}`}
+                                            </SvgText>
+                                        </G>
+                                    ))}
+                                </Svg>
+                                <Typography.Caption color={COLORS.textMuted} align="center" style={{ marginTop: 8 }}>
+                                    회차가 거듭될수록 시간이 단축되는지 확인해보세요.
+                                </Typography.Caption>
+                            </Card>
+                        </Section>
+                    );
+                })()}
 
                 {/* Exam Selector */}
                 <Section title="시험 선택" style={styles.selectorSection}>
@@ -408,6 +540,93 @@ export default function AnalysisScreen() {
                                 <StatCard label="최고 기록" value={fastestDurationMs > 0 ? formatDuration(fastestDurationMs) : "--"} color={COLORS.warning} />
                             </View>
                         </View>
+
+                        {/* Relative Position Analysis */}
+                        {myResult?.status === "COMPLETED" && completedParticipants.length > 1 && (() => {
+                            const sorted = [...completedParticipants].sort((a, b) => a.durationMs - b.durationMs);
+                            const myIndex = sorted.findIndex(p => p.isMe);
+                            const myRank = myIndex + 1;
+                            const total = sorted.length;
+                            const topPercent = Math.round((myRank / total) * 100);
+
+                            const minDur = sorted[0].durationMs;
+                            const maxDur = sorted[sorted.length - 1].durationMs;
+                            const range = maxDur - minDur || 1;
+
+                            const trackWidth = Math.min(useWindowDimensions().width - 80, 500); // padding consideration
+
+                            return (
+                                <Section title="나의 위치 분석" description={`상위 ${topPercent}% • ${myRank}위 / 전체 ${total}명`}>
+                                    <Card padding="xl" radius="xl" style={{ marginBottom: SPACING.lg }}>
+                                        <View style={{ height: 60, justifyContent: 'center' }}>
+                                            {/* Track Line */}
+                                            <View style={{ height: 4, backgroundColor: COLORS.surfaceVariant, borderRadius: 2, width: '100%', position: 'absolute' }} />
+
+                                            {/* Gradients or Indicators */}
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30 }}>
+                                                <Typography.Caption color={COLORS.textMuted}>Fastest</Typography.Caption>
+                                                <Typography.Caption color={COLORS.textMuted}>Slowest</Typography.Caption>
+                                            </View>
+
+                                            {/* Other Users Dots */}
+                                            {sorted.map((p, i) => {
+                                                if (p.isMe) return null; // Skip me for now
+                                                const normalized = (p.durationMs - minDur) / range;
+                                                const leftPct = `${normalized * 100}%`;
+                                                return (
+                                                    <View
+                                                        key={`dot-${i}`}
+                                                        style={{
+                                                            position: 'absolute',
+                                                            left: leftPct as any,
+                                                            width: 6,
+                                                            height: 6,
+                                                            borderRadius: 3,
+                                                            backgroundColor: COLORS.border,
+                                                            transform: [{ translateX: -3 }]
+                                                        }}
+                                                    />
+                                                );
+                                            })}
+
+                                            {/* My Dot (Big) */}
+                                            {(() => {
+                                                const normalized = (myResult.durationMs - minDur) / range;
+                                                const leftPct = `${normalized * 100}%`;
+                                                return (
+                                                    <View
+                                                        style={{
+                                                            position: 'absolute',
+                                                            left: leftPct as any,
+                                                            alignItems: 'center',
+                                                            transform: [{ translateX: -16 }], // Center the 32px box
+                                                            top: -14
+                                                        }}
+                                                    >
+                                                        <View style={{
+                                                            width: 12, height: 12, borderRadius: 6,
+                                                            backgroundColor: COLORS.primary,
+                                                            borderWidth: 2, borderColor: COLORS.white,
+                                                            shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 4, elevation: 2,
+                                                            marginBottom: 4
+                                                        }} />
+                                                        <View style={{ backgroundColor: COLORS.primary, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                                                            <Typography.Caption color="white" bold>나</Typography.Caption>
+                                                        </View>
+                                                    </View>
+                                                );
+                                            })()}
+                                        </View>
+                                        <Typography.Body2 align="center" color={COLORS.text} style={{ marginTop: 16 }}>
+                                            <Typography.Body2 bold color={COLORS.primary}>
+                                                {formatDuration(myResult.durationMs)}
+                                            </Typography.Body2>
+                                            으로 완주했습니다.
+                                        </Typography.Body2>
+                                    </Card>
+                                </Section>
+                            );
+                        })()}
 
                         {/* Pace Analysis Section */}
                         <Section title="문항별 페이스 분석" rightElement={<Ionicons name="help-circle-outline" size={16} color={COLORS.textMuted} />}>
@@ -515,7 +734,7 @@ export default function AnalysisScreen() {
                     </View>
                 )}
             </ScrollView>
-        </View>
+        </View >
     );
 }
 
