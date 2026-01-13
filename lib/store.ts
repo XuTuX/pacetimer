@@ -420,6 +420,48 @@ export const useAppStore = create<AppState>()(
                     localUserId: LOCAL_USER_ID,
                     defaultStopwatch: DEFAULT_STOPWATCH,
                 }),
+            // Clean up running timers/sessions when app restarts after force quit
+            // IMPORTANT: Do NOT add downtime to accumulatedMs or use Date.now() for endedAt.
+            // We simply reset the running state without calculating elapsed time.
+            // The accumulatedMs retains the last persisted value before force quit.
+            onRehydrateStorage: () => (state) => {
+                if (!state) return;
+
+                // If stopwatch was running, just reset the running state.
+                // Do NOT add (now - startedAt) to accumulatedMs - that would include downtime!
+                if (state.stopwatch.isRunning) {
+                    state.stopwatch = {
+                        ...state.stopwatch,
+                        isRunning: false,
+                        startedAt: undefined,
+                        // accumulatedMs stays as-is (last value before force quit)
+                    };
+                }
+
+                // Close dangling segments: set endedAt = startedAt (zero duration).
+                // This ensures data integrity (no null endedAt rows) without adding downtime.
+                if (state.activeSegmentId) {
+                    state.segments = state.segments.map((seg) => {
+                        if (seg.id === state.activeSegmentId && !seg.endedAt) {
+                            // Use startedAt as endedAt → duration = 0 (safe, no downtime)
+                            return { ...seg, endedAt: seg.startedAt, updatedAt: seg.startedAt };
+                        }
+                        return seg;
+                    });
+                    state.activeSegmentId = null;
+                }
+
+                // Close dangling sessions: set endedAt = startedAt (zero duration).
+                if (state.activeSessionId) {
+                    state.sessions = state.sessions.map((s) => {
+                        if (s.id === state.activeSessionId && !s.endedAt) {
+                            return { ...s, endedAt: s.startedAt, updatedAt: s.startedAt };
+                        }
+                        return s;
+                    });
+                    state.activeSessionId = null;
+                }
+            },
         }
     )
 );

@@ -147,28 +147,7 @@ export default function MockExamRunScreen() {
                 </View>
             </View>
 
-            {/* 과목 탭 (검토 모드에서는 비활성화하거나 강조) */}
-            <View style={styles.tabBar}>
-                {activeSubjects.map(sub => (
-                    <TouchableOpacity
-                        key={sub.id}
-                        disabled={isReviewMode}
-                        style={[styles.tab, currentSubjectId === sub.id && styles.activeTab, isReviewMode && { opacity: 0.5 }]}
-                        onPress={() => {
-                            if (isReviewMode || !sessionId) return;
-                            const now = Date.now();
-                            if (segmentId) endSegment(segmentId, now);
-                            const nextSegId = startSegment({ sessionId, subjectId: sub.id, kind: 'solve', startedAt: now });
-                            setSegmentId(nextSegId);
-                            setCurrentSubjectId(sub.id);
-                            setLapStartAt(now);
-                            setLapElapsed(0);
-                        }}
-                    >
-                        <Text style={[styles.tabText, currentSubjectId === sub.id && styles.activeTabText]}>{sub.name}</Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
+
 
             {/* 메인 터치 영역 */}
             <Pressable
