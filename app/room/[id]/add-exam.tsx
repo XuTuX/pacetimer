@@ -2,7 +2,7 @@ import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SubjectSelector from "../../../components/SubjectSelector";
 import { Button } from "../../../components/ui/Button";
@@ -111,7 +111,7 @@ export default function AddExamScreen() {
         <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
             <ScreenHeader
                 title="새 모의고사"
-                // onBack removed to hide chevron
+                showBack={false}
                 rightElement={
                     <Button
                         variant="ghost"
@@ -127,99 +127,93 @@ export default function AddExamScreen() {
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
                 style={{ flex: 1 }}
             >
-                <ScrollView
-                    contentContainerStyle={styles.scrollContent}
-                    keyboardShouldPersistTaps="handled"
-                    showsVerticalScrollIndicator={false}
-                >
-                    <View style={styles.formContainer}>
+                <View style={styles.formContainer}>
+                    {/* 1. Subject Selector */}
+                    <View style={styles.fieldSection}>
+                        <Text style={styles.label}>과목</Text>
+                        <SubjectSelector
+                            subjects={subjects}
+                            activeSubjectId={selectedSubjectId}
+                            setActiveSubjectId={setSelectedSubjectId}
+                            addSubject={addSubject}
+                            updateSubject={updateSubject}
+                            deleteSubject={deleteSubject}
+                            isModalVisible={isSubjectModalVisible}
+                            setModalVisible={setSubjectModalVisible}
+                        />
+                    </View>
 
-                        {/* 1. Subject Selector */}
-                        <View style={styles.fieldSection}>
-                            <Text style={styles.label}>과목</Text>
-                            <SubjectSelector
-                                subjects={subjects}
-                                activeSubjectId={selectedSubjectId}
-                                setActiveSubjectId={setSelectedSubjectId}
-                                addSubject={addSubject}
-                                updateSubject={updateSubject}
-                                deleteSubject={deleteSubject}
-                                isModalVisible={isSubjectModalVisible}
-                                setModalVisible={setSubjectModalVisible}
+                    {/* 2. Exam Title */}
+                    <View style={styles.fieldSection}>
+                        <Text style={styles.label}>시험 제목</Text>
+                        <View style={styles.inputCard}>
+                            <TextInput
+                                value={title}
+                                onChangeText={setTitle}
+                                placeholder="예: 2026학년도 6월 모의평가"
+                                placeholderTextColor={COLORS.textMuted}
+                                style={styles.textInput}
                             />
                         </View>
+                    </View>
 
-                        {/* 2. Exam Title */}
-                        <View style={styles.fieldSection}>
-                            <Text style={styles.label}>시험 제목</Text>
-                            <View style={styles.inputCard}>
-                                <TextInput
-                                    value={title}
-                                    onChangeText={setTitle}
-                                    placeholder="예: 1회차 모의고사"
-                                    placeholderTextColor={COLORS.textMuted}
-                                    style={styles.textInput}
-                                />
-                            </View>
-                        </View>
-
-                        {/* 3. Question Count */}
-                        <View style={styles.fieldSection}>
+                    {/* 3 & 4. Stats Row (Questions & Time) */}
+                    <View style={styles.statsRow}>
+                        <View style={[styles.fieldSection, { flex: 1 }]}>
                             <Text style={styles.label}>문항 수</Text>
-                            <View style={styles.stepperCard}>
+                            <View style={styles.compactStepperCard}>
                                 <View style={styles.inputGroup}>
                                     <TextInput
-                                        style={styles.numberInput}
+                                        style={styles.compactNumberInput}
                                         value={questions}
                                         onChangeText={setQuestions}
                                         keyboardType="number-pad"
                                     />
                                     <Text style={styles.unit}>문항</Text>
                                 </View>
-                                <View style={styles.stepper}>
-                                    <TouchableOpacity style={styles.stepBtn} onPress={() => adjustQuestions(-5)}>
-                                        <Ionicons name="remove" size={20} color={COLORS.text} />
+                                <View style={styles.compactStepper}>
+                                    <TouchableOpacity style={styles.compactStepBtn} onPress={() => adjustQuestions(-5)}>
+                                        <Ionicons name="remove" size={18} color={COLORS.text} />
                                     </TouchableOpacity>
-                                    <TouchableOpacity style={styles.stepBtn} onPress={() => adjustQuestions(5)}>
-                                        <Ionicons name="add" size={20} color={COLORS.text} />
+                                    <TouchableOpacity style={styles.compactStepBtn} onPress={() => adjustQuestions(5)}>
+                                        <Ionicons name="add" size={18} color={COLORS.text} />
                                     </TouchableOpacity>
                                 </View>
                             </View>
                         </View>
 
-                        {/* 4. Time Limit */}
-                        <View style={styles.fieldSection}>
+                        <View style={[styles.fieldSection, { flex: 1 }]}>
                             <Text style={styles.label}>제한 시간</Text>
-                            <View style={styles.stepperCard}>
+                            <View style={styles.compactStepperCard}>
                                 <View style={styles.inputGroup}>
                                     <TextInput
-                                        style={styles.numberInput}
+                                        style={styles.compactNumberInput}
                                         value={minutes}
                                         onChangeText={setMinutes}
                                         keyboardType="number-pad"
                                     />
                                     <Text style={styles.unit}>분</Text>
                                 </View>
-                                <View style={styles.stepper}>
-                                    <TouchableOpacity style={styles.stepBtn} onPress={() => adjustTime(-10)}>
-                                        <Ionicons name="remove" size={20} color={COLORS.text} />
+                                <View style={styles.compactStepper}>
+                                    <TouchableOpacity style={styles.compactStepBtn} onPress={() => adjustTime(-10)}>
+                                        <Ionicons name="remove" size={18} color={COLORS.text} />
                                     </TouchableOpacity>
-                                    <TouchableOpacity style={styles.stepBtn} onPress={() => adjustTime(10)}>
-                                        <Ionicons name="add" size={20} color={COLORS.text} />
+                                    <TouchableOpacity style={styles.compactStepBtn} onPress={() => adjustTime(10)}>
+                                        <Ionicons name="add" size={18} color={COLORS.text} />
                                     </TouchableOpacity>
                                 </View>
                             </View>
                         </View>
-
-                        {error && (
-                            <View style={styles.errorAlert}>
-                                <Ionicons name="warning-outline" size={18} color={COLORS.error} />
-                                <Text style={styles.errorText}>{error}</Text>
-                            </View>
-                        )}
-
                     </View>
-                </ScrollView>
+
+                    {error && (
+                        <View style={styles.errorAlert}>
+                            <Ionicons name="warning-outline" size={18} color={COLORS.error} />
+                            <Text style={styles.errorText}>{error}</Text>
+                        </View>
+                    )}
+
+                </View>
 
                 {/* Bottom Action Bar */}
                 <View style={styles.bottomBar}>
@@ -245,23 +239,25 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: COLORS.bg,
     },
-    scrollContent: {
-        paddingTop: SPACING.sm,
-        paddingBottom: SPACING.lg,
-    },
     closeBtn: {
         backgroundColor: COLORS.surfaceVariant,
         borderRadius: RADIUS.full,
     },
     formContainer: {
+        flex: 1,
         paddingHorizontal: SPACING.xl,
-        gap: 20, // Reduced from 32
+        paddingTop: SPACING.md,
+        gap: 24,
     },
     fieldSection: {
-        gap: 8, // Reduced from 12
+        gap: 8,
+    },
+    statsRow: {
+        flexDirection: 'row',
+        gap: 12,
     },
     label: {
-        fontSize: 13, // Slightly smaller
+        fontSize: 13,
         fontWeight: '700',
         color: COLORS.textMuted,
         marginLeft: 4,
@@ -272,7 +268,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: COLORS.border,
         paddingHorizontal: SPACING.lg,
-        height: 56, // Reduced from 60
+        height: 56,
         justifyContent: 'center',
     },
     textInput: {
@@ -281,40 +277,43 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         height: '100%',
     },
-    stepperCard: {
+    // Compact Stepper Styles for split row
+    compactStepperCard: {
         backgroundColor: COLORS.white,
-        borderRadius: 24,
-        padding: 16, // Reduced from 24
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+        borderRadius: 20,
+        padding: 12,
+        // height: 100, // Optional fixed height to match
         alignItems: 'center',
+        justifyContent: 'center',
+        gap: 12,
         borderWidth: 1,
         borderColor: COLORS.border,
     },
     inputGroup: {
         flexDirection: 'row',
         alignItems: 'baseline',
-        gap: 4,
+        gap: 2,
     },
-    numberInput: {
-        fontSize: 28,
+    compactNumberInput: {
+        fontSize: 24,
         fontWeight: '900',
         color: COLORS.text,
-        minWidth: 40,
+        textAlign: 'center',
+        minWidth: 32,
     },
     unit: {
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: '700',
         color: COLORS.textMuted,
     },
-    stepper: {
+    compactStepper: {
         flexDirection: 'row',
-        gap: 12,
+        gap: 8,
     },
-    stepBtn: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+    compactStepBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
         backgroundColor: COLORS.bg,
         alignItems: 'center',
         justifyContent: 'center',
@@ -335,9 +334,7 @@ const styles = StyleSheet.create({
     bottomBar: {
         padding: SPACING.xl,
         paddingBottom: Platform.OS === 'ios' ? 0 : SPACING.xl,
-        backgroundColor: COLORS.white,
-        borderTopWidth: 1,
-        borderTopColor: COLORS.border,
+        backgroundColor: COLORS.bg, // Transparent/BG to blend? Or White
     },
     createBtn: {
         borderRadius: 24,
