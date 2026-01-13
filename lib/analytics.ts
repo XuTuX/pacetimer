@@ -160,7 +160,7 @@ export function buildAnalyticsSnapshot(input: {
             subjectId,
             subjectName: subjectsById[subjectId]?.name ??
                 (subjectId === '__review__' ? '검토' :
-                    subjectId === '__room_exam__' ? '룸 모의고사' : '기타'),
+                    subjectId === '__room_exam__' ? '스터디 모의고사' : '기타'),
             durationMs: v.durationMs,
             questionCount: v.questionCount,
         }))

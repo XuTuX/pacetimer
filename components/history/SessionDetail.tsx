@@ -24,11 +24,11 @@ const PALETTE = {
 };
 
 function getModeInfo(session: Session, stats: SessionStats) {
-    const isRoom = session.title?.startsWith('[룸]') || stats.subjectIds.includes('__room_exam__');
+    const isRoom = session.title?.startsWith('[스터디]') || stats.subjectIds.includes('__room_exam__');
     const isMock = session.mode === 'mock-exam';
 
-    if (isRoom && isMock) return { label: '룸 • 모의고사', color: '#D4AF37', bg: 'rgba(212, 175, 55, 0.1)', icon: 'people' as const };
-    if (isRoom) return { label: '룸', color: COLORS.primary, bg: 'rgba(52, 199, 89, 0.1)', icon: 'people' as const };
+    if (isRoom && isMock) return { label: '스터디 • 모의고사', color: '#D4AF37', bg: 'rgba(212, 175, 55, 0.1)', icon: 'people' as const };
+    if (isRoom) return { label: '스터디', color: COLORS.primary, bg: 'rgba(52, 199, 89, 0.1)', icon: 'people' as const };
     if (isMock) return { label: '모의고사', color: '#2E7D32', bg: 'rgba(46, 125, 50, 0.1)', icon: 'clipboard' as const };
 
     return null;

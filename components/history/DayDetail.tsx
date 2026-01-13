@@ -12,7 +12,7 @@ import { ThemedText } from '../ui/ThemedText';
 function getSubjectName(subjectId: string, subjectsById: Record<string, Subject>) {
     if (subjectId === '__review__') return '검토';
     if (subjectId.startsWith('__legacy_category__:')) return '이전 데이터';
-    if (subjectId === '__room_exam__') return '룸 모의고사';
+    if (subjectId === '__room_exam__') return '스터디 모의고사';
     return subjectsById[subjectId]?.name ?? '미분류';
 }
 
@@ -64,7 +64,7 @@ export default function DayDetail({ sessions, sessionStatsById, subjectsById, on
                         const { title } = getSessionUI(s);
 
                         const rawSubjectIds = stats?.subjectIds ?? [];
-                        const isRoom = rawSubjectIds.includes('__room_exam__') || s.title?.includes('[룸]');
+                        const isRoom = rawSubjectIds.includes('__room_exam__') || s.title?.includes('[스터디]');
                         const isMockExam = s.mode === 'mock-exam';
 
                         // Subject Name Construction

@@ -4,17 +4,23 @@ import { useNavigation } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import { useKeepAwake } from "expo-keep-awake";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
+    AppState,
     Pressable,
     StyleSheet,
     Text,
-    View
+    View,
+    type AppStateStatus
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Database } from "../../../../../lib/db-types";
+import {
+    INTERRUPTION_CONFIG,
+    formatInterruptionDuration
+} from "../../../../../lib/interruptionHandler";
 import { useAppStore } from "../../../../../lib/store";
 import { useSupabase } from "../../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../../lib/supabaseError";
@@ -66,6 +72,13 @@ export default function ExamRunScreen() {
     const [lastLapTime, setLastLapTime] = useState<number>(Date.now());
     const [isCompleted, setIsCompleted] = useState(false);
 
+    // Interruption Handler State
+    const [interruptionCount, setInterruptionCount] = useState(0);
+    const [totalInterruptionMs, setTotalInterruptionMs] = useState(0);
+    const [showInterruptionWarning, setShowInterruptionWarning] = useState<string | null>(null);
+    const interruptionStartRef = useRef<number | null>(null);
+    const appState = useRef(AppState.currentState);
+
     const navigation = useNavigation();
 
     // 1. Timer Tick
@@ -82,7 +95,7 @@ export default function ExamRunScreen() {
             e.preventDefault();
             Alert.alert(
                 '시험 중단 불가',
-                '룸 모의고사는 중간에 나갈 수 없으며, 나갈 경우 응시 기회를 잃게 됩니다. 정말 나가시겠습니까?',
+                '스터디 모의고사는 중간에 나갈 수 없으며, 나갈 경우 응시 기회를 잃게 됩니다. 정말 나가시겠습니까?',
                 [
                     { text: '계속 풀기', style: 'cancel', onPress: () => { } },
                     {
@@ -95,6 +108,85 @@ export default function ExamRunScreen() {
         });
         return unsubscribe;
     }, [navigation, isCompleted, loading]);
+
+    // 1.2 Interruption Handler - App State Monitoring
+    useEffect(() => {
+        if (loading || isCompleted || !attemptId) return;
+
+        const handleAppStateChange = (nextAppState: AppStateStatus) => {
+            const now = Date.now();
+
+            if (nextAppState === 'background' || nextAppState === 'inactive') {
+                // User is leaving the app - start tracking
+                if (interruptionStartRef.current === null) {
+                    interruptionStartRef.current = now;
+                }
+            } else if (nextAppState === 'active' && appState.current !== 'active') {
+                // User is returning to the app
+                if (interruptionStartRef.current !== null) {
+                    const duration = now - interruptionStartRef.current;
+                    interruptionStartRef.current = null;
+
+                    // Update cumulative stats
+                    setInterruptionCount(prev => prev + 1);
+                    setTotalInterruptionMs(prev => prev + duration);
+
+                    // Handle based on duration
+                    if (duration > INTERRUPTION_CONFIG.MEDIUM_THRESHOLD) {
+                        // Long interruption (>60s) - force end exam
+                        handleForceEndDueToInterruption(duration);
+                    } else if (duration >= INTERRUPTION_CONFIG.SHORT_THRESHOLD) {
+                        // Medium interruption (10-60s) - show warning
+                        setShowInterruptionWarning(
+                            `${formatInterruptionDuration(duration)} 동안 이탈했습니다.`
+                        );
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                        // Auto-hide warning after 3 seconds
+                        setTimeout(() => setShowInterruptionWarning(null), 3000);
+                    }
+                    // Short interruption (<10s) - silently continue
+                }
+            }
+
+            appState.current = nextAppState;
+        };
+
+        const subscription = AppState.addEventListener('change', handleAppStateChange);
+        return () => subscription.remove();
+    }, [loading, isCompleted, attemptId]);
+
+    // Force end exam due to long interruption
+    const handleForceEndDueToInterruption = async (durationMs: number) => {
+        if (!attemptId || !startedAtTime) return;
+
+        try {
+            const endedAt = new Date();
+            const totalDurationMs = endedAt.getTime() - startedAtTime;
+
+            await supabase.from("attempts").update({
+                ended_at: endedAt.toISOString(),
+                duration_ms: totalDurationMs,
+            }).eq("id", attemptId);
+
+            // End local session
+            if (localSegmentId) endSegment(localSegmentId, endedAt.getTime());
+            endSession();
+
+            Alert.alert(
+                "시험 종료",
+                `${formatInterruptionDuration(durationMs)} 동안 이탈하여 시험이 자동 종료되었습니다.`,
+                [{
+                    text: "확인",
+                    onPress: () => router.replace({
+                        pathname: `/room/[id]/exam/[examId]/summary`,
+                        params: { id: roomId, examId: currentExamId }
+                    })
+                }]
+            );
+        } catch (e) {
+            Alert.alert("오류", "시험 종료 처리 중 문제가 발생했습니다.");
+        }
+    };
 
     // 2. Initialize Attempt
     useEffect(() => {
@@ -162,7 +254,7 @@ export default function ExamRunScreen() {
                 if (existingAttempt) {
                     Alert.alert(
                         "응시 불가",
-                        "룸 모의고사는 1회만 응시 가능합니다. 이미 응시했거나 중간에 퇴장한 기록이 있어 입장이 제한됩니다.",
+                        "스터디 모의고사는 1회만 응시 가능합니다. 이미 응시했거나 중간에 퇴장한 기록이 있어 입장이 제한됩니다.",
                         [
                             {
                                 text: "확인",
@@ -227,7 +319,7 @@ export default function ExamRunScreen() {
                 // --- Synergy with Local Study Time ---
                 pauseStopwatch();
                 const lSessId = startSession('mock-exam', {
-                    title: `[룸] ${eData.title}`,
+                    title: `[스터디] ${eData.title}`,
                     mockExam: {
                         subjectIds: ['__room_exam__'],
                         timeLimitSec: eData.total_minutes * 60,
@@ -357,8 +449,8 @@ export default function ExamRunScreen() {
                         // -------------------------------------
 
                         router.replace({
-                            pathname: `/room/${roomId}/analysis` as any,
-                            params: { initialExamId: currentExamId }
+                            pathname: `/room/[id]/exam/[examId]/summary`,
+                            params: { id: roomId, examId: currentExamId }
                         });
                     } catch (e) {
                         Alert.alert("오류", "결과 저장에 실패했습니다.");
@@ -451,7 +543,13 @@ export default function ExamRunScreen() {
                 </View>
             </Pressable>
 
-            {/* EXIT BUTTON REMOVED BY USER REQUEST */}
+            {/* Interruption Warning Banner */}
+            {showInterruptionWarning && (
+                <View style={styles.interruptionBanner}>
+                    <Ionicons name="warning-outline" size={16} color={COLORS.white} />
+                    <Text style={styles.interruptionText}>{showInterruptionWarning}</Text>
+                </View>
+            )}
         </SafeAreaView>
     );
 }
@@ -526,5 +624,28 @@ const styles = StyleSheet.create({
         fontSize: 11,
         color: COLORS.primary,
         fontWeight: '600',
-    }
+    },
+    interruptionBanner: {
+        position: 'absolute',
+        top: 100,
+        left: 20,
+        right: 20,
+        backgroundColor: COLORS.warning,
+        borderRadius: 12,
+        padding: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    interruptionText: {
+        flex: 1,
+        color: COLORS.white,
+        fontSize: 13,
+        fontWeight: '600',
+    },
 });

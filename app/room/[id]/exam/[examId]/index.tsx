@@ -13,9 +13,9 @@ import { SegmentedTabs } from "../../../../../components/ui/SegmentedTabs";
 import { StatCard } from "../../../../../components/ui/StatCard";
 import { Typography } from "../../../../../components/ui/Typography";
 import type { Database } from "../../../../../lib/db-types";
-import { COLORS, SPACING } from "../../../../../lib/theme";
 import { useSupabase } from "../../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../../lib/supabaseError";
+import { COLORS, SPACING } from "../../../../../lib/theme";
 
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
 type RecordRow = Database["public"]["Tables"]["attempt_records"]["Row"];
@@ -305,6 +305,17 @@ export default function ExamDetailScreen() {
                                         );
                                     })}
                                 </Section>
+                                <View style={styles.detailButtonContainer}>
+                                    <Button
+                                        label="상세 분석 보기"
+                                        variant="outline"
+                                        onPress={() => router.push({
+                                            pathname: "/room/[id]/exam/[examId]/question-analysis",
+                                            params: { id: roomId, examId: currentExamId }
+                                        })}
+                                        icon="analytics-outline"
+                                    />
+                                </View>
                             </>
                         ) : (
                             <Card padding="xl" radius="xl" variant="flat" style={styles.infoCard}>
@@ -376,5 +387,9 @@ const styles = StyleSheet.create({
         padding: SPACING.xl,
         paddingBottom: 32,
         backgroundColor: COLORS.bg,
+    },
+    detailButtonContainer: {
+        paddingHorizontal: SPACING.xl,
+        marginTop: SPACING.lg,
     },
 });

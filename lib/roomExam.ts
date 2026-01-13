@@ -8,8 +8,8 @@ export function getRoomExamSubjectFromTitle(title?: string): string | null {
     const trimmed = title.trim();
     if (!trimmed) return null;
 
-    // Remove the room tag if present so that subjects prefixed by `[룸]` are parsed cleanly.
-    const withoutRoomTag = trimmed.replace(/^\[룸\]\s*/i, '');
+    // Remove the room tag if present so that subjects prefixed by `[스터디]` are parsed cleanly.
+    const withoutRoomTag = trimmed.replace(/^\[스터디\]\s*/i, '');
 
     const bulletMatch = withoutRoomTag.match(/^(.*?)\s*•/);
     if (bulletMatch && bulletMatch[1]) {
@@ -30,7 +30,7 @@ export function getRoomExamDisplayTitle(title?: string): string {
     const trimmed = title.trim();
     if (!trimmed) return '';
 
-    const withoutRoomTag = trimmed.replace(/^\[룸\]\s*/i, '').trim();
+    const withoutRoomTag = trimmed.replace(/^\[스터디\]\s*/i, '').trim();
 
     const bulletMatch = withoutRoomTag.match(/^(.*?)\s*•\s*(.+)$/);
     if (bulletMatch && bulletMatch[2]) {

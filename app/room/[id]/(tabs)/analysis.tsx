@@ -1,20 +1,21 @@
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useGlobalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import React, { useCallback, useMemo, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Rect, Stop, Text as SvgText } from "react-native-svg";
+import { QuestionBar } from "../../../../components/analysis/QuestionBar";
+import { Button } from "../../../../components/ui/Button";
 import { Card } from "../../../../components/ui/Card";
-import { CompareRow } from "../../../../components/ui/CompareRow";
 import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
 import { Section } from "../../../../components/ui/Section";
-import { StatCard } from "../../../../components/ui/StatCard";
 import { Typography } from "../../../../components/ui/Typography";
 import type { Database } from "../../../../lib/db-types";
+import { analyzeQuestions } from "../../../../lib/insights";
 import { getRoomExamSubjectFromTitle } from "../../../../lib/roomExam";
 import { useSupabase } from "../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../lib/supabaseError";
-import { COLORS, SPACING } from "../../../../lib/theme";
+import { COLORS, SHADOWS, SPACING } from "../../../../lib/theme";
 
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
 type RecordRow = Database["public"]["Tables"]["attempt_records"]["Row"];
@@ -30,6 +31,19 @@ interface ParticipantResult {
     records: RecordRow[];
 }
 
+interface MyAttemptData {
+    id: string;
+    exam_id: string;
+    duration_ms: number;
+    created_at: string;
+    room_exams: {
+        id: string;
+        title: string;
+        created_at: string;
+        total_questions: number;
+    };
+}
+
 function formatDuration(ms: number) {
     const totalSeconds = Math.floor(ms / 1000);
     const m = Math.floor(totalSeconds / 60);
@@ -37,31 +51,79 @@ function formatDuration(ms: number) {
     return m > 0 ? `${m}분 ${s}초` : `${s}초`;
 }
 
+function formatShortDuration(ms: number) {
+    const totalSeconds = Math.floor(ms / 1000);
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    if (m > 0) return `${m}:${s.toString().padStart(2, '0')}`;
+    return `${s}초`;
+}
+
+// Helper to calculate percentile rank
+function getPercentileRank(myValue: number, allValues: number[], lowerIsBetter: boolean = true): number {
+    if (allValues.length <= 1) return 100;
+    const sorted = [...allValues].sort((a, b) => lowerIsBetter ? a - b : b - a);
+    const myIndex = sorted.findIndex(v => v === myValue);
+    const percentile = ((sorted.length - 1 - myIndex) / (sorted.length - 1)) * 100;
+    return Math.round(percentile);
+}
+
+// Helper to calculate standard deviation
+function getStdDev(values: number[]): number {
+    if (values.length === 0) return 0;
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / values.length;
+    return Math.sqrt(variance);
+}
+
+type ViewMode = "my_progress" | "exam_analysis" | "question_analysis";
+
 export default function AnalysisScreen() {
     const supabase = useSupabase();
-    const router = useRouter();
     const { userId } = useAuth();
+    const router = useRouter();
     const { id, initialExamId } = useGlobalSearchParams<{ id: string, initialExamId?: string }>();
     const roomId = Array.isArray(id) ? id[0] : id;
     const { width } = useWindowDimensions();
 
+    const [viewMode, setViewMode] = useState<ViewMode>("my_progress");
     const [exams, setExams] = useState<RoomExamRow[]>([]);
     const [selectedExamId, setSelectedExamId] = useState<string | null>(initialExamId || null);
     const [selectedSubject, setSelectedSubject] = useState<string>("전체");
     const [loading, setLoading] = useState(true);
     const [participants, setParticipants] = useState<ParticipantResult[]>([]);
-    const [subjectStats, setSubjectStats] = useState<{ subject: string; avgPerQ: number }[]>([]);
-    const [myAttempts, setMyAttempts] = useState<any[]>([]); // All my attempts in this room
+    const [myAttempts, setMyAttempts] = useState<MyAttemptData[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    // React to param changes (e.g. from Race tab)
-    useEffect(() => {
-        if (initialExamId) {
-            setSelectedExamId(initialExamId);
-        }
-    }, [initialExamId]);
+    // Derived data
+    const uniqueSubjects = useMemo(() => {
+        const set = new Set<string>();
+        exams.forEach((e) => {
+            const subjectLabel = getRoomExamSubjectFromTitle(e.title) ?? "기타";
+            set.add(subjectLabel);
+        });
+        return ["전체", ...Array.from(set)];
+    }, [exams]);
 
-    const loadExams = useCallback(async (shouldSelectDefault = true) => {
+    const filteredExams = useMemo(() => {
+        if (selectedSubject === "전체") return exams;
+        return exams.filter((e) => {
+            const subjectLabel = getRoomExamSubjectFromTitle(e.title) ?? "기타";
+            return subjectLabel === selectedSubject;
+        });
+    }, [exams, selectedSubject]);
+
+    const exam = useMemo(() => exams.find(e => e.id === selectedExamId), [exams, selectedExamId]);
+
+    const completedParticipants = useMemo(
+        () => participants.filter(p => p.status === "COMPLETED"),
+        [participants]
+    );
+
+    const myResult = useMemo(() => participants.find(p => p.isMe), [participants]);
+
+    // Load data functions
+    const loadExams = useCallback(async () => {
         if (!roomId || roomId === 'undefined') {
             setLoading(false);
             return;
@@ -77,52 +139,13 @@ export default function AnalysisScreen() {
             const fetchedExams = data || [];
             setExams(fetchedExams);
 
-            if (fetchedExams.length > 0) {
-                if (shouldSelectDefault && !selectedExamId) {
-                    setSelectedExamId(fetchedExams[0].id);
-                } else if (!shouldSelectDefault && !selectedExamId) {
-                    // Even if not selecting default, we need to stop loading if no ID is set
-                    setLoading(false);
-                }
-            } else {
-                setLoading(false);
+            if (fetchedExams.length > 0 && !selectedExamId) {
+                setSelectedExamId(fetchedExams[0].id);
             }
         } catch (err: any) {
             console.error("loadExams error:", err);
-            setLoading(false);
         }
     }, [roomId, supabase, selectedExamId]);
-
-    const loadRoomStats = useCallback(async () => {
-        try {
-            const { data, error } = await supabase
-                .from("attempts")
-                .select("duration_ms, exam_id, room_exams!inner(id, title, total_questions)")
-                .eq("room_exams.room_id", roomId);
-
-            if (error) throw error;
-
-            const stats: Record<string, { totalTime: number; totalQs: number }> = {};
-            (data as any[]).forEach(a => {
-                const sub = getRoomExamSubjectFromTitle(a.room_exams.title) ?? "기타";
-                if (!stats[sub]) stats[sub] = { totalTime: 0, totalQs: 0 };
-                stats[sub].totalTime += a.duration_ms || 0;
-                stats[sub].totalQs += a.room_exams.total_questions || 0;
-            });
-
-            const formattedStats = Object.entries(stats)
-                .map(([subject, data]) => ({
-                    subject,
-                    avgPerQ: data.totalQs > 0 ? data.totalTime / data.totalQs : 0
-                }))
-                .filter(s => s.avgPerQ > 0)
-                .sort((a, b) => a.avgPerQ - b.avgPerQ);
-
-            setSubjectStats(formattedStats);
-        } catch (err) {
-            console.error("loadRoomStats error:", err);
-        }
-    }, [roomId, supabase]);
 
     const loadExamData = useCallback(async (examId: string) => {
         setLoading(true);
@@ -184,6 +207,7 @@ export default function AnalysisScreen() {
     }, [roomId, userId, supabase]);
 
     const loadMyAttempts = useCallback(async () => {
+        if (!userId) return;
         try {
             const { data, error } = await supabase
                 .from("attempts")
@@ -192,7 +216,7 @@ export default function AnalysisScreen() {
                 .eq("user_id", userId)
                 .order("created_at", { ascending: true });
 
-            if (data) setMyAttempts(data);
+            if (data) setMyAttempts(data as MyAttemptData[]);
         } catch (err) {
             console.error("loadMyAttempts error:", err);
         }
@@ -201,128 +225,77 @@ export default function AnalysisScreen() {
     useFocusEffect(
         useCallback(() => {
             const init = async () => {
-                // If we don't even have exams list, fetch it first
-                if (exams.length === 0) {
-                    setLoading(true);
-                    await loadExams();
-                    await loadRoomStats();
-                    if (userId) await loadMyAttempts();
-                } else if (selectedExamId) {
-                    // Update my attempts in background if needed
-                    if (userId) loadMyAttempts();
-                    // If we have exams and a selected one, load its data
-                    await loadExamData(selectedExamId!);
-                } else {
-                    // No exams or no selection
-                    setLoading(false);
-                }
+                setLoading(true);
+                await loadExams();
+                if (userId) await loadMyAttempts();
+                setLoading(false);
             };
             init();
-        }, [roomId, selectedExamId, exams.length, loadExams, loadExamData, loadMyAttempts, userId])
+        }, [roomId, loadExams, loadMyAttempts, userId])
     );
 
-    const uniqueSubjects = useMemo(() => {
-        const set = new Set<string>();
-        exams.forEach((e) => {
-            const subjectLabel = getRoomExamSubjectFromTitle(e.title) ?? "기타";
-            set.add(subjectLabel);
-        });
-        return ["전체", ...Array.from(set)];
-    }, [exams]);
-
-    const filteredExams = useMemo(() => {
-        if (selectedSubject === "전체") return exams;
-        return exams.filter((e) => {
-            const subjectLabel = getRoomExamSubjectFromTitle(e.title) ?? "기타";
-            return subjectLabel === selectedSubject;
-        });
-    }, [exams, selectedSubject]);
-
-    const exam = useMemo(() => exams.find(e => e.id === selectedExamId), [exams, selectedExamId]);
-
-    const completedParticipants = useMemo(
-        () => participants.filter(p => p.status === "COMPLETED"),
-        [participants]
+    // Load exam data when selected exam changes
+    useFocusEffect(
+        useCallback(() => {
+            if (selectedExamId && viewMode === "exam_analysis") {
+                loadExamData(selectedExamId);
+            }
+        }, [selectedExamId, viewMode, loadExamData])
     );
 
-    const completedCount = completedParticipants.length;
-    const inProgressCount = participants.filter(p => p.status === "IN_PROGRESS").length;
-    const notStartedCount = participants.filter(p => p.status === "NOT_STARTED").length;
-    const completionRate = participants.length > 0 ? Math.round((completedCount / participants.length) * 100) : 0;
-
-    const averageDurationMs = useMemo(() => {
-        if (completedCount === 0) return 0;
-        const total = completedParticipants.reduce((sum, p) => sum + p.durationMs, 0);
-        return total / completedCount;
-    }, [completedCount, completedParticipants]);
-
-    const fastestDurationMs = useMemo(() => {
-        if (completedCount === 0) return 0;
-        return completedParticipants.reduce(
-            (fastest, p) => (p.durationMs < fastest ? p.durationMs : fastest),
-            completedParticipants[0]?.durationMs || 0
-        );
-    }, [completedCount, completedParticipants]);
-
-    const myResult = useMemo(() => participants.find(p => p.isMe), [participants]);
-
-    const myRecords = useMemo(() => {
-        if (!myResult?.records) return [];
-        return [...myResult.records].sort((a, b) => a.question_no - b.question_no);
-    }, [myResult]);
-
-    const roomAvgPerQuestion = useMemo(() => {
-        const questionAvg: Record<number, number[]> = {};
-        completedParticipants.forEach(p => {
-            if (p.records) {
-                p.records.forEach(r => {
-                    if (!questionAvg[r.question_no]) questionAvg[r.question_no] = [];
-                    questionAvg[r.question_no].push(r.duration_ms);
-                });
+    // My Progress View - Subject Growth Analysis
+    const renderMyProgressView = () => {
+        // Get subject-specific history
+        const getSubjectHistory = (subject: string) => {
+            if (subject === "전체") {
+                return myAttempts.map(a => ({
+                    id: a.id,
+                    examId: a.exam_id,
+                    title: a.room_exams.title.replace(/^(\[.*?\]\s*|.*?•\s*)+/, ""),
+                    date: new Date(a.created_at),
+                    val: a.duration_ms / (a.room_exams.total_questions || 1),
+                    totalTime: a.duration_ms,
+                    questions: a.room_exams.total_questions,
+                }));
             }
-        });
+            return myAttempts
+                .filter(a => (getRoomExamSubjectFromTitle(a.room_exams.title) ?? "기타") === subject)
+                .map(a => ({
+                    id: a.id,
+                    examId: a.exam_id,
+                    title: a.room_exams.title.replace(/^(\[.*?\]\s*|.*?•\s*)+/, ""),
+                    date: new Date(a.created_at),
+                    val: a.duration_ms / (a.room_exams.total_questions || 1),
+                    totalTime: a.duration_ms,
+                    questions: a.room_exams.total_questions,
+                }));
+        };
 
-        const avgs: Record<number, number> = {};
-        Object.keys(questionAvg).forEach(qNo => {
-            const times = questionAvg[Number(qNo)];
-            if (times.length > 0) {
-                avgs[Number(qNo)] = times.reduce((a, b) => a + b, 0) / times.length;
-            }
-        });
-        return avgs;
-    }, [completedParticipants]);
+        const history = getSubjectHistory(selectedSubject);
 
-    const chartMaxDuration = useMemo(() => {
-        if (myRecords.length === 0) return 1;
-        return Math.max(1, ...myRecords.map(r => r.duration_ms));
-    }, [myRecords]);
+        // Calculate improvement stats
+        const getImprovementStats = () => {
+            if (history.length < 2) return null;
+            const first = history[0];
+            const last = history[history.length - 1];
+            const improvement = ((first.val - last.val) / first.val) * 100;
+            const avgVal = history.reduce((sum, h) => sum + h.val, 0) / history.length;
+            const bestVal = Math.min(...history.map(h => h.val));
+            const worstVal = Math.max(...history.map(h => h.val));
 
-    const chartLabelStep = useMemo(() => {
-        if (myRecords.length <= 12) return 1;
-        return Math.ceil(myRecords.length / 12);
-    }, [myRecords.length]);
+            return {
+                improvement: Math.round(improvement),
+                avgPerQ: avgVal,
+                bestPerQ: bestVal,
+                worstPerQ: worstVal,
+                totalExams: history.length,
+            };
+        };
 
-    const chartBarWidth = 14;
-    const chartGap = 8;
-    const chartHeight = 140;
-    const chartStep = chartBarWidth + chartGap;
-    const chartWidth = Math.max(width - 48, myRecords.length * chartStep);
+        const stats = getImprovementStats();
 
-    if (loading && exams.length === 0) {
         return (
-            <View style={styles.container}>
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={COLORS.primary} />
-                </View>
-            </View>
-        );
-    }
-
-    return (
-        <View style={styles.container}>
-            <ScreenHeader title="분석" showBack={false} />
-
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <>
                 {/* Subject Filter Chips */}
                 {uniqueSubjects.length > 1 && (
                     <View style={styles.chipSection}>
@@ -340,119 +313,319 @@ export default function AnalysisScreen() {
                     </View>
                 )}
 
-                {/* Subject Evolution Graph */}
-                {selectedSubject !== "전체" && (() => {
-                    const history = myAttempts
-                        .filter(a => (getRoomExamSubjectFromTitle(a.room_exams.title) ?? "기타") === selectedSubject)
-                        .map(a => ({
-                            id: a.id,
-                            title: a.room_exams.title,
-                            date: new Date(a.created_at),
-                            val: a.duration_ms / (a.room_exams.total_questions || 1) // Time per question
-                        }));
-
-                    if (history.length < 2) {
-                        return (
-                            <Section
-                                title={`${selectedSubject} 성장 그래프`}
-                                description="문항당 평균 소요 시간 변화"
-                                rightElement={<Ionicons name="stats-chart" size={18} color={COLORS.primary} />}
-                            >
-                                <Card padding="lg" radius="xl" style={styles.chartCard}>
-                                    <View style={{ height: 100, alignItems: 'center', justifyContent: 'center' }}>
-                                        <Typography.Body2 color={COLORS.textMuted} align="center">
-                                            데이터가 충분하지 않습니다.{"\n"}
-                                            최소 2회 이상의 시험 응시가 필요합니다.
-                                        </Typography.Body2>
-                                    </View>
-                                </Card>
+                {history.length === 0 ? (
+                    <View style={styles.emptyContainer}>
+                        <View style={styles.emptyIconBox}>
+                            <Ionicons name="analytics-outline" size={48} color={COLORS.textMuted} />
+                        </View>
+                        <Typography.H3 align="center" color={COLORS.text} bold style={{ marginTop: SPACING.lg }}>
+                            아직 기록이 없어요
+                        </Typography.H3>
+                        <Typography.Body2 align="center" color={COLORS.textMuted} style={{ marginTop: SPACING.sm }}>
+                            {selectedSubject === "전체"
+                                ? "시험을 완료하면 이곳에서\n나의 성장 추이를 확인할 수 있어요"
+                                : `${selectedSubject} 과목의 시험을 완료하면\n성장 추이를 확인할 수 있어요`}
+                        </Typography.Body2>
+                    </View>
+                ) : history.length === 1 ? (
+                    <Section title="첫 번째 기록">
+                        <Card padding="xl" radius="xl" style={styles.singleRecordCard}>
+                            <View style={styles.singleRecordHeader}>
+                                <View style={styles.recordBadge}>
+                                    <Ionicons name="ribbon" size={16} color={COLORS.primary} />
+                                    <Typography.Caption bold color={COLORS.primary}>첫 시험</Typography.Caption>
+                                </View>
+                            </View>
+                            <Typography.H2 bold color={COLORS.text} style={{ marginTop: SPACING.md }}>
+                                {history[0].title}
+                            </Typography.H2>
+                            <View style={styles.singleRecordStats}>
+                                <View style={styles.recordStatItem}>
+                                    <Typography.Caption color={COLORS.textMuted}>총 소요 시간</Typography.Caption>
+                                    <Typography.Subtitle1 bold color={COLORS.primary}>
+                                        {formatDuration(history[0].totalTime)}
+                                    </Typography.Subtitle1>
+                                </View>
+                                <View style={styles.recordStatDivider} />
+                                <View style={styles.recordStatItem}>
+                                    <Typography.Caption color={COLORS.textMuted}>문항당 평균</Typography.Caption>
+                                    <Typography.Subtitle1 bold color={COLORS.text}>
+                                        {formatDuration(history[0].val)}
+                                    </Typography.Subtitle1>
+                                </View>
+                            </View>
+                            <Typography.Caption color={COLORS.textMuted} style={{ marginTop: SPACING.lg, textAlign: 'center' }}>
+                                다음 시험을 완료하면 성장 그래프를 확인할 수 있어요
+                            </Typography.Caption>
+                        </Card>
+                    </Section>
+                ) : (
+                    <>
+                        {/* Improvement Summary Cards */}
+                        {stats && (
+                            <Section title="성장 요약" description={`총 ${stats.totalExams}회 응시`}>
+                                <View style={styles.summaryGrid}>
+                                    <Card padding="lg" radius="xl" style={[
+                                        styles.summaryCard,
+                                        stats.improvement > 0 ? styles.positiveCard : styles.negativeCard
+                                    ]}>
+                                        <View style={styles.summaryCardHeader}>
+                                            <Ionicons
+                                                name={stats.improvement > 0 ? "trending-up" : "trending-down"}
+                                                size={20}
+                                                color={stats.improvement > 0 ? "#10B981" : COLORS.error}
+                                            />
+                                        </View>
+                                        <Typography.H2 bold color={stats.improvement > 0 ? "#10B981" : COLORS.error}>
+                                            {stats.improvement > 0 ? "-" : "+"}{Math.abs(stats.improvement)}%
+                                        </Typography.H2>
+                                        <Typography.Caption color={COLORS.textMuted}>첫 시험 대비</Typography.Caption>
+                                    </Card>
+                                    <Card padding="lg" radius="xl" style={styles.summaryCard}>
+                                        <View style={styles.summaryCardHeader}>
+                                            <Ionicons name="flash" size={20} color={COLORS.warning} />
+                                        </View>
+                                        <Typography.H2 bold color={COLORS.text}>
+                                            {formatShortDuration(stats.bestPerQ)}
+                                        </Typography.H2>
+                                        <Typography.Caption color={COLORS.textMuted}>최고 기록</Typography.Caption>
+                                    </Card>
+                                </View>
                             </Section>
-                        );
-                    }
+                        )}
 
-                    const graphWidth = Math.min(width - 48, 500);
-                    const height = 160;
-                    const padding = 20;
-
-                    const maxVal = Math.max(...history.map(h => h.val));
-                    const minVal = Math.min(...history.map(h => h.val));
-                    const valRange = maxVal - minVal || 1;
-
-                    // Points for the line
-                    const points = history.map((h, i) => {
-                        const x = padding + (i / (history.length - 1)) * (graphWidth - 2 * padding);
-                        const normalizedY = (h.val - minVal) / valRange;
-                        const y = height - padding - (normalizedY * (height - 2 * padding));
-                        return { x, y, val: h.val, date: h.date };
-                    });
-
-                    const pathd = "M" + points.map(p => `${p.x},${p.y}`).join(" L");
-
-                    return (
+                        {/* Growth Chart */}
                         <Section
-                            title={`${selectedSubject} 성장 그래프`}
-                            description="문항당 평균 소요 시간 변화"
-                            rightElement={<Ionicons name="stats-chart" size={18} color={COLORS.primary} />}
+                            title="문항당 시간 추이"
+                            description="시험을 거듭할수록 어떻게 변화했는지 확인하세요"
                         >
                             <Card padding="lg" radius="xl" style={styles.chartCard}>
-                                <Svg width={graphWidth} height={height}>
-                                    <Defs>
-                                        <LinearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                                            <Stop offset="0" stopColor={COLORS.primary} stopOpacity="0.2" />
-                                            <Stop offset="1" stopColor={COLORS.primary} stopOpacity="0" />
-                                        </LinearGradient>
-                                    </Defs>
-                                    {/* Grid Lines */}
-                                    <Line x1={padding} y1={padding} x2={graphWidth - padding} y2={padding} stroke={COLORS.border} strokeWidth={1} strokeDasharray="4 4" />
-                                    <Line x1={padding} y1={height - padding} x2={graphWidth - padding} y2={height - padding} stroke={COLORS.border} strokeWidth={1} />
-
-                                    {/* Area Fill (requires closing the path) */}
-                                    {points.length > 1 && (
-                                        <Path
-                                            d={`${pathd} L${points[points.length - 1].x},${height - padding} L${points[0].x},${height - padding} Z`}
-                                            fill="url(#grad)"
-                                        />
-                                    )}
-
-                                    {/* Line */}
-                                    <Path d={pathd} stroke={COLORS.primary} strokeWidth={2} fill="none" />
-
-                                    {/* Dots */}
-                                    {points.map((p, i) => (
-                                        <G key={i}>
-                                            <Circle cx={p.x} cy={p.y} r={4} fill={COLORS.white} stroke={COLORS.primary} strokeWidth={2} />
-                                            {/* Show label for first and last, or all if few */}
-                                            {(i === 0 || i === points.length - 1 || points.length < 6) && (
-                                                <SvgText
-                                                    x={p.x}
-                                                    y={p.y - 10}
-                                                    fontSize="10"
-                                                    fill={COLORS.textMuted}
-                                                    textAnchor="middle"
-                                                >
-                                                    {formatDuration(p.val)}
-                                                </SvgText>
-                                            )}
-                                            <SvgText
-                                                x={p.x}
-                                                y={height - 5}
-                                                fontSize="10"
-                                                fill={COLORS.textMuted}
-                                                textAnchor="middle"
-                                            >
-                                                {`${p.date.getMonth() + 1}.${p.date.getDate()}`}
-                                            </SvgText>
-                                        </G>
-                                    ))}
-                                </Svg>
-                                <Typography.Caption color={COLORS.textMuted} align="center" style={{ marginTop: 8 }}>
-                                    회차가 거듭될수록 시간이 단축되는지 확인해보세요.
-                                </Typography.Caption>
+                                {renderGrowthChart(history)}
                             </Card>
                         </Section>
-                    );
-                })()}
 
+                        {/* Exam History List */}
+                        <Section title="응시 기록">
+                            <View style={styles.historyList}>
+                                {[...history].reverse().map((h, idx) => {
+                                    const rank = history.length - idx;
+                                    const prevVal = idx < history.length - 1 ? history[history.length - idx - 2]?.val : null;
+                                    const diff = prevVal ? ((prevVal - h.val) / prevVal) * 100 : null;
+
+                                    return (
+                                        <Pressable
+                                            key={h.id}
+                                            onPress={() => {
+                                                setSelectedExamId(h.examId);
+                                                setViewMode("exam_analysis");
+                                            }}
+                                            style={({ pressed }) => [
+                                                styles.historyItem,
+                                                pressed && styles.historyItemPressed
+                                            ]}
+                                        >
+                                            <View style={styles.historyRank}>
+                                                <Typography.Caption bold color={COLORS.textMuted}>#{rank}</Typography.Caption>
+                                            </View>
+                                            <View style={styles.historyContent}>
+                                                <Typography.Body1 bold numberOfLines={1}>{h.title}</Typography.Body1>
+                                                <Typography.Caption color={COLORS.textMuted}>
+                                                    {h.date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })} • {h.questions}문항
+                                                </Typography.Caption>
+                                            </View>
+                                            <View style={styles.historyStats}>
+                                                <Typography.Subtitle2 bold color={COLORS.primary}>
+                                                    {formatShortDuration(h.val)}
+                                                </Typography.Subtitle2>
+                                                {diff !== null && (
+                                                    <View style={[styles.diffBadge, diff > 0 ? styles.diffPositive : styles.diffNegative]}>
+                                                        <Ionicons
+                                                            name={diff > 0 ? "arrow-down" : "arrow-up"}
+                                                            size={10}
+                                                            color={diff > 0 ? "#10B981" : COLORS.error}
+                                                        />
+                                                        <Typography.Label color={diff > 0 ? "#10B981" : COLORS.error}>
+                                                            {Math.abs(Math.round(diff))}%
+                                                        </Typography.Label>
+                                                    </View>
+                                                )}
+                                            </View>
+                                            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+                                        </Pressable>
+                                    );
+                                })}
+                            </View>
+                        </Section>
+                    </>
+                )}
+            </>
+        );
+    };
+
+    // Growth Chart Component
+    const renderGrowthChart = (history: { id: string; title: string; date: Date; val: number }[]) => {
+        const graphWidth = Math.min(width - 72, 500);
+        const graphHeight = 180;
+        const padding = { top: 30, right: 20, bottom: 40, left: 50 };
+
+        const maxVal = Math.max(...history.map(h => h.val));
+        const minVal = Math.min(...history.map(h => h.val));
+        const valRange = maxVal - minVal || 1;
+
+        // Calculate axis values
+        const yAxisSteps = 4;
+        const yAxisValues = Array.from({ length: yAxisSteps + 1 }, (_, i) =>
+            maxVal - (i * valRange / yAxisSteps)
+        );
+
+        const points = history.map((h, i) => {
+            const x = padding.left + (i / (history.length - 1)) * (graphWidth - padding.left - padding.right);
+            const normalizedY = (h.val - minVal) / valRange;
+            const y = padding.top + (1 - normalizedY) * (graphHeight - padding.top - padding.bottom);
+            return { x, y, val: h.val, date: h.date, title: h.title };
+        });
+
+        // Create smooth curve path
+        const createSmoothPath = (pts: typeof points) => {
+            if (pts.length < 2) return "";
+            let d = `M ${pts[0].x},${pts[0].y}`;
+            for (let i = 1; i < pts.length; i++) {
+                const prev = pts[i - 1];
+                const curr = pts[i];
+                const cp1x = prev.x + (curr.x - prev.x) / 3;
+                const cp2x = prev.x + 2 * (curr.x - prev.x) / 3;
+                d += ` C ${cp1x},${prev.y} ${cp2x},${curr.y} ${curr.x},${curr.y}`;
+            }
+            return d;
+        };
+
+        const pathD = createSmoothPath(points);
+        const areaPath = pathD + ` L ${points[points.length - 1].x},${graphHeight - padding.bottom} L ${points[0].x},${graphHeight - padding.bottom} Z`;
+
+        return (
+            <Svg width={graphWidth} height={graphHeight}>
+                <Defs>
+                    <LinearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                        <Stop offset="0" stopColor={COLORS.primary} stopOpacity="0.3" />
+                        <Stop offset="1" stopColor={COLORS.primary} stopOpacity="0" />
+                    </LinearGradient>
+                    <LinearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+                        <Stop offset="0" stopColor={COLORS.primary} stopOpacity="0.8" />
+                        <Stop offset="1" stopColor={COLORS.primaryDark} stopOpacity="1" />
+                    </LinearGradient>
+                </Defs>
+
+                {/* Y-axis labels */}
+                {yAxisValues.map((val, i) => {
+                    const y = padding.top + (i * (graphHeight - padding.top - padding.bottom) / yAxisSteps);
+                    return (
+                        <G key={`y-${i}`}>
+                            <Line
+                                x1={padding.left}
+                                y1={y}
+                                x2={graphWidth - padding.right}
+                                y2={y}
+                                stroke={COLORS.border}
+                                strokeWidth={1}
+                                strokeDasharray={i === yAxisSteps ? undefined : "4 4"}
+                            />
+                            <SvgText
+                                x={padding.left - 8}
+                                y={y + 4}
+                                fontSize="10"
+                                fill={COLORS.textMuted}
+                                textAnchor="end"
+                            >
+                                {formatShortDuration(val)}
+                            </SvgText>
+                        </G>
+                    );
+                })}
+
+                {/* Area Fill */}
+                <Path d={areaPath} fill="url(#areaGrad)" />
+
+                {/* Line */}
+                <Path d={pathD} stroke="url(#lineGrad)" strokeWidth={3} fill="none" strokeLinecap="round" />
+
+                {/* Points and Labels */}
+                {points.map((p, i) => (
+                    <G key={i}>
+                        {/* Outer glow */}
+                        <Circle cx={p.x} cy={p.y} r={8} fill={COLORS.primary} opacity={0.2} />
+                        {/* Main dot */}
+                        <Circle cx={p.x} cy={p.y} r={5} fill={COLORS.white} stroke={COLORS.primary} strokeWidth={2.5} />
+
+                        {/* Value label for first, last, and min/max */}
+                        {(i === 0 || i === points.length - 1 || p.val === Math.min(...points.map(pt => pt.val)) || p.val === Math.max(...points.map(pt => pt.val))) && (
+                            <SvgText
+                                x={p.x}
+                                y={p.y - 14}
+                                fontSize="11"
+                                fontWeight="bold"
+                                fill={i === points.length - 1 ? COLORS.primary : COLORS.text}
+                                textAnchor="middle"
+                            >
+                                {formatShortDuration(p.val)}
+                            </SvgText>
+                        )}
+
+                        {/* Date label */}
+                        <SvgText
+                            x={p.x}
+                            y={graphHeight - padding.bottom + 16}
+                            fontSize="10"
+                            fill={COLORS.textMuted}
+                            textAnchor="middle"
+                        >
+                            {`${p.date.getMonth() + 1}/${p.date.getDate()}`}
+                        </SvgText>
+                    </G>
+                ))}
+            </Svg>
+        );
+    };
+
+    // Exam Analysis View - Compare with others
+    const renderExamAnalysisView = () => {
+        if (!exam) {
+            return (
+                <View style={styles.emptyContainer}>
+                    <Ionicons name="document-text-outline" size={48} color={COLORS.textMuted} />
+                    <Typography.Body1 align="center" color={COLORS.textMuted} style={{ marginTop: SPACING.md }}>
+                        분석할 시험을 선택해주세요
+                    </Typography.Body1>
+                </View>
+            );
+        }
+
+        if (loading) {
+            return (
+                <View style={styles.centerLoading}>
+                    <ActivityIndicator size="large" color={COLORS.primary} />
+                </View>
+            );
+        }
+
+        const completedCount = completedParticipants.length;
+        const totalCount = participants.length;
+
+        // Statistics
+        const durations = completedParticipants.map(p => p.durationMs);
+        const avgDuration = durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
+        const stdDev = getStdDev(durations);
+        const median = durations.length > 0
+            ? [...durations].sort((a, b) => a - b)[Math.floor(durations.length / 2)]
+            : 0;
+        const minDuration = durations.length > 0 ? Math.min(...durations) : 0;
+        const maxDuration = durations.length > 0 ? Math.max(...durations) : 0;
+
+        const myPercentile = myResult?.status === "COMPLETED" && durations.length > 0
+            ? getPercentileRank(myResult.durationMs, durations, true)
+            : null;
+
+        return (
+            <>
                 {/* Exam Selector */}
                 <Section title="시험 선택" style={styles.selectorSection}>
                     <ScrollView
@@ -478,263 +651,336 @@ export default function AnalysisScreen() {
                             </Pressable>
                         ))}
                     </ScrollView>
-                    {filteredExams.length === 0 && exams.length > 0 && (
-                        <Typography.Caption align="center" style={styles.emptyFilterText}>해당 과목에 등록된 시험이 없습니다.</Typography.Caption>
-                    )}
                 </Section>
 
-                {/* Subject Performance Comparison */}
-                {subjectStats.length > 1 && (
-                    <Section
-                        title="과목별 페이스 비교"
-                        description="문항당 소요 시간 기준"
-                        rightElement={<Ionicons name="trending-up" size={18} color={COLORS.primary} />}
-                    >
-                        <Card padding="md" radius="xl" style={styles.statsList}>
-                            {subjectStats.map((s, idx) => (
-                                <View key={s.subject} style={styles.subStatRow}>
-                                    <View style={styles.subStatInfo}>
-                                        <View style={[styles.rankBadge, idx === 0 && styles.rankBadgeFirst]}>
-                                            <Typography.Label bold color={idx === 0 ? COLORS.white : COLORS.textMuted}>{idx + 1}</Typography.Label>
-                                        </View>
-                                        <Typography.Body1 bold>{s.subject}</Typography.Body1>
-                                    </View>
-                                    <View style={styles.subStatValueBox}>
-                                        <Typography.Body1 bold color={COLORS.primary}>{formatDuration(s.avgPerQ)}</Typography.Body1>
-                                        <Typography.Caption color={COLORS.textMuted}>/문항</Typography.Caption>
-                                    </View>
+                {/* My Position Card - Hero Section */}
+                {myResult?.status === "COMPLETED" && completedCount > 1 && myPercentile !== null && (
+                    <Section title="">
+                        <Card padding="xl" radius="xxl" style={styles.heroCard}>
+                            <View style={styles.heroHeader}>
+                                <View style={styles.percentileBadge}>
+                                    <Typography.Label bold color={COLORS.white}>상위</Typography.Label>
                                 </View>
-                            ))}
+                            </View>
+                            <Typography.H1 bold color={COLORS.text} style={styles.heroPercentile}>
+                                {100 - myPercentile}%
+                            </Typography.H1>
+                            <Typography.Body2 color={COLORS.textMuted} align="center">
+                                {completedCount}명 중 {completedParticipants.sort((a, b) => a.durationMs - b.durationMs).findIndex(p => p.isMe) + 1}위
+                            </Typography.Body2>
+
+                            {/* Distribution Visualization */}
+                            <View style={styles.distributionContainer}>
+                                {renderDistributionChart(durations, myResult.durationMs, minDuration, maxDuration)}
+                            </View>
+
+                            <View style={styles.heroStats}>
+                                <View style={styles.heroStatItem}>
+                                    <Typography.Caption color={COLORS.textMuted}>나의 기록</Typography.Caption>
+                                    <Typography.Subtitle1 bold color={COLORS.primary}>
+                                        {formatDuration(myResult.durationMs)}
+                                    </Typography.Subtitle1>
+                                </View>
+                                <View style={styles.heroStatDivider} />
+                                <View style={styles.heroStatItem}>
+                                    <Typography.Caption color={COLORS.textMuted}>스터디 평균</Typography.Caption>
+                                    <Typography.Subtitle1 bold color={COLORS.text}>
+                                        {formatDuration(avgDuration)}
+                                    </Typography.Subtitle1>
+                                </View>
+                                <View style={styles.heroStatDivider} />
+                                <View style={styles.heroStatItem}>
+                                    <Typography.Caption color={COLORS.textMuted}>차이</Typography.Caption>
+                                    <Typography.Subtitle1 bold color={myResult.durationMs < avgDuration ? "#10B981" : COLORS.error}>
+                                        {myResult.durationMs < avgDuration ? "-" : "+"}{formatDuration(Math.abs(myResult.durationMs - avgDuration))}
+                                    </Typography.Subtitle1>
+                                </View>
+                            </View>
                         </Card>
                     </Section>
                 )}
 
-                {loading ? (
-                    <View style={styles.centerLoading}>
-                        <ActivityIndicator size="small" color={COLORS.primary} />
-                    </View>
-                ) : exam ? (
-                    <>
-                        {/* Summary Header */}
-                        <Card padding="xl" radius="xxl" style={styles.headerInfo}>
-                            <View style={styles.examIconBox}>
-                                <Ionicons name="analytics" size={32} color={COLORS.primary} />
-                            </View>
-                            <Typography.H2 align="center" bold>{exam.title.replace(/^(\[.*?\]\s*|.*?•\s*)+/, "")}</Typography.H2>
-                            <View style={styles.badgeRow}>
-                                <View style={styles.statusBadge}>
-                                    <Typography.Label bold color="#2E7D32">완료됨</Typography.Label>
-                                </View>
-                                <Typography.Caption color={COLORS.textMuted}>{new Date(exam.created_at).toLocaleString()}</Typography.Caption>
-                            </View>
-                        </Card>
-
-                        {/* Stats Dashboard */}
-                        <View style={styles.dashboard}>
-                            <View style={styles.statGrid}>
-                                <StatCard label="완료 인원" value={`${completedCount}명`} color={COLORS.primary} />
-                                <StatCard label="평균 소요" value={averageDurationMs > 0 ? formatDuration(averageDurationMs) : "--"} />
-                            </View>
-                            <View style={styles.statGrid}>
-                                <StatCard label="완주율" value={`${completionRate}%`} subValue={`총 ${participants.length}명`} />
-                                <StatCard label="최고 기록" value={fastestDurationMs > 0 ? formatDuration(fastestDurationMs) : "--"} color={COLORS.warning} />
-                            </View>
+                {/* Statistics Grid */}
+                {completedCount > 0 && (
+                    <Section title="통계" description={`${completedCount}명 완주`}>
+                        <View style={styles.statsGrid}>
+                            <Card padding="md" radius="xl" style={styles.statItem}>
+                                <Ionicons name="time-outline" size={20} color={COLORS.primary} />
+                                <Typography.H3 bold color={COLORS.text} style={{ marginTop: SPACING.sm }}>
+                                    {formatShortDuration(avgDuration)}
+                                </Typography.H3>
+                                <Typography.Caption color={COLORS.textMuted}>평균</Typography.Caption>
+                            </Card>
+                            <Card padding="md" radius="xl" style={styles.statItem}>
+                                <Ionicons name="analytics-outline" size={20} color={COLORS.warning} />
+                                <Typography.H3 bold color={COLORS.text} style={{ marginTop: SPACING.sm }}>
+                                    {formatShortDuration(median)}
+                                </Typography.H3>
+                                <Typography.Caption color={COLORS.textMuted}>중앙값</Typography.Caption>
+                            </Card>
+                            <Card padding="md" radius="xl" style={styles.statItem}>
+                                <Ionicons name="flash-outline" size={20} color="#10B981" />
+                                <Typography.H3 bold color={COLORS.text} style={{ marginTop: SPACING.sm }}>
+                                    {formatShortDuration(minDuration)}
+                                </Typography.H3>
+                                <Typography.Caption color={COLORS.textMuted}>최고</Typography.Caption>
+                            </Card>
+                            <Card padding="md" radius="xl" style={styles.statItem}>
+                                <Ionicons name="stats-chart-outline" size={20} color={COLORS.error} />
+                                <Typography.H3 bold color={COLORS.text} style={{ marginTop: SPACING.sm }}>
+                                    {formatShortDuration(stdDev)}
+                                </Typography.H3>
+                                <Typography.Caption color={COLORS.textMuted}>표준편차</Typography.Caption>
+                            </Card>
                         </View>
+                    </Section>
+                )}
 
-                        {/* Relative Position Analysis */}
-                        {myResult?.status === "COMPLETED" && completedParticipants.length > 1 && (() => {
-                            const sorted = [...completedParticipants].sort((a, b) => a.durationMs - b.durationMs);
-                            const myIndex = sorted.findIndex(p => p.isMe);
-                            const myRank = myIndex + 1;
-                            const total = sorted.length;
-                            const topPercent = Math.round((myRank / total) * 100);
-
-                            const minDur = sorted[0].durationMs;
-                            const maxDur = sorted[sorted.length - 1].durationMs;
-                            const range = maxDur - minDur || 1;
-
-                            const trackWidth = Math.min(useWindowDimensions().width - 80, 500); // padding consideration
-
-                            return (
-                                <Section title="나의 위치 분석" description={`상위 ${topPercent}% • ${myRank}위 / 전체 ${total}명`}>
-                                    <Card padding="xl" radius="xl" style={{ marginBottom: SPACING.lg }}>
-                                        <View style={{ height: 60, justifyContent: 'center' }}>
-                                            {/* Track Line */}
-                                            <View style={{ height: 4, backgroundColor: COLORS.surfaceVariant, borderRadius: 2, width: '100%', position: 'absolute' }} />
-
-                                            {/* Gradients or Indicators */}
-                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30 }}>
-                                                <Typography.Caption color={COLORS.textMuted}>Fastest</Typography.Caption>
-                                                <Typography.Caption color={COLORS.textMuted}>Slowest</Typography.Caption>
-                                            </View>
-
-                                            {/* Other Users Dots */}
-                                            {sorted.map((p, i) => {
-                                                if (p.isMe) return null; // Skip me for now
-                                                const normalized = (p.durationMs - minDur) / range;
-                                                const leftPct = `${normalized * 100}%`;
-                                                return (
-                                                    <View
-                                                        key={`dot-${i}`}
-                                                        style={{
-                                                            position: 'absolute',
-                                                            left: leftPct as any,
-                                                            width: 6,
-                                                            height: 6,
-                                                            borderRadius: 3,
-                                                            backgroundColor: COLORS.border,
-                                                            transform: [{ translateX: -3 }]
-                                                        }}
-                                                    />
-                                                );
-                                            })}
-
-                                            {/* My Dot (Big) */}
-                                            {(() => {
-                                                const normalized = (myResult.durationMs - minDur) / range;
-                                                const leftPct = `${normalized * 100}%`;
-                                                return (
-                                                    <View
-                                                        style={{
-                                                            position: 'absolute',
-                                                            left: leftPct as any,
-                                                            alignItems: 'center',
-                                                            transform: [{ translateX: -16 }], // Center the 32px box
-                                                            top: -14
-                                                        }}
-                                                    >
-                                                        <View style={{
-                                                            width: 12, height: 12, borderRadius: 6,
-                                                            backgroundColor: COLORS.primary,
-                                                            borderWidth: 2, borderColor: COLORS.white,
-                                                            shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 4, elevation: 2,
-                                                            marginBottom: 4
-                                                        }} />
-                                                        <View style={{ backgroundColor: COLORS.primary, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                                                            <Typography.Caption color="white" bold>나</Typography.Caption>
-                                                        </View>
-                                                    </View>
-                                                );
-                                            })()}
-                                        </View>
-                                        <Typography.Body2 align="center" color={COLORS.text} style={{ marginTop: 16 }}>
-                                            <Typography.Body2 bold color={COLORS.primary}>
-                                                {formatDuration(myResult.durationMs)}
-                                            </Typography.Body2>
-                                            으로 완주했습니다.
-                                        </Typography.Body2>
-                                    </Card>
-                                </Section>
-                            );
-                        })()}
-
-                        {/* Pace Analysis Section */}
-                        <Section title="문항별 페이스 분석" rightElement={<Ionicons name="help-circle-outline" size={16} color={COLORS.textMuted} />}>
-                            {myResult?.status === "COMPLETED" && myRecords.length > 0 ? (
-                                <>
-                                    <Card padding="md" radius="xl" style={styles.chartCard}>
-                                        <View style={styles.chartLegend}>
-                                            <View style={styles.legendItem}>
-                                                <View style={[styles.legendDot, { backgroundColor: COLORS.primary }]} />
-                                                <Typography.Label color={COLORS.textMuted} bold>평균보다 빠름</Typography.Label>
-                                            </View>
-                                            <View style={styles.legendItem}>
-                                                <View style={[styles.legendDot, { backgroundColor: COLORS.error }]} />
-                                                <Typography.Label color={COLORS.textMuted} bold>평균보다 느림</Typography.Label>
-                                            </View>
-                                        </View>
-
-                                        <ScrollView
-                                            horizontal
-                                            showsHorizontalScrollIndicator={false}
-                                            contentContainerStyle={{ paddingHorizontal: 16 }}
-                                        >
-                                            <View>
-                                                <Svg width={chartWidth} height={chartHeight}>
-                                                    <Line
-                                                        x1={0}
-                                                        y1={chartHeight}
-                                                        x2={chartWidth}
-                                                        y2={chartHeight}
-                                                        stroke={COLORS.border}
-                                                        strokeWidth={1}
-                                                    />
-                                                    {myRecords.map((r, index) => {
-                                                        const avg = roomAvgPerQuestion[r.question_no] || r.duration_ms;
-                                                        const isFaster = r.duration_ms <= avg;
-                                                        const barHeight = Math.max(
-                                                            4,
-                                                            Math.round((r.duration_ms / chartMaxDuration) * chartHeight)
-                                                        );
-                                                        const x = index * chartStep;
-                                                        const y = chartHeight - barHeight;
-                                                        return (
-                                                            <Rect
-                                                                key={r.id}
-                                                                x={x}
-                                                                y={y}
-                                                                width={chartBarWidth}
-                                                                height={barHeight}
-                                                                rx={4}
-                                                                fill={isFaster ? COLORS.primary : COLORS.error}
-                                                                opacity={0.9}
-                                                            />
-                                                        );
-                                                    })}
-                                                </Svg>
-                                                <View style={[styles.chartLabelRow, { width: chartWidth }]}>
-                                                    {myRecords.map((r, index) => (
-                                                        <Typography.Label
-                                                            key={`${r.id}-label`}
-                                                            color={COLORS.textMuted}
-                                                            align="center"
-                                                            style={{ width: chartStep, fontSize: 10 }}
-                                                        >
-                                                            {index % chartLabelStep === 0 ? `Q${r.question_no}` : ""}
-                                                        </Typography.Label>
-                                                    ))}
-                                                </View>
-                                            </View>
-                                        </ScrollView>
-                                    </Card>
-
-                                    <View style={styles.compareList}>
-                                        {myRecords.map(r => {
-                                            const avg = roomAvgPerQuestion[r.question_no] || r.duration_ms;
-                                            const diff = r.duration_ms - avg;
-                                            const diffPercent = avg > 0 ? (diff / avg) * 100 : 0;
-                                            return (
-                                                <CompareRow
-                                                    key={r.id}
-                                                    label={`Q${r.question_no}`}
-                                                    myValue={formatDuration(r.duration_ms)}
-                                                    avgValue={formatDuration(avg)}
-                                                    isFaster={r.duration_ms < avg}
-                                                    diffPercent={diffPercent}
+                {/* Ranking List */}
+                {completedCount > 0 && (
+                    <Section title="순위표">
+                        <Card padding="md" radius="xl">
+                            {completedParticipants
+                                .sort((a, b) => a.durationMs - b.durationMs)
+                                .map((p, idx) => (
+                                    <View key={p.userId} style={[
+                                        styles.rankItem,
+                                        p.isMe && styles.rankItemMe,
+                                        idx < completedParticipants.length - 1 && styles.rankItemBorder
+                                    ]}>
+                                        <View style={[
+                                            styles.rankNumber,
+                                            idx === 0 && styles.rankFirst,
+                                            idx === 1 && styles.rankSecond,
+                                            idx === 2 && styles.rankThird,
+                                        ]}>
+                                            {idx < 3 ? (
+                                                <Ionicons
+                                                    name="trophy"
+                                                    size={12}
+                                                    color={idx === 0 ? "#FFD700" : idx === 1 ? "#C0C0C0" : "#CD7F32"}
                                                 />
-                                            );
-                                        })}
+                                            ) : (
+                                                <Typography.Label bold color={COLORS.textMuted}>{idx + 1}</Typography.Label>
+                                            )}
+                                        </View>
+                                        <View style={styles.rankInfo}>
+                                            <Typography.Body1 bold color={p.isMe ? COLORS.primary : COLORS.text}>
+                                                {p.isMe ? "나" : p.name}
+                                            </Typography.Body1>
+                                        </View>
+                                        <Typography.Subtitle2 bold color={p.isMe ? COLORS.primary : COLORS.text}>
+                                            {formatDuration(p.durationMs)}
+                                        </Typography.Subtitle2>
+                                    </View>
+                                ))}
+                        </Card>
+                    </Section>
+                )}
+
+                {/* Not completed message */}
+                {myResult?.status !== "COMPLETED" && (
+                    <Card variant="outlined" padding="xl" radius="xl" style={styles.notCompletedCard}>
+                        <Ionicons name="lock-closed-outline" size={32} color={COLORS.textMuted} />
+                        <Typography.Body1 bold align="center" color={COLORS.text} style={{ marginTop: SPACING.md }}>
+                            시험을 완료하면
+                        </Typography.Body1>
+                        <Typography.Body2 align="center" color={COLORS.textMuted}>
+                            다른 참가자들과 비교 분석을 볼 수 있어요
+                        </Typography.Body2>
+                    </Card>
+                )}
+
+                {/* Question-by-Question Analysis Preview */}
+                {myResult?.status === "COMPLETED" && myResult.records.length > 0 && exam && (
+                    <Section title="문항별 분석" description="각 문항의 소요 시간 비교">
+                        {(() => {
+                            // Analyze questions using the helper function
+                            const allRecordsFlat = completedParticipants.flatMap(p => p.records);
+                            const questionAnalysis = analyzeQuestions(
+                                myResult.records.map(r => ({ question_no: r.question_no, duration_ms: r.duration_ms })),
+                                allRecordsFlat.map(r => ({ question_no: r.question_no, duration_ms: r.duration_ms })),
+                                exam.total_questions,
+                                userId || undefined
+                            );
+                            const maxDuration = questionAnalysis.length > 0
+                                ? Math.max(...questionAnalysis.map(q => Math.max(q.myDurationMs, q.roomAvgMs)))
+                                : 60000;
+
+                            // Show first 5 questions as preview
+                            return (
+                                <>
+                                    {questionAnalysis.slice(0, 5).map((q) => (
+                                        <QuestionBar
+                                            key={q.questionNo}
+                                            data={q}
+                                            maxDuration={maxDuration}
+                                            showMedian={false}
+                                        />
+                                    ))}
+                                    {questionAnalysis.length > 5 && (
+                                        <Typography.Caption color={COLORS.textMuted} align="center" style={{ marginTop: SPACING.sm }}>
+                                            +{questionAnalysis.length - 5}개 문항 더보기
+                                        </Typography.Caption>
+                                    )}
+                                    <View style={{ marginTop: SPACING.lg }}>
+                                        <Button
+                                            label="상세 분석 보기"
+                                            variant="outline"
+                                            onPress={() => router.push({
+                                                pathname: "/room/[id]/exam/[examId]/question-analysis",
+                                                params: { id: roomId, examId: exam.id }
+                                            })}
+                                            icon="analytics-outline"
+                                        />
                                     </View>
                                 </>
-                            ) : (
-                                <Card variant="outlined" padding="massive" radius="xl" style={styles.emptyDetailCard}>
-                                    <Ionicons name="lock-closed-outline" size={32} color={COLORS.textMuted} />
-                                    <Typography.Body2 align="center" color={COLORS.textMuted} bold style={styles.emptyDetailText}>
-                                        시험을 완료해야 자세한 분석을 볼 수 있습니다.
-                                    </Typography.Body2>
-                                </Card>
-                            )}
-                        </Section>
-                    </>
-                ) : (
+                            );
+                        })()}
+                    </Section>
+                )}
+            </>
+        );
+    };
+
+    // Distribution Chart (Bell curve-ish visualization)
+    const renderDistributionChart = (durations: number[], myDuration: number, min: number, max: number) => {
+        const chartWidth = width - 80;
+        const chartHeight = 80;
+        const range = max - min || 1;
+
+        // Create histogram buckets
+        const bucketCount = Math.min(10, durations.length);
+        const bucketSize = range / bucketCount;
+        const buckets = Array(bucketCount).fill(0);
+
+        durations.forEach(d => {
+            const bucketIndex = Math.min(Math.floor((d - min) / bucketSize), bucketCount - 1);
+            buckets[bucketIndex]++;
+        });
+
+        const maxBucket = Math.max(...buckets);
+        const myBucketIndex = Math.min(Math.floor((myDuration - min) / bucketSize), bucketCount - 1);
+        const myPosition = ((myDuration - min) / range) * chartWidth;
+
+        return (
+            <View style={{ width: chartWidth, height: chartHeight, marginTop: SPACING.lg }}>
+                <Svg width={chartWidth} height={chartHeight}>
+                    {/* Histogram bars */}
+                    {buckets.map((count, i) => {
+                        const barWidth = chartWidth / bucketCount - 2;
+                        const barHeight = maxBucket > 0 ? (count / maxBucket) * (chartHeight - 30) : 0;
+                        const x = i * (chartWidth / bucketCount) + 1;
+                        const y = chartHeight - 20 - barHeight;
+
+                        return (
+                            <Rect
+                                key={i}
+                                x={x}
+                                y={y}
+                                width={barWidth}
+                                height={barHeight}
+                                rx={4}
+                                fill={i === myBucketIndex ? COLORS.primary : COLORS.surfaceVariant}
+                                opacity={i === myBucketIndex ? 1 : 0.7}
+                            />
+                        );
+                    })}
+
+                    {/* My position indicator */}
+                    <Line
+                        x1={myPosition}
+                        y1={0}
+                        x2={myPosition}
+                        y2={chartHeight - 20}
+                        stroke={COLORS.primary}
+                        strokeWidth={2}
+                        strokeDasharray="4 2"
+                    />
+                    <Circle cx={myPosition} cy={chartHeight - 20} r={6} fill={COLORS.primary} />
+
+                    {/* Labels */}
+                    <SvgText x={0} y={chartHeight - 4} fontSize="10" fill={COLORS.textMuted}>
+                        빠름
+                    </SvgText>
+                    <SvgText x={chartWidth} y={chartHeight - 4} fontSize="10" fill={COLORS.textMuted} textAnchor="end">
+                        느림
+                    </SvgText>
+                </Svg>
+            </View>
+        );
+    };
+
+    if (loading && exams.length === 0) {
+        return (
+            <View style={styles.container}>
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={COLORS.primary} />
+                </View>
+            </View>
+        );
+    }
+
+    return (
+        <View style={styles.container}>
+            <ScreenHeader title="분석" showBack={false} />
+
+            {/* View Mode Toggle */}
+            <View style={styles.toggleContainer}>
+                <View style={styles.toggleWrapper}>
+                    <Pressable
+                        onPress={() => setViewMode("my_progress")}
+                        style={[styles.toggleButton, viewMode === "my_progress" && styles.toggleButtonActive]}
+                    >
+                        <Ionicons
+                            name="trending-up"
+                            size={16}
+                            color={viewMode === "my_progress" ? COLORS.white : COLORS.textMuted}
+                        />
+                        <Typography.Body2
+                            bold
+                            color={viewMode === "my_progress" ? COLORS.white : COLORS.textMuted}
+                        >
+                            나의 성장
+                        </Typography.Body2>
+                    </Pressable>
+                    <Pressable
+                        onPress={() => setViewMode("exam_analysis")}
+                        style={[styles.toggleButton, viewMode === "exam_analysis" && styles.toggleButtonActive]}
+                    >
+                        <Ionicons
+                            name="people"
+                            size={16}
+                            color={viewMode === "exam_analysis" ? COLORS.white : COLORS.textMuted}
+                        />
+                        <Typography.Body2
+                            bold
+                            color={viewMode === "exam_analysis" ? COLORS.white : COLORS.textMuted}
+                        >
+                            시험 분석
+                        </Typography.Body2>
+                    </Pressable>
+                </View>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                {exams.length === 0 ? (
                     <View style={styles.emptyContainer}>
-                        <Ionicons name="layers-outline" size={64} color={COLORS.border} />
-                        <Text style={styles.emptyText}>아직 생성된 시험이 없습니다.</Text>
-                        <Text style={styles.emptySub}>시험을 완료하면 이곳에서 분석 결과가 표시됩니다.</Text>
+                        <View style={styles.emptyIconBox}>
+                            <Ionicons name="layers-outline" size={48} color={COLORS.textMuted} />
+                        </View>
+                        <Typography.H3 align="center" color={COLORS.text} bold style={{ marginTop: SPACING.lg }}>
+                            아직 시험이 없어요
+                        </Typography.H3>
+                        <Typography.Body2 align="center" color={COLORS.textMuted} style={{ marginTop: SPACING.sm }}>
+                            시험이 등록되면 이곳에서{"\n"}분석 결과를 확인할 수 있어요
+                        </Typography.Body2>
                     </View>
+                ) : (
+                    viewMode === "my_progress" ? renderMyProgressView() : renderExamAnalysisView()
                 )}
             </ScrollView>
-        </View >
+        </View>
     );
 }
 
@@ -750,6 +996,49 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         paddingBottom: 40,
+    },
+    toggleContainer: {
+        paddingHorizontal: SPACING.xl,
+        paddingVertical: SPACING.md,
+    },
+    toggleWrapper: {
+        flexDirection: 'row',
+        backgroundColor: COLORS.surfaceVariant,
+        borderRadius: 12,
+        padding: 4,
+    },
+    toggleButton: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: SPACING.xs,
+        paddingVertical: 10,
+        borderRadius: 10,
+    },
+    toggleButtonActive: {
+        backgroundColor: COLORS.primary,
+        ...SHADOWS.small,
+    },
+    chipSection: {
+        marginTop: SPACING.sm,
+        marginBottom: SPACING.md,
+    },
+    chipScroll: {
+        paddingHorizontal: SPACING.xl,
+        gap: SPACING.sm,
+    },
+    chip: {
+        paddingHorizontal: SPACING.lg,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: COLORS.white,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    activeChip: {
+        backgroundColor: COLORS.primary,
+        borderColor: COLORS.primary,
     },
     selectorSection: {
         marginTop: SPACING.md,
@@ -773,145 +1062,213 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.primary,
         borderColor: COLORS.primary,
     },
-    headerInfo: {
-        alignItems: "center",
-        marginHorizontal: SPACING.xl,
-        marginBottom: SPACING.xl,
-    },
-    examIconBox: {
-        width: 64,
-        height: 64,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: SPACING.lg,
-    },
-    badgeRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        marginTop: SPACING.sm,
-    },
-    statusBadge: {
-        backgroundColor: '#E8F5E9',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 6,
-    },
-    dashboard: {
-        paddingHorizontal: SPACING.xl,
-        gap: SPACING.md,
-        marginBottom: SPACING.xxl,
-    },
-    statGrid: {
-        flexDirection: 'row',
-        gap: SPACING.md,
-    },
-    chipSection: {
-        marginTop: SPACING.lg,
-        marginBottom: 0,
-    },
-    chipScroll: {
-        paddingHorizontal: SPACING.xl,
-        gap: SPACING.sm,
-    },
-    chip: {
-        paddingHorizontal: SPACING.lg,
-        paddingVertical: 8,
-        borderRadius: 20,
-        backgroundColor: COLORS.white,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-    },
-    activeChip: {
-        backgroundColor: COLORS.primary,
-        borderColor: COLORS.primary,
-    },
-    emptyFilterText: {
-        marginTop: SPACING.sm,
-    },
-    statsList: {
-        gap: SPACING.md,
-    },
-    subStatRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: SPACING.sm,
-    },
-    subStatInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: SPACING.md,
-    },
-    rankBadge: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        backgroundColor: COLORS.surfaceVariant,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    rankBadgeFirst: {
-        backgroundColor: COLORS.primary,
-    },
-    subStatValueBox: {
-        flexDirection: 'row',
-        alignItems: 'baseline',
-        gap: 2,
-    },
-    chartCard: {
-        paddingVertical: SPACING.xl,
-        marginBottom: SPACING.lg,
-    },
-    chartLegend: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        gap: 20,
-        marginBottom: SPACING.xl,
-    },
-    legendItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-    },
-    legendDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-    },
-    chartLabelRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        marginTop: SPACING.md,
-    },
-    compareList: {
-        gap: SPACING.sm,
-    },
-    emptyDetailCard: {
-        borderStyle: 'dashed',
-    },
-    emptyDetailText: {
-        marginTop: SPACING.md,
-    },
     emptyContainer: {
         padding: 60,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    emptyText: {
-        fontSize: 18,
-        fontWeight: '900',
-        color: COLORS.text,
-        marginTop: 20,
+    emptyIconBox: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: COLORS.surfaceVariant,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    emptySub: {
-        fontSize: 14,
-        color: COLORS.textMuted,
-        marginTop: 8,
-        textAlign: 'center',
+    singleRecordCard: {
+        alignItems: 'center',
+    },
+    singleRecordHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    recordBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: COLORS.primaryLight,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    singleRecordStats: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: SPACING.lg,
+        width: '100%',
+        justifyContent: 'center',
+    },
+    recordStatItem: {
+        alignItems: 'center',
+        flex: 1,
+    },
+    recordStatDivider: {
+        width: 1,
+        height: 32,
+        backgroundColor: COLORS.border,
+    },
+    summaryGrid: {
+        flexDirection: 'row',
+        gap: SPACING.md,
+    },
+    summaryCard: {
+        flex: 1,
+        alignItems: 'center',
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    positiveCard: {
+        backgroundColor: '#ECFDF5',
+        borderColor: '#A7F3D0',
+    },
+    negativeCard: {
+        backgroundColor: COLORS.errorLight,
+        borderColor: '#FECACA',
+    },
+    summaryCardHeader: {
+        marginBottom: SPACING.sm,
+    },
+    chartCard: {
+        alignItems: 'center',
+        paddingVertical: SPACING.xl,
+    },
+    historyList: {
+        gap: SPACING.sm,
+    },
+    historyItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.surface,
+        paddingVertical: SPACING.md,
+        paddingHorizontal: SPACING.lg,
+        borderRadius: 16,
+        gap: SPACING.md,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    historyItemPressed: {
+        backgroundColor: COLORS.surfaceVariant,
+    },
+    historyRank: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: COLORS.surfaceVariant,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    historyContent: {
+        flex: 1,
+    },
+    historyStats: {
+        alignItems: 'flex-end',
+    },
+    diffBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 2,
+        marginTop: 2,
+    },
+    diffPositive: {},
+    diffNegative: {},
+    heroCard: {
+        marginHorizontal: SPACING.xl,
+        alignItems: 'center',
+        backgroundColor: COLORS.surface,
+        ...SHADOWS.medium,
+    },
+    heroHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    percentileBadge: {
+        backgroundColor: COLORS.primary,
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    heroPercentile: {
+        fontSize: 56,
+        marginTop: SPACING.xs,
+    },
+    distributionContainer: {
+        width: '100%',
+        alignItems: 'center',
+        marginTop: SPACING.md,
+    },
+    heroStats: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: SPACING.xl,
+        width: '100%',
+        justifyContent: 'center',
+    },
+    heroStatItem: {
+        alignItems: 'center',
+        flex: 1,
+    },
+    heroStatDivider: {
+        width: 1,
+        height: 32,
+        backgroundColor: COLORS.border,
+    },
+    statsGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: SPACING.md,
+    },
+    statItem: {
+        flex: 1,
+        minWidth: '45%',
+        alignItems: 'center',
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    rankItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: SPACING.md,
+        gap: SPACING.md,
+    },
+    rankItemMe: {
+        backgroundColor: COLORS.primaryLight,
+        marginHorizontal: -SPACING.md,
+        paddingHorizontal: SPACING.md,
+        borderRadius: 12,
+    },
+    rankItemBorder: {
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border,
+    },
+    rankNumber: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: COLORS.surfaceVariant,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    rankFirst: {
+        backgroundColor: '#FEF3C7',
+    },
+    rankSecond: {
+        backgroundColor: '#F3F4F6',
+    },
+    rankThird: {
+        backgroundColor: '#FED7AA',
+    },
+    rankInfo: {
+        flex: 1,
+    },
+    notCompletedCard: {
+        marginHorizontal: SPACING.xl,
+        alignItems: 'center',
+        borderStyle: 'dashed',
     },
     centerLoading: {
-        padding: 40,
+        padding: 60,
         alignItems: 'center',
     },
 });

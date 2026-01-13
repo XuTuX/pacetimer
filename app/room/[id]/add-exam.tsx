@@ -68,7 +68,7 @@ export default function AddExamScreen() {
         if (!canSave || !roomId || roomId === 'undefined' || !userId) {
             if (!userId) setError("모의고사를 만들려면 로그인해 주세요.");
             else if (!selectedSubjectId) setError("과목을 선택해주세요.");
-            else if (!roomId) setError("룸 정보를 찾을 수 없습니다.");
+            else if (!roomId) setError("스터디 정보를 찾을 수 없습니다.");
             return;
         }
         setSaving(true);

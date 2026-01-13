@@ -2,15 +2,15 @@ import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Button } from "../../../../components/ui/Button"; // 기존 UI 버튼 사용
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Button } from "../../../../components/ui/Button";
 import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
 import { Typography } from "../../../../components/ui/Typography";
 import type { Database } from "../../../../lib/db-types";
+import { getRoomExamDisplayTitle, getRoomExamSubjectFromTitle } from "../../../../lib/roomExam";
 import { useSupabase } from "../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../lib/supabaseError";
-import { COLORS, RADIUS, SHADOWS, SPACING } from "../../../../lib/theme";
-import { getRoomExamSubjectFromTitle, getRoomExamDisplayTitle } from "../../../../lib/roomExam";
+import { COLORS, RADIUS, SPACING } from "../../../../lib/theme";
 
 type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
@@ -78,42 +78,45 @@ export default function RaceScreen() {
                 title="모의고사"
                 showBack={false}
                 rightElement={
-                    // + 버튼을 이전의 깔끔한 헤더 버튼 스타일로 복구
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        icon="add"
+                    <TouchableOpacity
                         onPress={() => router.push(`/room/${roomId}/add-exam`)}
-                        style={styles.headerBtn}
-                    />
+                        style={styles.addBtn}
+                    >
+                        <Ionicons name="add" size={22} color={COLORS.text} />
+                    </TouchableOpacity>
                 }
             />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 {exams.length === 0 ? (
-                    <View style={styles.emptyContainer}>
-                        <View style={styles.emptyIconBox}>
-                            <Ionicons name="document-text" size={40} color={COLORS.borderDark} />
+                    <View style={styles.emptyState}>
+                        <View style={styles.emptyIcon}>
+                            <Ionicons name="document-text-outline" size={32} color={COLORS.textMuted} />
                         </View>
-                        <Typography.Subtitle1 color={COLORS.textMuted} bold>아직 등록된 시험이 없어요</Typography.Subtitle1>
+                        <Typography.Subtitle1 color={COLORS.text} bold>
+                            아직 시험이 없어요
+                        </Typography.Subtitle1>
+                        <Typography.Body2 color={COLORS.textMuted} align="center" style={{ marginTop: 4 }}>
+                            첫 번째 모의고사를 등록해보세요
+                        </Typography.Body2>
                         <Button
-                            label="첫 시험 만들기"
+                            label="시험 만들기"
                             onPress={() => router.push(`/room/${roomId}/add-exam`)}
-                            style={{ marginTop: 24 }}
+                            style={{ marginTop: SPACING.xl }}
                         />
                     </View>
                 ) : (
                     Object.entries(groupedExams).map(([subject, subjectExams]) => (
                         <View key={subject} style={styles.section}>
                             <View style={styles.sectionHeader}>
-                                <View style={styles.subjectIndicator} />
+                                <View style={styles.subjectBar} />
                                 <Text style={styles.subjectTitle}>{subject}</Text>
                                 <View style={styles.countBadge}>
                                     <Text style={styles.countText}>{subjectExams.length}</Text>
                                 </View>
                             </View>
 
-                            <View style={styles.grid}>
+                            <View style={styles.examList}>
                                 {subjectExams.map((item) => {
                                     const attempt = myAttempts.find(a => a.exam_id === item.id);
                                     const isCompleted = !!attempt?.ended_at;
@@ -122,7 +125,7 @@ export default function RaceScreen() {
                                     return (
                                         <TouchableOpacity
                                             key={item.id}
-                                            activeOpacity={0.8}
+                                            activeOpacity={0.7}
                                             onPress={() => {
                                                 if (isCompleted) {
                                                     router.push({ pathname: `/room/${roomId}/analysis` as any, params: { initialExamId: item.id } });
@@ -132,33 +135,44 @@ export default function RaceScreen() {
                                             }}
                                             style={[
                                                 styles.examCard,
-                                                isCompleted && styles.cardCompleted,
-                                                isInProgress && styles.cardInProgress
+                                                isCompleted && styles.cardDone,
+                                                isInProgress && styles.cardProgress
                                             ]}
                                         >
-                                            <View style={styles.cardTop}>
-                                                <View style={[styles.iconBox, isCompleted && styles.iconBoxCompleted, isInProgress && styles.iconBoxInProgress]}>
+                                            <View style={styles.examMain}>
+                                                <View style={[
+                                                    styles.examIcon,
+                                                    isCompleted && styles.iconDone,
+                                                    isInProgress && styles.iconProgress
+                                                ]}>
                                                     <Ionicons
-                                                        name={isCompleted ? "checkmark" : (isInProgress ? "play" : "document-text")}
-                                                        size={18}
+                                                        name={isCompleted ? "checkmark" : (isInProgress ? "play" : "document-text-outline")}
+                                                        size={16}
                                                         color={isCompleted ? COLORS.primary : (isInProgress ? COLORS.warning : COLORS.textMuted)}
                                                     />
                                                 </View>
-                                                {isCompleted && <Text style={styles.doneLabel}>완료</Text>}
+                                                <View style={styles.examInfo}>
+                                                    <Text style={styles.examTitle} numberOfLines={1}>
+                                                        {getRoomExamDisplayTitle(item.title) || "모의고사"}
+                                                    </Text>
+                                                    <Text style={styles.examMeta}>
+                                                        {item.total_questions}문항 • {item.total_minutes}분
+                                                    </Text>
+                                                </View>
                                             </View>
 
-                                        <Text style={styles.examTitle} numberOfLines={2}>
-                                            {getRoomExamDisplayTitle(item.title) || "모의고사"}
-                                        </Text>
-
-                                            <View style={styles.cardBottom}>
-                                                <View style={styles.infoRow}>
-                                                    <Ionicons name="list-outline" size={14} color={COLORS.textMuted} />
-                                                    <Text style={styles.infoText}>{item.total_questions}문항</Text>
-                                                </View>
-                                                {isInProgress && (
-                                                    <Text style={styles.runningText}>진행 중...</Text>
+                                            <View style={styles.examRight}>
+                                                {isCompleted && (
+                                                    <View style={styles.doneBadge}>
+                                                        <Text style={styles.doneText}>완료</Text>
+                                                    </View>
                                                 )}
+                                                {isInProgress && (
+                                                    <View style={styles.progressBadge}>
+                                                        <Text style={styles.progressText}>진행중</Text>
+                                                    </View>
+                                                )}
+                                                <Ionicons name="chevron-forward" size={16} color={COLORS.border} />
                                             </View>
                                         </TouchableOpacity>
                                     );
@@ -172,9 +186,6 @@ export default function RaceScreen() {
     );
 }
 
-const { width } = Dimensions.get('window');
-const cardWidth = (width - SPACING.xl * 2 - 16) / 2;
-
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -185,141 +196,142 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    headerBtn: {
+    addBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
         backgroundColor: COLORS.surfaceVariant,
-        borderRadius: RADIUS.full,
-        width: 40,
-        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     scrollContent: {
         padding: SPACING.xl,
-        paddingBottom: 120,
+        paddingBottom: 100,
+    },
+    emptyState: {
+        alignItems: 'center',
+        paddingVertical: 80,
+    },
+    emptyIcon: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: COLORS.surfaceVariant,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: SPACING.md,
     },
     section: {
-        marginBottom: 36,
+        marginBottom: SPACING.xxl,
     },
     sectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: SPACING.md,
     },
-    subjectIndicator: {
-        width: 4,
-        height: 16,
+    subjectBar: {
+        width: 3,
+        height: 14,
         backgroundColor: COLORS.primary,
         borderRadius: 2,
         marginRight: 8,
     },
     subjectTitle: {
-        fontSize: 19,
-        fontWeight: '800',
+        fontSize: 16,
+        fontWeight: '700',
         color: COLORS.text,
         marginRight: 6,
     },
     countBadge: {
         backgroundColor: COLORS.surfaceVariant,
-        paddingHorizontal: 8,
+        paddingHorizontal: 6,
         paddingVertical: 2,
         borderRadius: RADIUS.full,
     },
     countText: {
-        fontSize: 12,
+        fontSize: 11,
         color: COLORS.textMuted,
-        fontWeight: 'bold',
+        fontWeight: '600',
     },
-    grid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 16,
+    examList: {
+        gap: SPACING.sm,
     },
     examCard: {
-        width: cardWidth,
-        backgroundColor: COLORS.white,
-        borderRadius: 24,
-        padding: 18,
-        ...SHADOWS.medium,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: COLORS.surface,
+        borderRadius: RADIUS.lg,
+        padding: SPACING.md,
         borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.02)',
-        minHeight: 154,
-        justifyContent: 'space-between',
+        borderColor: COLORS.border,
     },
-    cardCompleted: {
-        backgroundColor: '#F7FCF9',
-        borderColor: 'rgba(0, 208, 148, 0.1)',
+    cardDone: {
+        backgroundColor: '#F7FBF9',
+        borderColor: 'rgba(0, 208, 148, 0.15)',
     },
-    cardInProgress: {
-        backgroundColor: '#FFFDF2',
-        borderColor: 'rgba(255, 184, 0, 0.1)',
+    cardProgress: {
+        backgroundColor: '#FFFDF5',
+        borderColor: 'rgba(255, 184, 0, 0.15)',
     },
-    cardTop: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    iconBox: {
-        width: 36,
-        height: 36,
-        borderRadius: 12,
-        backgroundColor: COLORS.bg,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    iconBoxCompleted: {
-        backgroundColor: 'rgba(0, 208, 148, 0.1)',
-    },
-    iconBoxInProgress: {
-        backgroundColor: 'rgba(255, 184, 0, 0.1)',
-    },
-    doneLabel: {
-        fontSize: 11,
-        fontWeight: 'bold',
-        color: COLORS.primary,
-        backgroundColor: 'white',
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 6,
-        borderWidth: 1,
-        borderColor: 'rgba(0, 208, 148, 0.2)',
-    },
-    examTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: COLORS.text,
-        lineHeight: 22,
-        marginVertical: 12,
-    },
-    cardBottom: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    infoRow: {
+    examMain: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        flex: 1,
+        gap: SPACING.sm,
     },
-    infoText: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: COLORS.textMuted,
-    },
-    runningText: {
-        fontSize: 12,
-        fontWeight: 'bold',
-        color: COLORS.warning,
-    },
-    emptyContainer: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 100,
-    },
-    emptyIconBox: {
-        width: 80,
-        height: 80,
-        borderRadius: 30,
+    examIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
         backgroundColor: COLORS.surfaceVariant,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 20,
-    }
+    },
+    iconDone: {
+        backgroundColor: COLORS.primaryLight,
+    },
+    iconProgress: {
+        backgroundColor: COLORS.warningLight,
+    },
+    examInfo: {
+        flex: 1,
+    },
+    examTitle: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: COLORS.text,
+    },
+    examMeta: {
+        fontSize: 12,
+        color: COLORS.textMuted,
+        marginTop: 2,
+    },
+    examRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    doneBadge: {
+        backgroundColor: COLORS.primaryLight,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
+    },
+    doneText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: COLORS.primary,
+    },
+    progressBadge: {
+        backgroundColor: COLORS.warningLight,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
+    },
+    progressText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: COLORS.warning,
+    },
 });

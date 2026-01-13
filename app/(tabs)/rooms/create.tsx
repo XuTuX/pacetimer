@@ -1,6 +1,5 @@
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -8,7 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenHeader } from "../../../components/ui/ScreenHeader";
 import { useSupabase } from "../../../lib/supabase";
 import { formatSupabaseError } from "../../../lib/supabaseError";
-import { COLORS } from "../../../lib/theme";
+import { COLORS, RADIUS, SPACING } from "../../../lib/theme";
 
 export default function RoomsCreateScreen() {
     const supabase = useSupabase();
@@ -31,7 +30,6 @@ export default function RoomsCreateScreen() {
             const trimmedName = name.trim();
             const trimmedDescription = description.trim();
 
-            // 1. Create Room
             const { data: roomData, error: createError } = await supabase
                 .from("rooms")
                 .insert({
@@ -44,14 +42,11 @@ export default function RoomsCreateScreen() {
 
             if (createError) throw createError;
             if (!roomData) {
-                throw new Error("룸 생성에 실패했습니다. 다시 시도해주세요.");
+                throw new Error("스터디 생성에 실패했습니다.");
             }
 
             const roomId = roomData.id;
 
-            // 2. Auto-join as participant (The host is implicitly a participant too?)
-            // Usually good practice to add them to participants table for consistent querying, 
-            // although they are already 'host'. Let's add them.
             const { error: joinError } = await supabase
                 .from("room_members")
                 .upsert(
@@ -71,42 +66,13 @@ export default function RoomsCreateScreen() {
 
     return (
         <SafeAreaView style={styles.container} edges={["bottom"]}>
-            <ScreenHeader title="룸 만들기" />
+            <ScreenHeader title="스터디 만들기" />
+
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-                <LinearGradient
-                    colors={[COLORS.primaryLight, "#FFFFFF"]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.hero}
-                >
-                    <View style={styles.heroRow}>
-                        <View style={styles.heroIcon}>
-                            <Ionicons name="people" size={22} color={COLORS.primary} />
-                        </View>
-                        <View style={styles.heroText}>
-                            <Text style={styles.title}>스터디 룸 만들기</Text>
-                            <Text style={styles.hint}>
-                                비동기 모의고사를 함께하는 공간을 만듭니다. 생성한 분이 호스트가 됩니다.
-                            </Text>
-                        </View>
-                    </View>
-                    <View style={styles.heroPills}>
-                        <View style={styles.heroPill}>
-                            <Ionicons name="sparkles-outline" size={14} color={COLORS.primary} />
-                            <Text style={styles.heroPillText}>호스트 자동 참여</Text>
-                        </View>
-                        <View style={styles.heroPill}>
-                            <Ionicons name="key-outline" size={14} color={COLORS.textMuted} />
-                            <Text style={styles.heroPillText}>ID 공유로 초대</Text>
-                        </View>
-                    </View>
-                </LinearGradient>
-
-                <View style={styles.card}>
-                    <Text style={styles.sectionTitle}>기본 정보</Text>
-
+                {/* Form Card */}
+                <View style={styles.formCard}>
                     <View style={styles.field}>
-                        <Text style={styles.label}>룸 이름</Text>
+                        <Text style={styles.label}>스터디 이름</Text>
                         <TextInput
                             value={name}
                             onChangeText={setName}
@@ -122,32 +88,43 @@ export default function RoomsCreateScreen() {
                         <TextInput
                             value={description}
                             onChangeText={setDescription}
-                            placeholder="예: 매주 수학 연습"
+                            placeholder="예: 매주 모의고사 함께 풀기"
                             placeholderTextColor={COLORS.textMuted}
-                            style={[styles.input, styles.multilineInput]}
+                            style={[styles.input, styles.textarea]}
                             multiline
                         />
                     </View>
 
-                    {error ? <Text style={styles.errorText}>{error}</Text> : null}
+                    {error && (
+                        <View style={styles.errorBox}>
+                            <Ionicons name="alert-circle" size={16} color={COLORS.error} />
+                            <Text style={styles.errorText}>{error}</Text>
+                        </View>
+                    )}
 
-                    <View style={styles.infoBanner}>
-                        <Ionicons name="information-circle" size={16} color={COLORS.primary} />
-                        <Text style={styles.infoText}>생성 후 룸 ID를 공유하면 바로 참여할 수 있어요.</Text>
+                    {/* Info */}
+                    <View style={styles.infoRow}>
+                        <Ionicons name="information-circle-outline" size={16} color={COLORS.textMuted} />
+                        <Text style={styles.infoText}>
+                            생성 후 참여 코드를 공유하면 친구들이 바로 입장할 수 있어요
+                        </Text>
                     </View>
-
-                    <Pressable
-                        onPress={handleCreate}
-                        disabled={!canCreate}
-                        style={({ pressed }) => [
-                            styles.primaryBtn,
-                            !canCreate && { opacity: 0.5 },
-                            pressed && canCreate && { opacity: 0.9 },
-                        ]}
-                    >
-                        <Text style={styles.primaryBtnText}>{saving ? "생성 중..." : "룸 생성"}</Text>
-                    </Pressable>
                 </View>
+
+                {/* Create Button */}
+                <Pressable
+                    onPress={handleCreate}
+                    disabled={!canCreate}
+                    style={({ pressed }) => [
+                        styles.createBtn,
+                        !canCreate && styles.createBtnDisabled,
+                        pressed && canCreate && { opacity: 0.9 },
+                    ]}
+                >
+                    <Text style={styles.createBtnText}>
+                        {saving ? "생성 중..." : "스터디 만들기"}
+                    </Text>
+                </Pressable>
             </ScrollView>
         </SafeAreaView>
     );
@@ -159,146 +136,76 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.bg,
     },
     content: {
-        padding: 20,
-        paddingBottom: 40,
-        gap: 18,
+        padding: SPACING.xl,
+        gap: SPACING.xl,
     },
-    hero: {
-        borderRadius: 20,
-        padding: 16,
-        gap: 12,
-        borderWidth: 1,
-        borderColor: "rgba(0, 208, 148, 0.15)",
-    },
-    heroRow: {
-        flexDirection: "row",
-        gap: 12,
-        alignItems: "flex-start",
-    },
-    heroIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+    formCard: {
         backgroundColor: COLORS.surface,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    heroText: {
-        flex: 1,
-        gap: 6,
-    },
-    title: {
-        fontSize: 22,
-        fontWeight: "900",
-        color: COLORS.text,
-    },
-    hint: {
-        fontSize: 13,
-        fontWeight: "600",
-        color: COLORS.textMuted,
-        lineHeight: 18,
-    },
-    heroPills: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 8,
-    },
-    heroPill: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 6,
-        backgroundColor: "rgba(255, 255, 255, 0.8)",
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 999,
+        borderRadius: RADIUS.xl,
+        padding: SPACING.lg,
+        gap: SPACING.lg,
         borderWidth: 1,
-        borderColor: "rgba(0, 0, 0, 0.04)",
-    },
-    heroPillText: {
-        fontSize: 12,
-        fontWeight: "700",
-        color: COLORS.textMuted,
-    },
-    card: {
-        backgroundColor: COLORS.surface,
         borderColor: COLORS.border,
-        borderWidth: 1,
-        borderRadius: 20,
-        padding: 18,
-        gap: 14,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 12,
-        elevation: 2,
-    },
-    sectionTitle: {
-        fontSize: 12,
-        fontWeight: "800",
-        color: COLORS.textMuted,
-        letterSpacing: 1.2,
     },
     field: {
         gap: 8,
     },
     label: {
         fontSize: 13,
-        fontWeight: "700",
-        color: COLORS.text,
+        fontWeight: '600',
+        color: COLORS.textMuted,
+        marginLeft: 4,
     },
     input: {
-        backgroundColor: COLORS.surfaceVariant,
-        borderColor: "rgba(0, 0, 0, 0.05)",
-        borderWidth: 1,
-        borderRadius: 14,
-        paddingHorizontal: 14,
-        paddingVertical: 12,
+        backgroundColor: COLORS.bg,
+        borderRadius: RADIUS.lg,
+        paddingHorizontal: SPACING.md,
+        paddingVertical: 14,
+        fontSize: 15,
         color: COLORS.text,
-        fontSize: 14,
-        textAlignVertical: "top",
+        fontWeight: '500',
     },
-    multilineInput: {
-        minHeight: 90,
+    textarea: {
+        minHeight: 80,
+        textAlignVertical: 'top',
+    },
+    errorBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: COLORS.errorLight,
+        padding: SPACING.sm,
+        borderRadius: RADIUS.md,
     },
     errorText: {
+        flex: 1,
+        fontSize: 13,
+        fontWeight: '600',
         color: COLORS.error,
-        fontSize: 12,
-        fontWeight: "700",
-        marginTop: 6,
     },
-    infoBanner: {
-        flexDirection: "row",
-        alignItems: "center",
+    infoRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
         gap: 8,
-        backgroundColor: COLORS.primaryLight,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: "rgba(0, 208, 148, 0.2)",
     },
     infoText: {
         flex: 1,
-        fontSize: 12,
-        fontWeight: "600",
-        color: COLORS.text,
-        lineHeight: 16,
+        fontSize: 13,
+        color: COLORS.textMuted,
+        lineHeight: 18,
     },
-    primaryBtn: {
+    createBtn: {
         backgroundColor: COLORS.primary,
-        borderRadius: 14,
-        paddingVertical: 14,
-        alignItems: "center",
-        marginTop: 8,
-        shadowColor: "#00D094",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.2,
-        shadowRadius: 16,
-        elevation: 3,
+        borderRadius: RADIUS.xl,
+        paddingVertical: 16,
+        alignItems: 'center',
     },
-    primaryBtnText: {
+    createBtnDisabled: {
+        opacity: 0.5,
+    },
+    createBtnText: {
         color: COLORS.white,
-        fontWeight: "800",
-        fontSize: 15,
+        fontSize: 16,
+        fontWeight: '700',
     },
 });

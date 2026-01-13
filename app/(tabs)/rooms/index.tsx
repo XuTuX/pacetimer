@@ -5,7 +5,6 @@ import React, { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { RoomCard } from "../../../components/rooms/RoomCard";
 import { Button } from "../../../components/ui/Button";
-import { Card } from "../../../components/ui/Card";
 import { HeaderSettings } from "../../../components/ui/HeaderSettings";
 import { ScreenHeader } from "../../../components/ui/ScreenHeader";
 import { ThemedText } from "../../../components/ui/ThemedText";
@@ -66,7 +65,6 @@ export default function RoomsIndexScreen() {
                 .order("created_at", { ascending: false });
             if (roomsError) throw roomsError;
 
-            // 내가 푼 시험 정보 가져오기
             const { data: myAttempts, error: attemptsError } = await supabase
                 .from("attempts")
                 .select("exam_id")
@@ -102,7 +100,6 @@ export default function RoomsIndexScreen() {
         setJoining(true);
         setError(null);
         try {
-            // 'like' operator checks for partial match. We use the input as a prefix.
             const { data: rooms, error: searchError } = await supabase
                 .from("rooms")
                 .select("id")
@@ -111,10 +108,10 @@ export default function RoomsIndexScreen() {
             if (searchError) throw searchError;
 
             if (!rooms || rooms.length === 0) {
-                throw new Error("해당 ID의 룸을 찾을 수 없습니다.");
+                throw new Error("해당 ID의 스터디를 찾을 수 없습니다.");
             }
             if (rooms.length > 1) {
-                throw new Error("비슷한 ID의 룸이 여러 개 있습니다. 더 길게 입력해주세요.");
+                throw new Error("비슷한 ID가 여러 개 있습니다. 더 길게 입력해주세요.");
             }
 
             const roomData = rooms[0];
@@ -138,9 +135,9 @@ export default function RoomsIndexScreen() {
         <View style={styles.headerActions}>
             <Pressable
                 onPress={() => router.push("/(tabs)/rooms/create")}
-                style={({ pressed }) => [styles.createBtn, pressed && { opacity: 0.7 }]}
+                style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.7 }]}
             >
-                <Ionicons name="add" size={28} color={COLORS.text} />
+                <Ionicons name="add" size={24} color={COLORS.text} />
             </Pressable>
             <HeaderSettings />
         </View>
@@ -149,56 +146,64 @@ export default function RoomsIndexScreen() {
     return (
         <View style={styles.container}>
             <ScreenHeader
-                title="스터디 룸"
+                title="스터디"
                 rightElement={RightActions}
                 showBack={false}
                 align="left"
             />
 
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-                <View style={styles.searchSection}>
-                    <View style={styles.searchBar}>
-                        <Ionicons name="search" size={22} color={COLORS.primary} />
-                        <TextInput
-                            value={roomIdInput}
-                            onChangeText={setRoomIdInput}
-                            placeholder="ID 입력 (6자리)"
-                            placeholderTextColor={COLORS.textMuted}
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                            style={styles.inputField}
-                            onSubmitEditing={handleJoin}
-                        />
-                        {roomIdInput.length > 0 && (
-                            <Pressable onPress={handleJoin} disabled={joining}>
-                                {joining ? (
-                                    <ActivityIndicator size="small" color={COLORS.primary} />
-                                ) : (
-                                    <Ionicons name="arrow-forward" size={22} color={COLORS.primary} />
-                                )}
-                            </Pressable>
-                        )}
-                    </View>
+                {/* Search Bar */}
+                <View style={styles.searchBar}>
+                    <Ionicons name="search" size={18} color={COLORS.textMuted} />
+                    <TextInput
+                        value={roomIdInput}
+                        onChangeText={setRoomIdInput}
+                        placeholder="참여 코드 입력"
+                        placeholderTextColor={COLORS.textMuted}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                        style={styles.searchInput}
+                        onSubmitEditing={handleJoin}
+                    />
+                    {roomIdInput.length > 0 && (
+                        <Pressable onPress={handleJoin} disabled={joining} style={styles.searchBtn}>
+                            {joining ? (
+                                <ActivityIndicator size="small" color={COLORS.white} />
+                            ) : (
+                                <Ionicons name="arrow-forward" size={18} color={COLORS.white} />
+                            )}
+                        </Pressable>
+                    )}
                 </View>
 
+                {error && (
+                    <View style={styles.errorBanner}>
+                        <ThemedText variant="caption" color={COLORS.error}>{error}</ThemedText>
+                    </View>
+                )}
+
+                {/* List */}
                 <View style={styles.listSection}>
                     {loading && <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 20 }} />}
+
                     {hasLoadedOnce && rooms.length === 0 ? (
-                        <Card variant="outlined" style={styles.emptyCard} padding="xl">
-                            <View style={styles.emptyIconCircle}>
-                                <Ionicons name="school-outline" size={32} color={COLORS.primary} />
+                        <View style={styles.emptyState}>
+                            <View style={styles.emptyIcon}>
+                                <Ionicons name="people-outline" size={32} color={COLORS.textMuted} />
                             </View>
-                            <ThemedText variant="h3" style={styles.emptyTitle}>참여 중인 룸이 없습니다</ThemedText>
-                            <ThemedText variant="body2" color={COLORS.textMuted} align="center" style={styles.emptySubtitle}>
-                                초대 링크를 통해 룸에 입장하거나{"\n"}직접 새로운 룸을 만들어보세요.
+                            <ThemedText variant="subtitle1" style={styles.emptyTitle}>
+                                참여 중인 스터디가 없어요
+                            </ThemedText>
+                            <ThemedText variant="body2" color={COLORS.textMuted} align="center" style={styles.emptyDesc}>
+                                참여 코드로 스터디에 입장하거나{"\n"}새로운 스터디를 만들어보세요
                             </ThemedText>
                             <Button
-                                label="새 룸 만들기"
+                                label="스터디 만들기"
                                 onPress={() => router.push("/(tabs)/rooms/create")}
-                                style={styles.emptyAction}
-                                variant="primary" // Explicitly primary
+                                style={styles.emptyBtn}
                             />
-                        </Card>
+                        </View>
                     ) : (
                         <View style={styles.roomList}>
                             {rooms.map((room) => (
@@ -213,103 +218,91 @@ export default function RoomsIndexScreen() {
                         </View>
                     )}
                 </View>
-
-                <View style={styles.footerSection}>
-                    {/* Spacer */}
-                </View>
             </ScrollView>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: COLORS.bg },
+    container: {
+        flex: 1,
+        backgroundColor: COLORS.bg
+    },
     headerActions: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: 4,
     },
-    content: {
-        padding: SPACING.xxl,
-        paddingBottom: 40,
-        gap: SPACING.lg,
-    },
-    createBtn: {
+    addBtn: {
         width: 40,
         height: 40,
         alignItems: "center",
         justifyContent: "center",
     },
-    listHeaderSection: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 4,
-        marginTop: SPACING.md,
-    },
-    listInfo: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    listTitle: { letterSpacing: -0.5 },
-    listSection: { gap: SPACING.md },
-    roomList: { gap: SPACING.md },
-    emptyCard: { alignItems: "center", borderStyle: 'dashed' },
-    emptyIconCircle: {
-        width: 80,
-        height: 80,
-        alignItems: "center",
-        justifyContent: "center",
-        marginBottom: SPACING.lg,
-    },
-    emptyTitle: { marginBottom: SPACING.sm },
-    emptySubtitle: { marginBottom: SPACING.lg, lineHeight: 24 },
-    emptyAction: { width: '100%' },
-    searchSection: {
-        marginBottom: SPACING.md,
-        gap: 6,
+    content: {
+        padding: SPACING.xl,
+        paddingBottom: 40,
     },
     searchBar: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: 10,
         backgroundColor: COLORS.surface,
-        borderRadius: RADIUS.md, // Soft rounded look
-        paddingHorizontal: SPACING.md,
-        height: 50,
-        // Optional: slight shadow or border for depth
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 1,
+        borderRadius: RADIUS.lg,
+        paddingLeft: SPACING.md,
+        paddingRight: 4,
+        height: 48,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        marginBottom: SPACING.lg,
     },
-    inputField: {
+    searchInput: {
         flex: 1,
-        fontSize: 16,
+        fontSize: 15,
         color: COLORS.text,
         fontWeight: '500',
     },
-    helperText: {
-        fontSize: 12,
-        color: COLORS.textMuted,
-        marginLeft: 4,
+    searchBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        backgroundColor: COLORS.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    footerSection: { marginTop: SPACING.md, alignItems: 'center', gap: SPACING.md },
-    idJoinLink: {},
-    errorText: { fontSize: 13, fontWeight: '600', textAlign: 'center', marginTop: 8 },
-    countBadge: {
+    errorBanner: {
+        backgroundColor: COLORS.errorLight,
+        padding: SPACING.sm,
+        borderRadius: RADIUS.md,
+        marginBottom: SPACING.md,
+    },
+    listSection: {
+        gap: SPACING.sm
+    },
+    roomList: {
+        gap: SPACING.sm
+    },
+    emptyState: {
+        alignItems: 'center',
+        paddingVertical: 60,
+    },
+    emptyIcon: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
         backgroundColor: COLORS.surfaceVariant,
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: RADIUS.full,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: SPACING.lg,
     },
-    countText: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: COLORS.text,
-        opacity: 0.8,
+    emptyTitle: {
+        marginBottom: SPACING.xs,
     },
-    idJoinText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: COLORS.textMuted,
+    emptyDesc: {
+        marginBottom: SPACING.xl,
+        lineHeight: 22,
+    },
+    emptyBtn: {
+        paddingHorizontal: 32,
     },
 });
