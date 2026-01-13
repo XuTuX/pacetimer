@@ -162,7 +162,7 @@ export default function RoomsIndexScreen() {
                         <TextInput
                             value={roomIdInput}
                             onChangeText={setRoomIdInput}
-                            placeholder="ID 입력 (Git처럼 6자리만 입력해도 돼요)"
+                            placeholder="ID 입력 (6자리)"
                             placeholderTextColor={COLORS.textMuted}
                             autoCapitalize="none"
                             autoCorrect={false}
@@ -179,9 +179,6 @@ export default function RoomsIndexScreen() {
                             </Pressable>
                         )}
                     </View>
-                    <ThemedText style={styles.helperText}>
-                        호스트에게 공유받은 룸 ID를 입력하세요. 앞 6자리만 입력해도 입장 가능!
-                    </ThemedText>
                 </View>
 
                 <View style={styles.listSection}>
