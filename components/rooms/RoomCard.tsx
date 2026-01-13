@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, View } from 'react-native';
 import type { Database } from '../../lib/db-types';
-import { COLORS, RADIUS, SPACING } from '../../lib/theme';
+import { COLORS, RADIUS, SHADOWS, SPACING } from '../../lib/theme';
 import { ThemedText } from '../ui/ThemedText';
 
 type Room = Database['public']['Tables']['rooms']['Row'];
@@ -22,36 +23,56 @@ export function RoomCard({ room, onPress, participantCount, unsolvedCount = 0 }:
                 pressed && styles.cardPressed
             ]}
         >
+            {/* Accent Bar */}
+            <LinearGradient
+                colors={['#00D094', '#00B380']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={styles.accentBar}
+            />
+
             <View style={styles.content}>
-                <ThemedText variant="subtitle1" style={styles.name} numberOfLines={1}>
-                    {room.name}
-                </ThemedText>
+                <View style={styles.header}>
+                    <ThemedText variant="subtitle1" style={styles.name} numberOfLines={1}>
+                        {room.name}
+                    </ThemedText>
+                    {unsolvedCount > 0 && (
+                        <View style={styles.badge}>
+                            <ThemedText style={styles.badgeText}>
+                                {unsolvedCount > 99 ? '99+' : unsolvedCount}
+                            </ThemedText>
+                        </View>
+                    )}
+                </View>
 
                 <View style={styles.metaRow}>
                     {room.description ? (
                         <ThemedText variant="caption" color={COLORS.textMuted} numberOfLines={1} style={styles.desc}>
                             {room.description}
                         </ThemedText>
-                    ) : null}
+                    ) : (
+                        <View style={styles.desc} />
+                    )}
 
                     <View style={styles.stats}>
-                        <Ionicons name="people-outline" size={12} color={COLORS.textMuted} />
-                        <ThemedText variant="caption" color={COLORS.textMuted}>
-                            {participantCount || 0}
+                        {/* Overlapping avatars */}
+                        <View style={styles.avatarStack}>
+                            {[0, 1, 2].slice(0, Math.min(participantCount || 0, 3)).map((i) => (
+                                <View key={i} style={[styles.miniAvatar, { marginLeft: i > 0 ? -8 : 0, zIndex: 3 - i }]}>
+                                    <Ionicons name="person" size={10} color={COLORS.textMuted} />
+                                </View>
+                            ))}
+                        </View>
+                        <ThemedText variant="caption" color={COLORS.textMuted} style={styles.countText}>
+                            {participantCount || 0}명
                         </ThemedText>
                     </View>
                 </View>
             </View>
 
-            <Ionicons name="chevron-forward" size={16} color={COLORS.border} />
-
-            {unsolvedCount > 0 && (
-                <View style={styles.badge}>
-                    <ThemedText style={styles.badgeText}>
-                        {unsolvedCount > 99 ? '99+' : unsolvedCount}
-                    </ThemedText>
-                </View>
-            )}
+            <View style={styles.chevronWrapper}>
+                <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+            </View>
         </Pressable>
     );
 }
@@ -59,30 +80,56 @@ export function RoomCard({ room, onPress, participantCount, unsolvedCount = 0 }:
 const styles = StyleSheet.create({
     card: {
         flexDirection: 'row',
-        alignItems: 'center',
+        alignItems: 'stretch',
         backgroundColor: COLORS.surface,
         borderRadius: RADIUS.lg,
-        paddingVertical: SPACING.md,
-        paddingHorizontal: SPACING.lg,
-        borderWidth: 1,
-        borderColor: COLORS.border,
+        overflow: 'hidden',
+        ...SHADOWS.small,
     },
     cardPressed: {
-        backgroundColor: COLORS.surfaceVariant,
+        transform: [{ scale: 0.98 }],
+        opacity: 0.95,
+    },
+    accentBar: {
+        width: 4,
+        borderTopLeftRadius: RADIUS.lg,
+        borderBottomLeftRadius: RADIUS.lg,
     },
     content: {
         flex: 1,
-        gap: 4,
+        paddingVertical: SPACING.md + 2,
+        paddingHorizontal: SPACING.md,
+        gap: 6,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
     },
     name: {
+        flex: 1,
         fontWeight: '600',
         fontSize: 16,
         color: COLORS.text,
     },
+    badge: {
+        backgroundColor: '#FF3B30',
+        minWidth: 20,
+        height: 20,
+        borderRadius: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 6,
+    },
+    badgeText: {
+        color: 'white',
+        fontSize: 11,
+        fontWeight: '700',
+    },
     metaRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: 10,
     },
     desc: {
         flex: 1,
@@ -90,23 +137,28 @@ const styles = StyleSheet.create({
     stats: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 3,
+        gap: 6,
     },
-    badge: {
-        position: 'absolute',
-        top: -4,
-        right: -4,
-        backgroundColor: COLORS.error,
-        minWidth: 18,
-        height: 18,
-        borderRadius: 9,
-        justifyContent: 'center',
+    avatarStack: {
+        flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 5,
     },
-    badgeText: {
-        color: 'white',
-        fontSize: 10,
-        fontWeight: '700',
+    miniAvatar: {
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        backgroundColor: COLORS.surfaceVariant,
+        borderWidth: 1.5,
+        borderColor: COLORS.surface,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    countText: {
+        marginLeft: 2,
+    },
+    chevronWrapper: {
+        justifyContent: 'center',
+        paddingRight: SPACING.md,
+        paddingLeft: SPACING.xs,
     },
 });

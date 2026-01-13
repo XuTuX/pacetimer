@@ -242,7 +242,7 @@ export default function ExamRunScreen() {
 
                 const { data: existingAttempt, error: existingError } = await supabase
                     .from("attempts")
-                    .select("id, started_at, ended_at")
+                    .select("id, started_at, ended_at, duration_ms")
                     .eq("room_id", roomId)
                     .eq("exam_id", currentExamId)
                     .eq("user_id", userId)
@@ -252,20 +252,68 @@ export default function ExamRunScreen() {
                 if (existingError) throw existingError;
 
                 if (existingAttempt) {
-                    Alert.alert(
-                        "응시 불가",
-                        "스터디 모의고사는 1회만 응시 가능합니다. 이미 응시했거나 중간에 퇴장한 기록이 있어 입장이 제한됩니다.",
-                        [
-                            {
-                                text: "확인",
+                    // Check if it was a properly completed attempt
+                    if (existingAttempt.ended_at && existingAttempt.duration_ms && existingAttempt.duration_ms > 0) {
+                        // Properly completed - no re-entry allowed
+                        Alert.alert(
+                            "응시 불가",
+                            "스터디 모의고사는 1회만 응시 가능합니다. 이미 응시를 완료한 기록이 있습니다.",
+                            [{
+                                text: "결과 보기",
                                 onPress: () => router.replace({
                                     pathname: `/room/${roomId}/analysis` as any,
                                     params: { initialExamId: currentExamId }
                                 })
-                            }
-                        ]
-                    );
-                    return;
+                            }]
+                        );
+                        return;
+                    }
+
+                    // Check for records to see if any progress was made
+                    const { data: recordsData, error: recordsError } = await supabase
+                        .from("attempt_records")
+                        .select("id")
+                        .eq("attempt_id", existingAttempt.id)
+                        .limit(1);
+
+                    const hasRecords = !recordsError && recordsData && recordsData.length > 0;
+
+                    if (!existingAttempt.ended_at && !hasRecords) {
+                        // Incomplete attempt with NO progress (app crashed/quit at start)
+                        // Delete the incomplete attempt and allow restart
+                        await supabase.from("attempts").delete().eq("id", existingAttempt.id);
+
+                        Alert.alert(
+                            "이전 시도 초기화",
+                            "이전에 시험을 시작했으나 비정상 종료되었습니다. 처음부터 다시 시작합니다.",
+                            [{ text: "확인", style: "default" }]
+                        );
+                        // Continue to create new attempt below
+                    } else if (!existingAttempt.ended_at && hasRecords) {
+                        // Has some progress but didn't finish properly
+                        // This is tricky - they have partial progress
+                        // For fairness, we'll invalidate and restart
+                        await supabase.from("attempt_records").delete().eq("attempt_id", existingAttempt.id);
+                        await supabase.from("attempts").delete().eq("id", existingAttempt.id);
+
+                        Alert.alert(
+                            "이전 시도 초기화",
+                            "이전 응시가 중간에 비정상 종료되어 기록이 무효화되었습니다. 처음부터 다시 시작합니다.",
+                            [{ text: "확인", style: "default" }]
+                        );
+                        // Continue to create new attempt below
+                    } else if (existingAttempt.ended_at && (!existingAttempt.duration_ms || existingAttempt.duration_ms === 0)) {
+                        // Ended but with 0 duration (abnormal end)
+                        await supabase.from("attempt_records").delete().eq("attempt_id", existingAttempt.id);
+                        await supabase.from("attempts").delete().eq("id", existingAttempt.id);
+
+                        Alert.alert(
+                            "이전 시도 초기화",
+                            "이전 응시가 비정상적으로 종료되어(0초 기록) 무효 처리되었습니다. 처음부터 다시 시작합니다.",
+                            [{ text: "확인", style: "default" }]
+                        );
+                        // Continue to create new attempt below
+                    }
                 }
 
                 // Create Attempt

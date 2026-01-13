@@ -2,7 +2,7 @@ import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Rect, Stop, Text as SvgText } from "react-native-svg";
 import { QuestionBar } from "../../../../components/analysis/QuestionBar";
 import { Button } from "../../../../components/ui/Button";
@@ -94,6 +94,8 @@ export default function AnalysisScreen() {
     const [participants, setParticipants] = useState<ParticipantResult[]>([]);
     const [myAttempts, setMyAttempts] = useState<MyAttemptData[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [showSubjectModal, setShowSubjectModal] = useState(false);
+    const [showExamModal, setShowExamModal] = useState(false);
 
     // Derived data
     const uniqueSubjects = useMemo(() => {
@@ -245,10 +247,11 @@ export default function AnalysisScreen() {
 
     // My Progress View - Subject Growth Analysis
     const renderMyProgressView = () => {
-        // Get subject-specific history
+        // Get subject-specific history (excluding invalid 0-second records)
         const getSubjectHistory = (subject: string) => {
+            const validAttempts = myAttempts.filter(a => a.duration_ms > 0);
             if (subject === "전체") {
-                return myAttempts.map(a => ({
+                return validAttempts.map(a => ({
                     id: a.id,
                     examId: a.exam_id,
                     title: a.room_exams.title.replace(/^(\[.*?\]\s*|.*?•\s*)+/, ""),
@@ -258,7 +261,7 @@ export default function AnalysisScreen() {
                     questions: a.room_exams.total_questions,
                 }));
             }
-            return myAttempts
+            return validAttempts
                 .filter(a => (getRoomExamSubjectFromTitle(a.room_exams.title) ?? "기타") === subject)
                 .map(a => ({
                     id: a.id,
@@ -296,22 +299,66 @@ export default function AnalysisScreen() {
 
         return (
             <>
-                {/* Subject Filter Chips */}
+                {/* Subject Dropdown Selector */}
                 {uniqueSubjects.length > 1 && (
-                    <View style={styles.chipSection}>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipScroll}>
-                            {uniqueSubjects.map(s => (
-                                <Pressable
-                                    key={s}
-                                    onPress={() => setSelectedSubject(s)}
-                                    style={[styles.chip, selectedSubject === s && styles.activeChip]}
-                                >
-                                    <Typography.Label bold color={selectedSubject === s ? COLORS.white : COLORS.textMuted}>{s}</Typography.Label>
-                                </Pressable>
-                            ))}
-                        </ScrollView>
+                    <View style={styles.dropdownSection}>
+                        <Pressable
+                            style={styles.dropdownButton}
+                            onPress={() => setShowSubjectModal(true)}
+                        >
+                            <Typography.Body1 bold color={COLORS.text}>{selectedSubject}</Typography.Body1>
+                            <Ionicons name="chevron-down" size={18} color={COLORS.textMuted} />
+                        </Pressable>
                     </View>
                 )}
+
+                {/* Subject Selection Modal */}
+                <Modal
+                    visible={showSubjectModal}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setShowSubjectModal(false)}
+                >
+                    <Pressable style={styles.modalBackdrop} onPress={() => setShowSubjectModal(false)}>
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <Typography.Subtitle1 bold>과목 선택</Typography.Subtitle1>
+                                <Pressable onPress={() => setShowSubjectModal(false)}>
+                                    <Ionicons name="close" size={24} color={COLORS.textMuted} />
+                                </Pressable>
+                            </View>
+                            <ScrollView showsVerticalScrollIndicator={false} style={styles.modalList}>
+                                {uniqueSubjects.map(s => {
+                                    const examCount = s === "전체"
+                                        ? myAttempts.length
+                                        : myAttempts.filter(a => (getRoomExamSubjectFromTitle(a.room_exams.title) ?? "기타") === s).length;
+                                    return (
+                                        <Pressable
+                                            key={s}
+                                            style={[styles.modalItem, selectedSubject === s && styles.modalItemActive]}
+                                            onPress={() => {
+                                                setSelectedSubject(s);
+                                                setShowSubjectModal(false);
+                                            }}
+                                        >
+                                            <View style={styles.modalItemContent}>
+                                                <Typography.Body1 bold={selectedSubject === s} color={selectedSubject === s ? COLORS.primary : COLORS.text}>
+                                                    {s}
+                                                </Typography.Body1>
+                                                <Typography.Caption color={COLORS.textMuted}>
+                                                    {examCount}회 응시
+                                                </Typography.Caption>
+                                            </View>
+                                            {selectedSubject === s && (
+                                                <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+                                            )}
+                                        </Pressable>
+                                    );
+                                })}
+                            </ScrollView>
+                        </View>
+                    </Pressable>
+                </Modal>
 
                 {history.length === 0 ? (
                     <View style={styles.emptyContainer}>
@@ -626,32 +673,77 @@ export default function AnalysisScreen() {
 
         return (
             <>
-                {/* Exam Selector */}
-                <Section title="시험 선택" style={styles.selectorSection}>
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.examSelectorScroll}
+                {/* Exam Dropdown Selector */}
+                <View style={styles.dropdownSection}>
+                    <Pressable
+                        style={styles.dropdownButton}
+                        onPress={() => setShowExamModal(true)}
                     >
-                        {filteredExams.map((e) => (
-                            <Pressable
-                                key={e.id}
-                                onPress={() => setSelectedExamId(e.id)}
-                                style={[
-                                    styles.examTab,
-                                    selectedExamId === e.id && styles.selectedExamTab
-                                ]}
-                            >
-                                <Typography.Body2 bold color={selectedExamId === e.id ? COLORS.white : COLORS.text} numberOfLines={1}>
-                                    {e.title.replace(/^(\[.*?\]\s*|.*?•\s*)+/, "")}
-                                </Typography.Body2>
-                                <Typography.Caption color={selectedExamId === e.id ? 'rgba(255, 255, 255, 0.7)' : COLORS.textMuted}>
-                                    {new Date(e.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                        <View style={{ flex: 1 }}>
+                            <Typography.Body1 bold color={COLORS.text} numberOfLines={1}>
+                                {exam?.title?.replace(/^(\[.*?\]\s*|.*?•\s*)+/, "") ?? "시험 선택"}
+                            </Typography.Body1>
+                            {exam && (
+                                <Typography.Caption color={COLORS.textMuted}>
+                                    {new Date(exam.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' })}
                                 </Typography.Caption>
-                            </Pressable>
-                        ))}
-                    </ScrollView>
-                </Section>
+                            )}
+                        </View>
+                        <Ionicons name="chevron-down" size={18} color={COLORS.textMuted} />
+                    </Pressable>
+                </View>
+
+                {/* Exam Selection Modal */}
+                <Modal
+                    visible={showExamModal}
+                    transparent
+                    animationType="fade"
+                    onRequestClose={() => setShowExamModal(false)}
+                >
+                    <Pressable style={styles.modalBackdrop} onPress={() => setShowExamModal(false)}>
+                        <View style={[styles.modalContent, styles.modalContentLarge]}>
+                            <View style={styles.modalHeader}>
+                                <Typography.Subtitle1 bold>시험 선택</Typography.Subtitle1>
+                                <Pressable onPress={() => setShowExamModal(false)}>
+                                    <Ionicons name="close" size={24} color={COLORS.textMuted} />
+                                </Pressable>
+                            </View>
+                            <ScrollView showsVerticalScrollIndicator={false} style={styles.modalList}>
+                                {filteredExams.map(e => {
+                                    const isSelected = selectedExamId === e.id;
+                                    return (
+                                        <Pressable
+                                            key={e.id}
+                                            style={[styles.modalItem, isSelected && styles.modalItemActive]}
+                                            onPress={() => {
+                                                setSelectedExamId(e.id);
+                                                setShowExamModal(false);
+                                            }}
+                                        >
+                                            <View style={styles.modalItemContent}>
+                                                <Typography.Body1 bold={isSelected} color={isSelected ? COLORS.primary : COLORS.text} numberOfLines={1}>
+                                                    {e.title.replace(/^(\[.*?\]\s*|.*?•\s*)+/, "")}
+                                                </Typography.Body1>
+                                                <View style={styles.modalItemMeta}>
+                                                    <Typography.Caption color={COLORS.textMuted}>
+                                                        {new Date(e.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                                                    </Typography.Caption>
+                                                    <Typography.Caption color={COLORS.textMuted}> • </Typography.Caption>
+                                                    <Typography.Caption color={COLORS.textMuted}>
+                                                        {e.total_questions}문항
+                                                    </Typography.Caption>
+                                                </View>
+                                            </View>
+                                            {isSelected && (
+                                                <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+                                            )}
+                                        </Pressable>
+                                    );
+                                })}
+                            </ScrollView>
+                        </View>
+                    </Pressable>
+                </Modal>
 
                 {/* My Position Card - Hero Section */}
                 {myResult?.status === "COMPLETED" && completedCount > 1 && myPercentile !== null && (
@@ -755,11 +847,7 @@ export default function AnalysisScreen() {
                                             idx === 2 && styles.rankThird,
                                         ]}>
                                             {idx < 3 ? (
-                                                <Ionicons
-                                                    name="trophy"
-                                                    size={12}
-                                                    color={idx === 0 ? "#FFD700" : idx === 1 ? "#C0C0C0" : "#CD7F32"}
-                                                />
+                                                <Typography.Body2 bold>{idx === 0 ? "🥇" : idx === 1 ? "🥈" : "🥉"}</Typography.Body2>
                                             ) : (
                                                 <Typography.Label bold color={COLORS.textMuted}>{idx + 1}</Typography.Label>
                                             )}
@@ -1020,6 +1108,73 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.primary,
         ...SHADOWS.small,
     },
+    // Dropdown Styles
+    dropdownSection: {
+        paddingHorizontal: SPACING.xl,
+        marginTop: SPACING.sm,
+        marginBottom: SPACING.md,
+    },
+    dropdownButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: COLORS.white,
+        paddingHorizontal: SPACING.lg,
+        paddingVertical: SPACING.md,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        ...SHADOWS.small,
+    },
+    // Modal Styles
+    modalBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContent: {
+        width: '85%',
+        maxHeight: '60%',
+        backgroundColor: COLORS.white,
+        borderRadius: 20,
+        padding: SPACING.lg,
+        ...SHADOWS.heavy,
+    },
+    modalContentLarge: {
+        maxHeight: '70%',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: SPACING.md,
+        paddingBottom: SPACING.sm,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border,
+    },
+    modalList: {
+        maxHeight: 400,
+    },
+    modalItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: SPACING.md,
+        paddingHorizontal: SPACING.sm,
+        borderRadius: 12,
+    },
+    modalItemActive: {
+        backgroundColor: COLORS.primaryLight,
+    },
+    modalItemContent: {
+        flex: 1,
+    },
+    modalItemMeta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 2,
+    },
     chipSection: {
         marginTop: SPACING.sm,
         marginBottom: SPACING.md,
@@ -1115,8 +1270,7 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         backgroundColor: COLORS.surface,
-        borderWidth: 1,
-        borderColor: COLORS.border,
+        ...SHADOWS.small,
     },
     positiveCard: {
         backgroundColor: '#ECFDF5',
@@ -1223,8 +1377,7 @@ const styles = StyleSheet.create({
         minWidth: '45%',
         alignItems: 'center',
         backgroundColor: COLORS.surface,
-        borderWidth: 1,
-        borderColor: COLORS.border,
+        ...SHADOWS.small,
     },
     rankItem: {
         flexDirection: 'row',
