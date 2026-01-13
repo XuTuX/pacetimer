@@ -81,6 +81,16 @@ export default function ExamRunScreen() {
 
     const navigation = useNavigation();
 
+    const rawTitle = exam?.title ?? "";
+    const cleanedTitle = rawTitle.replace(/^(\[.*?\]\s*)+/, "");
+
+    const subjectFromBracket =
+        (rawTitle.match(/^\[(.*?)\]/)?.[1] ?? "").trim();
+
+    const displaySubject = subjectFromBracket || "모의고사";
+    const displayTitle = cleanedTitle || "스터디 모의고사";
+
+
     // 1. Timer Tick
     useEffect(() => {
         const interval = setInterval(() => setNow(Date.now()), 16);
@@ -511,11 +521,12 @@ export default function ExamRunScreen() {
 
     if (loading || !exam) {
         return (
-            <SafeAreaView style={styles.container}>
+            <SafeAreaView style={[styles.container, styles.loadingContainer]}>
                 <ActivityIndicator size="large" color={COLORS.primary} />
             </SafeAreaView>
         );
     }
+
 
     const totalElapsedMs = startedAtTime ? now - startedAtTime : 0;
     const lapElapsedMs = now - lastLapTime;
@@ -525,13 +536,23 @@ export default function ExamRunScreen() {
         <SafeAreaView style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <View>
+                {/* 왼쪽: 남은 시간 */}
+                <View style={styles.headerSide}>
                     <Text style={styles.label}>남은 시간</Text>
                     <Text style={[styles.examTimer, remainingSec < 300 && { color: COLORS.accent }]}>
                         {formatSec(remainingSec)}
                     </Text>
                 </View>
-                <View style={{ alignItems: 'flex-end' }}>
+
+                {/* 가운데: 시험명(제목처럼) */}
+                <View style={styles.headerCenter}>
+                    <Text style={styles.headerSubject} numberOfLines={1}>
+                        {exam.title.replace(/^(\[.*?\]\s*)+/, "")}
+                    </Text>
+                </View>
+
+                {/* 오른쪽: 진행도 */}
+                <View style={styles.headerSideRight}>
                     <Text style={styles.label}>진행도</Text>
                     <Text style={styles.progressText}>
                         {isCompleted ? "검토" : `${questionIndex} / ${exam.total_questions}`}
@@ -539,23 +560,19 @@ export default function ExamRunScreen() {
                 </View>
             </View>
 
+
             {/* Title / Info */}
             <View style={styles.titleArea}>
-                <Text style={styles.examTitle}>{exam.title.replace(/^(\[.*?\]\s*)+/, "")}</Text>
                 <View style={[styles.badge, isCompleted ? styles.badgeComplete : styles.badgeProgress]}>
                     <Text style={[styles.badgeText, isCompleted ? styles.textComplete : styles.textProgress]}>
-                        {isCompleted ? "제출하기" : "집중 모드"}
+                        {displaySubject} · {isCompleted ? "검토" : "집중 모드"}
                     </Text>
                 </View>
-                <View style={styles.syncNotice}>
-                    <Ionicons name="time-outline" size={12} color={COLORS.primary} />
-                    <Text style={styles.syncNoticeText}>시험 시간이 학습 시간에 실시간으로 반영됩니다.</Text>
-                </View>
-                <View style={[styles.syncNotice, { marginTop: 2 }]}>
-                    <Ionicons name="alert-circle-outline" size={12} color={COLORS.accent} />
-                    <Text style={[styles.syncNoticeText, { color: COLORS.accent }]}>1회 한정 응시 가능하며, 퇴장 시 재입장이 불가합니다.</Text>
-                </View>
+
+                <Text style={styles.examTitle}>{displayTitle}</Text>
             </View>
+
+
 
             {/* Main Touch area */}
             <Pressable
@@ -571,7 +588,7 @@ export default function ExamRunScreen() {
                         {isCompleted ? "제출할까요?" : "문항"}
                     </Text>
                     <Text style={[styles.qNumber, isCompleted && { color: COLORS.primary }]}>
-                        {isCompleted ? "완료" : `Q${questionIndex}`}
+                        {isCompleted ? "완료" : `${questionIndex}번`}
                     </Text>
                 </View>
 
@@ -604,36 +621,62 @@ export default function ExamRunScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.bg },
+    badge: {
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 999,
+    },
+    badgeText: { fontSize: 13, fontWeight: "800" },
+    examTitle: {
+        fontSize: 18,
+        fontWeight: "800",
+        color: COLORS.text,
+        textAlign: "center",
+        letterSpacing: -0.2,
+    },
+    titleArea: {
+        alignItems: "center",
+        paddingHorizontal: 24,
+        marginBottom: 14,
+        gap: 10,
+    },
+
     header: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        alignItems: 'center',
         paddingHorizontal: 24,
         paddingVertical: 20,
     },
-    label: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted, marginBottom: 4, letterSpacing: 1 },
-    examTimer: { fontSize: 24, fontWeight: '800', color: COLORS.text, fontVariant: ['tabular-nums'] },
-    progressText: { fontSize: 24, fontWeight: '800', color: COLORS.primary, fontVariant: ['tabular-nums'] },
 
-    titleArea: {
+    headerSide: {
+        width: 92,
+    },
+
+    headerSideRight: {
+        width: 92,
+        alignItems: 'flex-end',
+    },
+
+    headerCenter: {
+        flex: 1,
         alignItems: 'center',
-        paddingHorizontal: 24,
-        marginBottom: 20,
-        gap: 8,
     },
-    examTitle: {
-        fontSize: 16,
-        fontWeight: '600',
+
+    headerSubject: {
+        fontSize: 20,
+        fontWeight: '800',
         color: COLORS.text,
-        textAlign: 'center',
+        letterSpacing: -0.3,
     },
-    badge: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 8,
-    },
+
+    progressText: { fontSize: 20, fontWeight: '800', color: COLORS.primary, fontVariant: ['tabular-nums'] },
+    examTimer: { fontSize: 24, fontWeight: '900', color: COLORS.text, fontVariant: ['tabular-nums'] },
+
+
+    label: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted, marginBottom: 4, letterSpacing: 1 },
+
     badgeProgress: { backgroundColor: COLORS.surfaceVariant },
     badgeComplete: { backgroundColor: '#E0F2F1' }, // Light teal
-    badgeText: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase' },
     textProgress: { color: COLORS.textMuted },
     textComplete: { color: COLORS.primary },
 
@@ -696,4 +739,9 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '600',
     },
+    loadingContainer: {
+        justifyContent: "center",
+        alignItems: "center",
+    },
+
 });

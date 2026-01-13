@@ -65,6 +65,17 @@ export default function MockExamRunScreen() {
         return () => clearInterval(interval);
     }, [examStartedAt, limitMin, lapStartAt]);
 
+    useEffect(() => {
+        if (remainingSec > 0) return;
+
+        const t = Date.now();
+        if (segmentId) endSegment(segmentId, t);
+        endSession();
+
+        router.replace('/(tabs)');
+    }, [remainingSec]);
+
+
     const handleNextQuestion = useCallback(() => {
         const now = Date.now();
         const duration = now - lapStartAt;
@@ -77,10 +88,15 @@ export default function MockExamRunScreen() {
                 {
                     text: "종료",
                     onPress: () => {
-                        if (segmentId) endSegment(segmentId, Date.now());
+                        const t = Date.now();
+                        if (segmentId) endSegment(segmentId, t);
                         endSession();
-                        router.back();
+
+                        // 🔥 홈으로 이동 (뒤로 가기 스택 제거)
+                        router.replace('/(tabs)');
+
                     }
+
                 }
             ]);
             return;
@@ -133,19 +149,32 @@ export default function MockExamRunScreen() {
         <SafeAreaView style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <View>
+                {/* 왼쪽: 남은 시간 */}
+                <View style={styles.headerSide}>
                     <Text style={styles.label}>남은 시간</Text>
                     <Text style={[styles.examTimer, remainingSec < 300 && { color: '#FF6B6B' }]}>
                         {formatSec(remainingSec)}
                     </Text>
                 </View>
-                <View style={{ alignItems: 'flex-end' }}>
+
+                {/* 가운데: 과목명 */}
+                <View style={styles.headerCenter}>
+                    <Text style={styles.headerSubject}>
+                        {isReviewMode
+                            ? "검토"
+                            : activeSubjects.find(s => s.id === currentSubjectId)?.name}
+                    </Text>
+                </View>
+
+                {/* 오른쪽: 진행도 */}
+                <View style={styles.headerSideRight}>
                     <Text style={styles.label}>진행도</Text>
                     <Text style={styles.progressText}>
                         {isReviewMode ? "완료" : `${answeredCount + 1} / ${totalQuestions}`}
                     </Text>
                 </View>
             </View>
+
 
 
 
@@ -159,11 +188,9 @@ export default function MockExamRunScreen() {
                 onPress={handleNextQuestion}
             >
                 <View style={styles.qInfo}>
-                    <Text style={styles.qSubjectName}>
-                        {isReviewMode ? "최종 확인" : activeSubjects.find(s => s.id === currentSubjectId)?.name}
-                    </Text>
+
                     <Text style={[styles.qNumber, isReviewMode && { color: COLORS.primary }]}>
-                        {isReviewMode ? "검토 시간" : `Q${answeredCount + 1}`}
+                        {isReviewMode ? "검토 시간" : `${answeredCount + 1}번`}
                     </Text>
                 </View>
 
@@ -181,7 +208,15 @@ export default function MockExamRunScreen() {
                 </View>
             </Pressable>
 
-            <TouchableOpacity onPress={() => { endSession(); router.back(); }} style={styles.exitBtn}>
+            <TouchableOpacity
+                onPress={() => {
+                    const t = Date.now();
+                    if (segmentId) endSegment(segmentId, t);
+                    endSession();
+                    router.replace('/(tabs)');
+                }}
+                style={styles.exitBtn}
+            >
                 <Text style={styles.exitBtnText}>시험 중단하기</Text>
             </TouchableOpacity>
         </SafeAreaView>
@@ -189,13 +224,35 @@ export default function MockExamRunScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: COLORS.bg },
     header: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        alignItems: 'center',
         paddingHorizontal: 24,
         paddingVertical: 20,
     },
+
+    headerSide: {
+        width: 90,
+    },
+
+    headerSideRight: {
+        width: 90,
+        alignItems: 'flex-end',
+    },
+
+    headerCenter: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    headerSubject: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: COLORS.text,
+        letterSpacing: -0.3,
+    },
+
+
+    container: { flex: 1, backgroundColor: COLORS.bg },
     label: { fontSize: 12, fontWeight: '700', color: COLORS.textMuted, marginBottom: 4 },
     examTimer: { fontSize: 28, fontWeight: '900', color: COLORS.text, fontVariant: ['tabular-nums'] },
     progressText: { fontSize: 20, fontWeight: '800', color: COLORS.primary },
