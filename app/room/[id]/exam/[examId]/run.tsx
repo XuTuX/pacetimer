@@ -4,7 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import { useKeepAwake } from "expo-keep-awake";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -13,13 +13,13 @@ import {
     StyleSheet,
     Text,
     View,
-    type AppStateStatus
+    type AppStateStatus,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import type { Database } from "../../../../../lib/db-types";
 import {
     INTERRUPTION_CONFIG,
-    formatInterruptionDuration
+    formatInterruptionDuration,
 } from "../../../../../lib/interruptionHandler";
 import { useAppStore } from "../../../../../lib/store";
 import { useSupabase } from "../../../../../lib/supabase";
@@ -34,7 +34,9 @@ function formatTime(ms: number) {
     const s = Math.floor(ms / 1000);
     const m = Math.floor(s / 60);
     const dec = Math.floor((ms % 1000) / 10);
-    return `${m}:${(s % 60).toString().padStart(2, '0')}.${dec.toString().padStart(2, '0')}`;
+    return `${m}:${(s % 60).toString().padStart(2, "0")}.${dec
+        .toString()
+        .padStart(2, "0")}`;
 }
 
 function formatSec(s: number) {
@@ -49,10 +51,13 @@ export default function ExamRunScreen() {
     useKeepAwake();
     const supabase = useSupabase();
     const router = useRouter();
+    const navigation = useNavigation();
+
     const { isLoaded, userId } = useAuth();
     const { id, examId } = useLocalSearchParams<{ id: string; examId: string }>();
 
-    const { pauseStopwatch, startSession, endSession, startSegment, endSegment, addQuestionRecord } = useAppStore();
+    const { pauseStopwatch, startSession, endSession, startSegment, endSegment, addQuestionRecord } =
+        useAppStore();
 
     const roomId = Array.isArray(id) ? id[0] : id;
     const currentExamId = Array.isArray(examId) ? examId[0] : examId;
@@ -73,25 +78,45 @@ export default function ExamRunScreen() {
     const [isCompleted, setIsCompleted] = useState(false);
 
     // Interruption Handler State
-    const [interruptionCount, setInterruptionCount] = useState(0);
-    const [totalInterruptionMs, setTotalInterruptionMs] = useState(0);
     const [showInterruptionWarning, setShowInterruptionWarning] = useState<string | null>(null);
     const interruptionStartRef = useRef<number | null>(null);
     const appState = useRef(AppState.currentState);
 
-    const navigation = useNavigation();
+    // Guard to prevent double-finishing (timeout/interruption/manual)
+    const finishingRef = useRef(false);
 
-    const rawTitle = exam?.title ?? "";
-    const cleanedTitle = rawTitle.replace(/^(\[.*?\]\s*)+/, "");
+    // --- 제목 파싱: [과목] 제목 또는 과목 • 제목 ---
+    const { displaySubject, displayTitle } = useMemo(() => {
+        const rawTitle = exam?.title ?? "";
 
-    const subjectFromBracket =
-        (rawTitle.match(/^\[(.*?)\]/)?.[1] ?? "").trim();
+        // 1) 먼저 [과목] 형식 체크
+        const bracketMatch = rawTitle.match(/^\s*\[(.*?)\]\s*/);
+        if (bracketMatch) {
+            const subjectFromBracket = bracketMatch[1].trim();
+            const titleAfterBracket = rawTitle.replace(/^\s*\[.*?\]\s*/, "").trim();
+            return {
+                displaySubject: subjectFromBracket || "모의고사",
+                displayTitle: titleAfterBracket || "스터디 모의고사",
+            };
+        }
 
-    const displaySubject = subjectFromBracket || "모의고사";
-    const displayTitle = cleanedTitle || "스터디 모의고사";
+        // 2) "과목 • 제목" 형식 체크 (• 또는 · 구분자)
+        const bulletMatch = rawTitle.match(/^(.+?)\s*[•·]\s*(.+)$/);
+        if (bulletMatch) {
+            return {
+                displaySubject: bulletMatch[1].trim() || "모의고사",
+                displayTitle: bulletMatch[2].trim() || "스터디 모의고사",
+            };
+        }
 
+        // 3) 형식이 없으면 전체를 제목으로 사용
+        return {
+            displaySubject: "모의고사",
+            displayTitle: rawTitle || "스터디 모의고사",
+        };
+    }, [exam?.title]);
 
-    // 1. Timer Tick
+    // 1) Timer Tick
     useEffect(() => {
         const interval = setInterval(() => setNow(Date.now()), 16);
         return () => clearInterval(interval);
@@ -99,18 +124,17 @@ export default function ExamRunScreen() {
 
     // 1.1 Prevent accidental navigation
     useEffect(() => {
-        const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-            if (isCompleted || loading) return; // Allow if finished or still loading initial state
-
+        const unsubscribe = navigation.addListener("beforeRemove", (e) => {
+            if (isCompleted || loading) return; // finished or initial loading: allow
             e.preventDefault();
             Alert.alert(
-                '시험 중단 불가',
-                '스터디 모의고사는 중간에 나갈 수 없으며, 나갈 경우 응시 기회를 잃게 됩니다. 정말 나가시겠습니까?',
+                "시험 중단 불가",
+                "스터디 모의고사는 중간에 나갈 수 없으며, 나갈 경우 응시 기회를 잃게 됩니다. 정말 나가시겠습니까?",
                 [
-                    { text: '계속 풀기', style: 'cancel', onPress: () => { } },
+                    { text: "계속 풀기", style: "cancel" },
                     {
-                        text: '나가기(응시 기회 상실)',
-                        style: 'destructive',
+                        text: "나가기(응시 기회 상실)",
+                        style: "destructive",
                         onPress: () => navigation.dispatch(e.data.action),
                     },
                 ]
@@ -124,83 +148,122 @@ export default function ExamRunScreen() {
         if (loading || isCompleted || !attemptId) return;
 
         const handleAppStateChange = (nextAppState: AppStateStatus) => {
-            const now = Date.now();
+            const nowMs = Date.now();
 
-            if (nextAppState === 'background' || nextAppState === 'inactive') {
-                // User is leaving the app - start tracking
+            if (nextAppState === "background" || nextAppState === "inactive") {
                 if (interruptionStartRef.current === null) {
-                    interruptionStartRef.current = now;
+                    interruptionStartRef.current = nowMs;
                 }
-            } else if (nextAppState === 'active' && appState.current !== 'active') {
-                // User is returning to the app
+            } else if (nextAppState === "active" && appState.current !== "active") {
                 if (interruptionStartRef.current !== null) {
-                    const duration = now - interruptionStartRef.current;
+                    const duration = nowMs - interruptionStartRef.current;
                     interruptionStartRef.current = null;
 
-                    // Update cumulative stats
-                    setInterruptionCount(prev => prev + 1);
-                    setTotalInterruptionMs(prev => prev + duration);
-
-                    // Handle based on duration
                     if (duration > INTERRUPTION_CONFIG.MEDIUM_THRESHOLD) {
-                        // Long interruption (>60s) - force end exam
                         handleForceEndDueToInterruption(duration);
                     } else if (duration >= INTERRUPTION_CONFIG.SHORT_THRESHOLD) {
-                        // Medium interruption (10-60s) - show warning
-                        setShowInterruptionWarning(
-                            `${formatInterruptionDuration(duration)} 동안 이탈했습니다.`
-                        );
+                        setShowInterruptionWarning(`${formatInterruptionDuration(duration)} 동안 이탈했습니다.`);
                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                        // Auto-hide warning after 3 seconds
                         setTimeout(() => setShowInterruptionWarning(null), 3000);
                     }
-                    // Short interruption (<10s) - silently continue
                 }
             }
 
             appState.current = nextAppState;
         };
 
-        const subscription = AppState.addEventListener('change', handleAppStateChange);
+        const subscription = AppState.addEventListener("change", handleAppStateChange);
         return () => subscription.remove();
     }, [loading, isCompleted, attemptId]);
 
-    // Force end exam due to long interruption
+    const finalizeLocalSession = useCallback(
+        (endedAtMs: number) => {
+            if (localSegmentId) endSegment(localSegmentId, endedAtMs);
+            endSession();
+        },
+        [localSegmentId, endSegment, endSession]
+    );
+
+    // (A) Force end: long interruption
     const handleForceEndDueToInterruption = async (durationMs: number) => {
         if (!attemptId || !startedAtTime) return;
+        if (finishingRef.current) return;
+        finishingRef.current = true;
 
         try {
             const endedAt = new Date();
             const totalDurationMs = endedAt.getTime() - startedAtTime;
 
-            await supabase.from("attempts").update({
-                ended_at: endedAt.toISOString(),
-                duration_ms: totalDurationMs,
-            }).eq("id", attemptId);
+            await supabase
+                .from("attempts")
+                .update({
+                    ended_at: endedAt.toISOString(),
+                    duration_ms: totalDurationMs,
+                })
+                .eq("id", attemptId);
 
-            // End local session
-            if (localSegmentId) endSegment(localSegmentId, endedAt.getTime());
-            endSession();
+            finalizeLocalSession(endedAt.getTime());
 
             Alert.alert(
                 "시험 종료",
                 `${formatInterruptionDuration(durationMs)} 동안 이탈하여 시험이 자동 종료되었습니다.`,
-                [{
-                    text: "확인",
-                    onPress: () => router.replace({
-                        pathname: `/room/[id]/exam/[examId]/summary`,
-                        params: { id: roomId, examId: currentExamId }
-                    })
-                }]
+                [
+                    {
+                        text: "확인",
+                        onPress: () =>
+                            router.replace({
+                                pathname: `/room/[id]/exam/[examId]/summary`,
+                                params: { id: roomId, examId: currentExamId },
+                            }),
+                    },
+                ]
             );
         } catch (e) {
+            finishingRef.current = false;
             Alert.alert("오류", "시험 종료 처리 중 문제가 발생했습니다.");
         }
     };
 
+    // (B) Force end: time over
+    const handleForceEndDueToTimeout = useCallback(async () => {
+        if (!attemptId || !startedAtTime) return;
+        if (finishingRef.current) return;
+        finishingRef.current = true;
+
+        try {
+            const endedAt = new Date();
+            const durationMs = endedAt.getTime() - startedAtTime;
+
+            await supabase
+                .from("attempts")
+                .update({
+                    ended_at: endedAt.toISOString(),
+                    duration_ms: durationMs,
+                })
+                .eq("id", attemptId);
+
+            finalizeLocalSession(endedAt.getTime());
+
+            Alert.alert("시간 종료", "시험 시간이 종료되어 자동으로 제출되었습니다.", [
+                {
+                    text: "확인",
+                    onPress: () =>
+                        router.replace({
+                            pathname: `/room/[id]/exam/[examId]/summary`,
+                            params: { id: roomId, examId: currentExamId },
+                        }),
+                },
+            ]);
+        } catch (e) {
+            finishingRef.current = false;
+            Alert.alert("오류", "시간 종료 처리 중 문제가 발생했습니다.");
+        }
+    }, [attemptId, startedAtTime, supabase, finalizeLocalSession, router, roomId, currentExamId]);
+
     // 2. Initialize Attempt
     useEffect(() => {
         if (!roomId || !currentExamId || !isLoaded) return;
+
         if (!userId) {
             Alert.alert("로그인이 필요합니다", "시험을 시작하려면 로그인해 주세요.");
             router.back();
@@ -215,18 +278,17 @@ export default function ExamRunScreen() {
         ) => {
             const startedAtMs = attempt.started_at ? new Date(attempt.started_at).getTime() : Date.now();
             let records: AttemptRecordRow[] = [];
+
             const { data: recordData, error: recordError } = await supabase
                 .from("attempt_records")
                 .select("*")
                 .eq("attempt_id", attempt.id)
                 .order("question_no", { ascending: true });
 
-            if (!recordError && recordData) {
-                records = recordData;
-            }
+            if (!recordError && recordData) records = recordData;
 
             const completedCount = records.length;
-            const elapsedFromRecords = records.reduce((sum, record) => sum + record.duration_ms, 0);
+            const elapsedFromRecords = records.reduce((sum, r) => sum + r.duration_ms, 0);
             const nextIndex = Math.min(completedCount + 1, totalQuestions);
 
             if (cancelled) return;
@@ -246,6 +308,7 @@ export default function ExamRunScreen() {
                     .select("*")
                     .eq("id", currentExamId)
                     .single();
+
                 if (eError) throw eError;
                 if (cancelled) return;
                 setExam(eData);
@@ -259,27 +322,24 @@ export default function ExamRunScreen() {
                     .order("created_at", { ascending: false })
                     .limit(1)
                     .maybeSingle();
+
                 if (existingError) throw existingError;
 
                 if (existingAttempt) {
-                    // Check if it was a properly completed attempt
                     if (existingAttempt.ended_at && existingAttempt.duration_ms && existingAttempt.duration_ms > 0) {
-                        // Properly completed - no re-entry allowed
-                        Alert.alert(
-                            "응시 불가",
-                            "스터디 모의고사는 1회만 응시 가능합니다. 이미 응시를 완료한 기록이 있습니다.",
-                            [{
+                        Alert.alert("응시 불가", "스터디 모의고사는 1회만 응시 가능합니다. 이미 응시를 완료한 기록이 있습니다.", [
+                            {
                                 text: "결과 보기",
-                                onPress: () => router.replace({
-                                    pathname: `/room/${roomId}/analysis` as any,
-                                    params: { initialExamId: currentExamId }
-                                })
-                            }]
-                        );
+                                onPress: () =>
+                                    router.replace({
+                                        pathname: `/room/${roomId}/analysis` as any,
+                                        params: { initialExamId: currentExamId },
+                                    }),
+                            },
+                        ]);
                         return;
                     }
 
-                    // Check for records to see if any progress was made
                     const { data: recordsData, error: recordsError } = await supabase
                         .from("attempt_records")
                         .select("id")
@@ -289,40 +349,13 @@ export default function ExamRunScreen() {
                     const hasRecords = !recordsError && recordsData && recordsData.length > 0;
 
                     if (!existingAttempt.ended_at && !hasRecords) {
-                        // Incomplete attempt with NO progress (app crashed/quit at start)
-                        // Delete the incomplete attempt and allow restart
                         await supabase.from("attempts").delete().eq("id", existingAttempt.id);
-
-                        Alert.alert(
-                            "이전 시도 초기화",
-                            "이전에 시험을 시작했으나 비정상 종료되었습니다. 처음부터 다시 시작합니다.",
-                            [{ text: "확인", style: "default" }]
-                        );
-                        // Continue to create new attempt below
                     } else if (!existingAttempt.ended_at && hasRecords) {
-                        // Has some progress but didn't finish properly
-                        // This is tricky - they have partial progress
-                        // For fairness, we'll invalidate and restart
                         await supabase.from("attempt_records").delete().eq("attempt_id", existingAttempt.id);
                         await supabase.from("attempts").delete().eq("id", existingAttempt.id);
-
-                        Alert.alert(
-                            "이전 시도 초기화",
-                            "이전 응시가 중간에 비정상 종료되어 기록이 무효화되었습니다. 처음부터 다시 시작합니다.",
-                            [{ text: "확인", style: "default" }]
-                        );
-                        // Continue to create new attempt below
                     } else if (existingAttempt.ended_at && (!existingAttempt.duration_ms || existingAttempt.duration_ms === 0)) {
-                        // Ended but with 0 duration (abnormal end)
                         await supabase.from("attempt_records").delete().eq("attempt_id", existingAttempt.id);
                         await supabase.from("attempts").delete().eq("id", existingAttempt.id);
-
-                        Alert.alert(
-                            "이전 시도 초기화",
-                            "이전 응시가 비정상적으로 종료되어(0초 기록) 무효 처리되었습니다. 처음부터 다시 시작합니다.",
-                            [{ text: "확인", style: "default" }]
-                        );
-                        // Continue to create new attempt below
                     }
                 }
 
@@ -350,11 +383,13 @@ export default function ExamRunScreen() {
                             .order("created_at", { ascending: false })
                             .limit(1)
                             .maybeSingle();
+
                         if (retryError) throw retryError;
+
                         if (retryAttempt?.ended_at) {
                             router.replace({
                                 pathname: `/room/${roomId}/analysis` as any,
-                                params: { initialExamId: currentExamId }
+                                params: { initialExamId: currentExamId },
                             });
                             return;
                         }
@@ -367,6 +402,10 @@ export default function ExamRunScreen() {
                 }
 
                 if (cancelled) return;
+
+                // Reset finish guard
+                finishingRef.current = false;
+
                 const startedAtMs = aData.started_at ? new Date(aData.started_at).getTime() : startTime.getTime();
                 setAttemptId(aData.id);
                 setStartedAtTime(startedAtMs);
@@ -374,26 +413,25 @@ export default function ExamRunScreen() {
                 setQuestionIndex(1);
                 setIsCompleted(false);
 
-                // --- Synergy with Local Study Time ---
+                // Local store synergy
                 pauseStopwatch();
-                const lSessId = startSession('mock-exam', {
+                const lSessId = startSession("mock-exam", {
                     title: `[스터디] ${eData.title}`,
                     mockExam: {
-                        subjectIds: ['__room_exam__'],
+                        subjectIds: ["__room_exam__"],
                         timeLimitSec: eData.total_minutes * 60,
                         targetQuestions: eData.total_questions,
-                    }
+                    },
                 });
                 setLocalSessionId(lSessId);
+
                 const lSegId = startSegment({
                     sessionId: lSessId,
-                    subjectId: '__room_exam__',
-                    kind: 'solve',
-                    startedAt: startedAtMs
+                    subjectId: "__room_exam__",
+                    kind: "solve",
+                    startedAt: startedAtMs,
                 });
                 setLocalSegmentId(lSegId);
-                // -------------------------------------
-
             } catch (err: any) {
                 Alert.alert("오류", formatSupabaseError(err));
                 router.back();
@@ -405,16 +443,63 @@ export default function ExamRunScreen() {
         init();
         return () => {
             cancelled = true;
-            // Best effort ending if they leave
-            // Note: In a real app, we might want to be more careful about duplicate ends
         };
-    }, [roomId, currentExamId, isLoaded, userId, supabase, router, pauseStopwatch, startSession, startSegment]);
+    }, [
+        roomId,
+        currentExamId,
+        isLoaded,
+        userId,
+        supabase,
+        router,
+        pauseStopwatch,
+        startSession,
+        startSegment,
+    ]);
+
+    const handleFinish = useCallback(async () => {
+        if (!attemptId || !startedAtTime) return;
+        if (finishingRef.current) return;
+
+        Alert.alert("시험 종료", "모든 과정을 마치고 종료하시겠습니까?", [
+            { text: "취소", style: "cancel" },
+            {
+                text: "종료",
+                style: "destructive",
+                onPress: async () => {
+                    finishingRef.current = true;
+                    setLoading(true);
+                    try {
+                        const endedAt = new Date();
+                        const durationMs = endedAt.getTime() - startedAtTime;
+
+                        await supabase
+                            .from("attempts")
+                            .update({
+                                ended_at: endedAt.toISOString(),
+                                duration_ms: durationMs,
+                            })
+                            .eq("id", attemptId);
+
+                        finalizeLocalSession(endedAt.getTime());
+
+                        router.replace({
+                            pathname: `/room/[id]/exam/[examId]/summary`,
+                            params: { id: roomId, examId: currentExamId },
+                        });
+                    } catch (e) {
+                        finishingRef.current = false;
+                        Alert.alert("오류", "결과 저장에 실패했습니다.");
+                        setLoading(false);
+                    }
+                },
+            },
+        ]);
+    }, [attemptId, startedAtTime, supabase, finalizeLocalSession, router, roomId, currentExamId]);
 
     const handleNext = useCallback(async () => {
         if (!attemptId || !exam) return;
         const nowMs = Date.now();
 
-        // 1. If already finished, don't do anything here (or show finish alert)
         if (isCompleted) {
             handleFinish();
             return;
@@ -428,38 +513,32 @@ export default function ExamRunScreen() {
 
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-        // 2. Insert record for current question
+        // Insert record for current question
         try {
             const { error: rError } = await supabase.from("attempt_records").insert({
                 attempt_id: attemptId,
                 question_no: questionIndex,
                 duration_ms: duration,
             });
-            if (rError) {
-                if (__DEV__) {
-                    console.warn("attempt_record 저장 실패:", rError.message);
-                }
-            }
+            if (rError && __DEV__) console.warn("attempt_record 저장 실패:", rError.message);
         } catch (rErr) {
-            if (__DEV__) {
-                console.warn("attempt_record 저장 중 오류:", rErr);
-            }
+            if (__DEV__) console.warn("attempt_record 저장 중 오류:", rErr);
         }
 
-        // 3. Local Store sync
+        // Local store sync
         if (localSessionId && localSegmentId) {
             addQuestionRecord({
                 sessionId: localSessionId,
                 segmentId: localSegmentId,
-                subjectId: '__room_exam__',
+                subjectId: "__room_exam__",
                 durationMs: duration,
                 startedAt: lastLapTime,
                 endedAt: nowMs,
-                source: 'tap'
+                source: "tap",
             });
         }
 
-        // 4. Last question?
+        // Last question?
         if (questionIndex >= exam.total_questions) {
             setIsCompleted(true);
             setLastLapTime(nowMs);
@@ -469,55 +548,47 @@ export default function ExamRunScreen() {
                 endSegment(localSegmentId, nowMs);
                 const reviewSegId = startSegment({
                     sessionId: localSessionId,
-                    subjectId: '__review__',
-                    kind: 'review',
-                    startedAt: nowMs
+                    subjectId: "__review__",
+                    kind: "review",
+                    startedAt: nowMs,
                 });
                 setLocalSegmentId(reviewSegId);
             }
         } else {
-            setQuestionIndex(q => q + 1);
+            setQuestionIndex((q) => q + 1);
             setLastLapTime(nowMs);
         }
-    }, [attemptId, exam, questionIndex, lastLapTime, isCompleted, supabase, localSessionId, localSegmentId, addQuestionRecord, endSegment, startSegment]);
+    }, [
+        attemptId,
+        exam,
+        questionIndex,
+        lastLapTime,
+        isCompleted,
+        supabase,
+        localSessionId,
+        localSegmentId,
+        addQuestionRecord,
+        endSegment,
+        startSegment,
+        handleFinish,
+    ]);
 
+    // ✅ 시간 종료 자동 제출 (기존 코드에는 없었음)
+    const remainingSec = useMemo(() => {
+        if (!exam || !startedAtTime) return 0;
+        const totalElapsedMs = now - startedAtTime;
+        return Math.max(0, exam.total_minutes * 60 - Math.floor(totalElapsedMs / 1000));
+    }, [exam, startedAtTime, now]);
 
-    const handleFinish = async () => {
-        if (!attemptId || !startedAtTime) return;
+    useEffect(() => {
+        if (loading) return;
+        if (!exam || !attemptId || !startedAtTime) return;
+        if (isCompleted) return;
 
-        Alert.alert("시험 종료", "모든 과정을 마치고 종료하시겠습니까?", [
-            { text: "취소", style: "cancel" },
-            {
-                text: "종료",
-                style: "destructive",
-                onPress: async () => {
-                    setLoading(true);
-                    try {
-                        const endedAt = new Date();
-                        const durationMs = endedAt.getTime() - startedAtTime;
-
-                        await supabase.from("attempts").update({
-                            ended_at: endedAt.toISOString(),
-                            duration_ms: durationMs,
-                        }).eq("id", attemptId);
-
-                        // --- Synergy with Local Study Time ---
-                        if (localSegmentId) endSegment(localSegmentId, endedAt.getTime());
-                        endSession();
-                        // -------------------------------------
-
-                        router.replace({
-                            pathname: `/room/[id]/exam/[examId]/summary`,
-                            params: { id: roomId, examId: currentExamId }
-                        });
-                    } catch (e) {
-                        Alert.alert("오류", "결과 저장에 실패했습니다.");
-                        setLoading(false);
-                    }
-                }
-            }
-        ]);
-    };
+        if (remainingSec <= 0) {
+            handleForceEndDueToTimeout();
+        }
+    }, [loading, exam, attemptId, startedAtTime, isCompleted, remainingSec, handleForceEndDueToTimeout]);
 
     if (loading || !exam) {
         return (
@@ -527,16 +598,12 @@ export default function ExamRunScreen() {
         );
     }
 
-
-    const totalElapsedMs = startedAtTime ? now - startedAtTime : 0;
     const lapElapsedMs = now - lastLapTime;
-    const remainingSec = Math.max(0, (exam.total_minutes * 60) - Math.floor(totalElapsedMs / 1000));
 
     return (
         <SafeAreaView style={styles.container}>
-            {/* Header */}
+            {/* Header (중앙 제거) */}
             <View style={styles.header}>
-                {/* 왼쪽: 남은 시간 */}
                 <View style={styles.headerSide}>
                     <Text style={styles.label}>남은 시간</Text>
                     <Text style={[styles.examTimer, remainingSec < 300 && { color: COLORS.accent }]}>
@@ -544,14 +611,6 @@ export default function ExamRunScreen() {
                     </Text>
                 </View>
 
-                {/* 가운데: 시험명(제목처럼) */}
-                <View style={styles.headerCenter}>
-                    <Text style={styles.headerSubject} numberOfLines={1}>
-                        {exam.title.replace(/^(\[.*?\]\s*)+/, "")}
-                    </Text>
-                </View>
-
-                {/* 오른쪽: 진행도 */}
                 <View style={styles.headerSideRight}>
                     <Text style={styles.label}>진행도</Text>
                     <Text style={styles.progressText}>
@@ -560,40 +619,35 @@ export default function ExamRunScreen() {
                 </View>
             </View>
 
-
-            {/* Title / Info */}
+            {/* Title / Info : pill=과목, 아래=제목 (점/구분자 없음) */}
             <View style={styles.titleArea}>
-                <View style={[styles.badge, isCompleted ? styles.badgeComplete : styles.badgeProgress]}>
-                    <Text style={[styles.badgeText, isCompleted ? styles.textComplete : styles.textProgress]}>
-                        {displaySubject} · {isCompleted ? "검토" : "집중 모드"}
+                <View style={styles.badge}>
+                    <Text style={styles.badgeText} numberOfLines={1}>
+                        {displaySubject}
                     </Text>
                 </View>
 
-                <Text style={styles.examTitle}>{displayTitle}</Text>
+                <Text style={styles.examTitle} numberOfLines={1}>
+                    {displayTitle}
+                </Text>
             </View>
-
-
 
             {/* Main Touch area */}
             <Pressable
                 style={({ pressed }) => [
                     styles.touchArea,
-                    pressed && { backgroundColor: COLORS.surfaceVariant }, // subtle feedback
-                    isCompleted && { borderColor: COLORS.primary, borderWidth: 2, borderStyle: 'solid' }
+                    pressed && { backgroundColor: COLORS.surfaceVariant },
+                    isCompleted && { borderColor: COLORS.primary, borderWidth: 2, borderStyle: "solid" },
                 ]}
                 onPress={handleNext}
             >
                 <View style={styles.qInfo}>
-                    <Text style={styles.qHeader}>
-                        {isCompleted ? "제출할까요?" : "문항"}
-                    </Text>
+                    <Text style={styles.qHeader}>{isCompleted ? "제출할까요?" : "문항"}</Text>
                     <Text style={[styles.qNumber, isCompleted && { color: COLORS.primary }]}>
                         {isCompleted ? "완료" : `${questionIndex}번`}
                     </Text>
                 </View>
 
-                {/* Only show lap time if not done? Or total time? */}
-                {/* Keeping lap time is fine for pacing */}
                 <Text style={styles.lapTime}>{formatTime(lapElapsedMs)}</Text>
 
                 <View style={styles.tapHint}>
@@ -602,9 +656,7 @@ export default function ExamRunScreen() {
                         size={32}
                         color={isCompleted ? COLORS.primary : COLORS.textMuted}
                     />
-                    <Text style={styles.tapHintText}>
-                        {isCompleted ? "눌러서 시험 종료" : "화면을 탭하면 다음 문항으로"}
-                    </Text>
+                    <Text style={styles.tapHintText}>{isCompleted ? "눌러서 시험 종료" : "화면을 탭하면 다음 문항으로"}</Text>
                 </View>
             </Pressable>
 
@@ -621,113 +673,121 @@ export default function ExamRunScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.bg },
-    badge: {
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        borderRadius: 999,
+
+    // Loading centered
+    loadingContainer: {
+        justifyContent: "center",
+        alignItems: "center",
     },
-    badgeText: { fontSize: 13, fontWeight: "800" },
-    examTitle: {
-        fontSize: 18,
-        fontWeight: "800",
+
+    // Header (left/right only)
+    header: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        paddingHorizontal: 24,
+        paddingVertical: 20,
+    },
+    headerSide: {
+        minWidth: 120,
+    },
+    headerSideRight: {
+        minWidth: 120,
+        alignItems: "flex-end",
+    },
+
+    label: {
+        fontSize: 11,
+        fontWeight: "700",
+        color: COLORS.textMuted,
+        marginBottom: 4,
+        letterSpacing: 1,
+    },
+    examTimer: {
+        fontSize: 28,
+        fontWeight: "900",
         color: COLORS.text,
-        textAlign: "center",
-        letterSpacing: -0.2,
+        fontVariant: ["tabular-nums"],
     },
+    progressText: {
+        fontSize: 22,
+        fontWeight: "800",
+        color: COLORS.primary,
+        fontVariant: ["tabular-nums"],
+    },
+
+    // Title Area: pill(subject) + title
     titleArea: {
         alignItems: "center",
         paddingHorizontal: 24,
         marginBottom: 14,
         gap: 10,
     },
-
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 24,
-        paddingVertical: 20,
+    badge: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 999,
+        backgroundColor: COLORS.surfaceVariant,
     },
-
-    headerSide: {
-        width: 92,
+    badgeText: {
+        fontSize: 14,
+        fontWeight: "800",
+        color: COLORS.textMuted,
+        letterSpacing: -0.2,
     },
-
-    headerSideRight: {
-        width: 92,
-        alignItems: 'flex-end',
-    },
-
-    headerCenter: {
-        flex: 1,
-        alignItems: 'center',
-    },
-
-    headerSubject: {
+    examTitle: {
         fontSize: 20,
-        fontWeight: '800',
+        fontWeight: "900",
         color: COLORS.text,
+        textAlign: "center",
         letterSpacing: -0.3,
     },
 
-    progressText: { fontSize: 20, fontWeight: '800', color: COLORS.primary, fontVariant: ['tabular-nums'] },
-    examTimer: { fontSize: 24, fontWeight: '900', color: COLORS.text, fontVariant: ['tabular-nums'] },
-
-
-    label: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted, marginBottom: 4, letterSpacing: 1 },
-
-    badgeProgress: { backgroundColor: COLORS.surfaceVariant },
-    badgeComplete: { backgroundColor: '#E0F2F1' }, // Light teal
-    textProgress: { color: COLORS.textMuted },
-    textComplete: { color: COLORS.primary },
-
+    // Touch Area
     touchArea: {
         flex: 1,
         marginHorizontal: 20,
         marginBottom: 30,
         borderRadius: 32,
         backgroundColor: COLORS.surface,
-        // Removed dashed border for cleaner look, added shadow
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.05,
         shadowRadius: 10,
         elevation: 3,
-        justifyContent: 'center',
-        alignItems: 'center',
+        justifyContent: "center",
+        alignItems: "center",
     },
-    qInfo: { alignItems: 'center', marginBottom: 20 },
-    qHeader: { fontSize: 16, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 1 },
-    qNumber: { fontSize: 56, fontWeight: '900', color: COLORS.text, marginVertical: 8 },
-    lapTime: { fontSize: 56, fontWeight: '300', color: COLORS.primary, fontVariant: ['tabular-nums'], marginBottom: 32 },
-    tapHint: { alignItems: 'center', gap: 12, opacity: 0.8 },
-    tapHintText: { fontSize: 14, fontWeight: '500', color: COLORS.textMuted },
-
-    exitBtn: { alignSelf: 'center', marginBottom: 20, padding: 10 },
-    exitBtnText: { color: COLORS.error, fontWeight: '600', fontSize: 13 },
-
-    syncNotice: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        marginTop: 4,
+    qInfo: { alignItems: "center", marginBottom: 20 },
+    qHeader: {
+        fontSize: 16,
+        fontWeight: "600",
+        color: COLORS.textMuted,
+        textTransform: "uppercase",
+        letterSpacing: 1,
     },
-    syncNoticeText: {
-        fontSize: 11,
+    qNumber: { fontSize: 56, fontWeight: "900", color: COLORS.text, marginVertical: 8 },
+    lapTime: {
+        fontSize: 56,
+        fontWeight: "300",
         color: COLORS.primary,
-        fontWeight: '600',
+        fontVariant: ["tabular-nums"],
+        marginBottom: 32,
     },
+    tapHint: { alignItems: "center", gap: 12, opacity: 0.8 },
+    tapHintText: { fontSize: 14, fontWeight: "500", color: COLORS.textMuted },
+
     interruptionBanner: {
-        position: 'absolute',
+        position: "absolute",
         top: 100,
         left: 20,
         right: 20,
         backgroundColor: COLORS.warning,
         borderRadius: 12,
         padding: 12,
-        flexDirection: 'row',
-        alignItems: 'center',
+        flexDirection: "row",
+        alignItems: "center",
         gap: 8,
-        shadowColor: '#000',
+        shadowColor: "#000",
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.2,
         shadowRadius: 8,
@@ -737,11 +797,6 @@ const styles = StyleSheet.create({
         flex: 1,
         color: COLORS.white,
         fontSize: 13,
-        fontWeight: '600',
+        fontWeight: "600",
     },
-    loadingContainer: {
-        justifyContent: "center",
-        alignItems: "center",
-    },
-
 });
