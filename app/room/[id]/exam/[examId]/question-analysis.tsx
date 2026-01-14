@@ -3,7 +3,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { InsightCard } from "../../../../../components/analysis/InsightCard";
 import { QuestionBar } from "../../../../../components/analysis/QuestionBar";
 import { Card } from "../../../../../components/ui/Card";
 import { ScreenHeader } from "../../../../../components/ui/ScreenHeader";
@@ -13,7 +12,6 @@ import type { Database } from "../../../../../lib/db-types";
 import {
     analyzeQuestions,
     detectSolvingPattern,
-    generateInsightCards,
     getMedian,
     getStdDev,
 } from "../../../../../lib/insights";
@@ -23,13 +21,6 @@ import { COLORS, RADIUS, SPACING } from "../../../../../lib/theme";
 
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
 type RecordRow = Database["public"]["Tables"]["attempt_records"]["Row"];
-
-function formatDuration(ms: number): string {
-    const totalSeconds = Math.floor(ms / 1000);
-    const m = Math.floor(totalSeconds / 60);
-    const s = totalSeconds % 60;
-    return m > 0 ? `${m}분 ${s}초` : `${s}초`;
-}
 
 function formatShortDuration(ms: number): string {
     const totalSeconds = Math.floor(ms / 1000);
@@ -159,22 +150,6 @@ export default function QuestionAnalysisScreen() {
         return detectSolvingPattern(myDurations, roomMedian, roomVariance);
     }, [myRecords, roomDurations]);
 
-    // Insight cards
-    const insights = useMemo(() => {
-        if (questionAnalysis.length === 0 || !solvingPattern) return [];
-        const roomAvgDuration = roomDurations.length > 0
-            ? roomDurations.reduce((a, b) => a + b, 0) / roomDurations.length
-            : myDurationMs;
-        const roomMedianDuration = getMedian(roomDurations);
-        return generateInsightCards(
-            questionAnalysis,
-            solvingPattern,
-            myDurationMs,
-            roomAvgDuration,
-            roomMedianDuration
-        );
-    }, [questionAnalysis, solvingPattern, myDurationMs, roomDurations]);
-
     // Stats
     const stats = useMemo(() => {
         if (questionAnalysis.length === 0) return null;
@@ -249,89 +224,64 @@ export default function QuestionAnalysisScreen() {
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Summary Dashboard */}
+                {/* Recap */}
                 {stats && (
-                    <View style={styles.dashboardContainer}>
-                        <Card padding="xl" radius="xxl" style={styles.dashboardCard}>
-                            {/* Position Badge */}
-                            <View style={styles.positionRow}>
-                                <View style={[
-                                    styles.positionBadge,
-                                    stats.percentile >= 75 && styles.positionBadgeTop
-                                ]}>
-                                    <Typography.Label bold color={COLORS.white}>
-                                        상위 {100 - stats.percentile}%
-                                    </Typography.Label>
-                                </View>
+                    <Section title="리캡" style={styles.section} contentStyle={styles.recapContent}>
+                        <View style={styles.recapGrid}>
+                            <View style={styles.recapCard}>
+                                <Typography.Caption color={COLORS.textMuted}>총 시간</Typography.Caption>
+                                <Typography.H2 bold color={COLORS.text}>
+                                    {formatShortDuration(myDurationMs)}
+                                </Typography.H2>
                             </View>
-
-                            {/* Stats Grid */}
-                            <View style={styles.statsGrid}>
-                                <View style={styles.statItem}>
-                                    <Typography.H2 bold color={COLORS.primary}>
-                                        {formatShortDuration(myDurationMs)}
+                            <View style={styles.recapCard}>
+                                <Typography.Caption color={COLORS.textMuted}>평균 대비</Typography.Caption>
+                                <View style={styles.recapValueRow}>
+                                    <Ionicons
+                                        name={stats.diffFromAvg <= 0 ? "arrow-down" : "arrow-up"}
+                                        size={14}
+                                        color={stats.diffFromAvg <= 0 ? "#10B981" : COLORS.error}
+                                    />
+                                    <Typography.H2 bold color={stats.diffFromAvg <= 0 ? "#10B981" : COLORS.error}>
+                                        {stats.diffFromAvg === 0 ? "0초" : `${stats.diffFromAvg < 0 ? "-" : "+"}${formatShortDuration(Math.abs(stats.diffFromAvg))}`}
                                     </Typography.H2>
-                                    <Typography.Caption color={COLORS.textMuted}>
-                                        총 소요시간
-                                    </Typography.Caption>
-                                </View>
-                                <View style={styles.statDivider} />
-                                <View style={styles.statItem}>
-                                    <Typography.H2 bold color={stats.diffFromAvg < 0 ? '#10B981' : COLORS.error}>
-                                        {stats.diffFromAvg < 0 ? '-' : '+'}{formatShortDuration(Math.abs(stats.diffFromAvg))}
-                                    </Typography.H2>
-                                    <Typography.Caption color={COLORS.textMuted}>
-                                        평균 대비
-                                    </Typography.Caption>
                                 </View>
                             </View>
-
-                            {/* Highlight Summary */}
-                            <View style={styles.highlightSummary}>
-                                {stats.slowQuestions.length > 0 && (
-                                    <View style={[styles.highlightItem, { backgroundColor: '#FEF2F2' }]}>
-                                        <Ionicons name="arrow-up" size={12} color="#EF4444" />
-                                        <Typography.Caption color="#DC2626">
-                                            개선 필요 {stats.slowQuestions.length}문항
-                                        </Typography.Caption>
-                                    </View>
-                                )}
-                                {stats.fastQuestions.length > 0 && (
-                                    <View style={[styles.highlightItem, { backgroundColor: '#F0FDF4' }]}>
-                                        <Ionicons name="arrow-down" size={12} color="#10B981" />
-                                        <Typography.Caption color="#059669">
-                                            강점 {stats.fastQuestions.length}문항
-                                        </Typography.Caption>
-                                    </View>
-                                )}
-                                {stats.commonHardQuestions.length > 0 && (
-                                    <View style={[styles.highlightItem, { backgroundColor: '#FFFBEB' }]}>
-                                        <Ionicons name="people" size={12} color="#F59E0B" />
-                                        <Typography.Caption color="#D97706">
-                                            공통 어려움 {stats.commonHardQuestions.length}문항
-                                        </Typography.Caption>
-                                    </View>
-                                )}
+                            <View style={styles.recapCard}>
+                                <Typography.Caption color={COLORS.textMuted}>상위</Typography.Caption>
+                                <Typography.H2 bold color={COLORS.primary}>
+                                    {100 - stats.percentile}%
+                                </Typography.H2>
                             </View>
-                        </Card>
-                    </View>
-                )}
+                        </View>
 
-                {/* Insights Section */}
-                {insights.length > 0 && (
-                    <Section title="인사이트" style={styles.section}>
-                        {insights.slice(0, 3).map((insight, idx) => (
-                            <InsightCard
-                                key={idx}
-                                type={insight.type}
-                                icon={insight.icon}
-                                title={insight.title}
-                                subtitle={insight.subtitle}
-                                body={insight.body}
-                                tip={insight.tip}
-                                color={insight.color}
-                            />
-                        ))}
+                        {questionAnalysis.length > 0 && (
+                            <View style={styles.heatmapContainer}>
+                                <ScrollView
+                                    horizontal
+                                    showsHorizontalScrollIndicator={false}
+                                    contentContainerStyle={styles.heatmapRow}
+                                >
+                                    {questionAnalysis.map((q) => {
+                                        const ratio = maxDuration > 0 ? q.myDurationMs / maxDuration : 0;
+                                        const opacity = q.myDurationMs === 0 ? 1 : Math.min(1, 0.15 + ratio * 0.85);
+                                        return (
+                                            <View
+                                                key={q.questionNo}
+                                                style={[
+                                                    styles.heatmapCell,
+                                                    { backgroundColor: q.myDurationMs === 0 ? COLORS.border : COLORS.primary, opacity }
+                                                ]}
+                                            />
+                                        );
+                                    })}
+                                </ScrollView>
+                                <View style={styles.heatmapLegend}>
+                                    <Typography.Caption color={COLORS.textMuted}>빠름</Typography.Caption>
+                                    <Typography.Caption color={COLORS.textMuted}>느림</Typography.Caption>
+                                </View>
+                            </View>
+                        )}
                     </Section>
                 )}
 
@@ -452,57 +402,53 @@ const styles = StyleSheet.create({
         padding: 2,
     },
 
-    // Dashboard
-    dashboardContainer: {
-        marginTop: SPACING.lg,
+    // Recap
+    recapContent: {
+        gap: SPACING.md,
     },
-
-    dashboardCard: {
+    recapGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: SPACING.md,
+    },
+    recapCard: {
+        flex: 1,
+        minWidth: '30%',
+        backgroundColor: COLORS.surface,
+        borderRadius: RADIUS.lg,
+        padding: SPACING.lg,
         borderWidth: 1,
         borderColor: COLORS.border,
     },
-    positionRow: {
-        alignItems: 'center',
-        marginBottom: SPACING.md,
-    },
-    positionBadge: {
-        backgroundColor: COLORS.textMuted,
-        paddingHorizontal: SPACING.xl,
-        paddingVertical: SPACING.xs,
-        borderRadius: RADIUS.full,
-    },
-    positionBadgeTop: {
-        backgroundColor: COLORS.primary,
-    },
-    statsGrid: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: SPACING.lg,
-    },
-    statItem: {
-        flex: 1,
-        alignItems: 'center',
-    },
-    statDivider: {
-        width: 1,
-        height: 40,
-        backgroundColor: COLORS.border,
-        marginHorizontal: SPACING.md,
-    },
-    highlightSummary: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'center',
-        gap: SPACING.sm,
-    },
-    highlightItem: {
+    recapValueRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        gap: 6,
+    },
+    heatmapContainer: {
+        backgroundColor: COLORS.surface,
+        borderRadius: RADIUS.lg,
+        paddingVertical: SPACING.md,
         paddingHorizontal: SPACING.sm,
-        paddingVertical: 4,
-        borderRadius: RADIUS.full,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    heatmapRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 3,
+        paddingHorizontal: SPACING.xs,
+    },
+    heatmapCell: {
+        width: 8,
+        height: 10,
+        borderRadius: 3,
+    },
+    heatmapLegend: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: SPACING.sm,
+        paddingHorizontal: SPACING.xs,
     },
 
     // Pattern Card
