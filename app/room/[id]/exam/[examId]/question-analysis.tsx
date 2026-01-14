@@ -1,7 +1,7 @@
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { InsightCard } from "../../../../../components/analysis/InsightCard";
 import { QuestionBar } from "../../../../../components/analysis/QuestionBar";
@@ -43,10 +43,20 @@ export default function QuestionAnalysisScreen() {
     const supabase = useSupabase();
     const router = useRouter();
     const { userId } = useAuth();
-    const { id, examId } = useLocalSearchParams<{ id: string; examId: string }>();
+    const { id, examId, questionNo } = useLocalSearchParams<{ id: string; examId: string; questionNo?: string }>();
 
     const roomId = Array.isArray(id) ? id[0] : id;
     const currentExamId = Array.isArray(examId) ? examId[0] : examId;
+    const targetQuestionNo = useMemo(() => {
+        const parsed = Number(Array.isArray(questionNo) ? questionNo[0] : questionNo);
+        return Number.isFinite(parsed) ? parsed : null;
+    }, [questionNo]);
+    const scrollRef = useRef<ScrollView>(null);
+    const hasAutoScrolledRef = useRef(false);
+
+    useEffect(() => {
+        hasAutoScrolledRef.current = false;
+    }, [targetQuestionNo]);
 
     const [exam, setExam] = useState<RoomExamRow | null>(null);
     const [loading, setLoading] = useState(true);
@@ -235,6 +245,7 @@ export default function QuestionAnalysisScreen() {
             <ScreenHeader title="문항별 분석" />
 
             <ScrollView
+                ref={scrollRef}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
@@ -331,12 +342,28 @@ export default function QuestionAnalysisScreen() {
                     style={styles.section}
                 >
                     {questionAnalysis.map((q) => (
-                        <QuestionBar
+                        <View
                             key={q.questionNo}
-                            data={q}
-                            maxDuration={maxDuration}
-                            showMedian={true}
-                        />
+                            onLayout={
+                                targetQuestionNo === q.questionNo
+                                    ? (event) => {
+                                        if (hasAutoScrolledRef.current) return;
+                                        hasAutoScrolledRef.current = true;
+                                        scrollRef.current?.scrollTo({
+                                            y: Math.max(0, event.nativeEvent.layout.y - SPACING.lg),
+                                            animated: true,
+                                        });
+                                    }
+                                    : undefined
+                            }
+                            style={targetQuestionNo === q.questionNo ? styles.focusedQuestion : undefined}
+                        >
+                            <QuestionBar
+                                data={q}
+                                maxDuration={maxDuration}
+                                showMedian={true}
+                            />
+                        </View>
                     ))}
                 </Section>
 
@@ -415,14 +442,21 @@ const styles = StyleSheet.create({
         paddingTop: SPACING.md,
     },
     section: {
-        paddingHorizontal: SPACING.xl,
+
         marginTop: SPACING.lg,
+    },
+    focusedQuestion: {
+        borderWidth: 1,
+        borderColor: COLORS.primary,
+        borderRadius: RADIUS.lg,
+        padding: 2,
     },
 
     // Dashboard
     dashboardContainer: {
-        paddingHorizontal: SPACING.xl,
+        marginTop: SPACING.lg,
     },
+
     dashboardCard: {
         borderWidth: 1,
         borderColor: COLORS.border,
@@ -433,7 +467,7 @@ const styles = StyleSheet.create({
     },
     positionBadge: {
         backgroundColor: COLORS.textMuted,
-        paddingHorizontal: SPACING.md,
+        paddingHorizontal: SPACING.xl,
         paddingVertical: SPACING.xs,
         borderRadius: RADIUS.full,
     },

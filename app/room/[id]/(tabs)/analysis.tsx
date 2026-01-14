@@ -11,7 +11,7 @@ import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
 import { Section } from "../../../../components/ui/Section";
 import { Typography } from "../../../../components/ui/Typography";
 import type { Database } from "../../../../lib/db-types";
-import { analyzeQuestions } from "../../../../lib/insights";
+import { analyzeQuestions, type QuestionAnalysis } from "../../../../lib/insights";
 import { getRoomExamSubjectFromTitle } from "../../../../lib/roomExam";
 import { useSupabase } from "../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../lib/supabaseError";
@@ -67,14 +67,6 @@ function getPercentileRank(myValue: number, allValues: number[], lowerIsBetter: 
     const myIndex = sorted.findIndex(v => v === myValue);
     const percentile = ((sorted.length - 1 - myIndex) / (sorted.length - 1)) * 100;
     return Math.round(percentile);
-}
-
-// Helper to calculate standard deviation
-function getStdDev(values: number[]): number {
-    if (values.length === 0) return 0;
-    const mean = values.reduce((a, b) => a + b, 0) / values.length;
-    const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / values.length;
-    return Math.sqrt(variance);
 }
 
 type ViewMode = "my_progress" | "exam_analysis" | "question_analysis";
@@ -665,10 +657,6 @@ export default function AnalysisScreen() {
         // Statistics
         const durations = completedParticipants.map(p => p.durationMs);
         const avgDuration = durations.length > 0 ? durations.reduce((a, b) => a + b, 0) / durations.length : 0;
-        const stdDev = getStdDev(durations);
-        const median = durations.length > 0
-            ? [...durations].sort((a, b) => a - b)[Math.floor(durations.length / 2)]
-            : 0;
         const minDuration = durations.length > 0 ? Math.min(...durations) : 0;
         const maxDuration = durations.length > 0 ? Math.max(...durations) : 0;
         const avgPerQuestion = exam.total_questions > 0 ? avgDuration / exam.total_questions : 0;
@@ -680,6 +668,44 @@ export default function AnalysisScreen() {
         const myPercentile = myResult?.status === "COMPLETED" && durations.length > 0
             ? getPercentileRank(myResult.durationMs, durations, true)
             : null;
+        const myRecords = myResult?.records ?? [];
+        const questionAnalysis = myResult?.status === "COMPLETED" && myRecords.length > 0 && exam
+            ? analyzeQuestions(
+                myRecords.map(r => ({ question_no: r.question_no, duration_ms: r.duration_ms })),
+                completedParticipants
+                    .flatMap(p => p.records)
+                    .map(r => ({ question_no: r.question_no, duration_ms: r.duration_ms })),
+                exam.total_questions,
+                userId || undefined
+            )
+            : [];
+        const maxQuestionDuration = questionAnalysis.length > 0
+            ? Math.max(...questionAnalysis.map(q => Math.max(q.myDurationMs, q.roomAvgMs)), 1)
+            : 1;
+        const validMyQuestions = questionAnalysis.filter(q => q.myDurationMs > 0);
+        const validRoomQuestions = questionAnalysis.filter(q => q.roomAvgMs > 0);
+        const slowestRoomQuestion = [...validRoomQuestions].sort((a, b) => b.roomAvgMs - a.roomAvgMs)[0];
+        const slowestMyQuestion = [...validMyQuestions].sort((a, b) => b.myDurationMs - a.myDurationMs)[0];
+        const fastestMyQuestion = [...validMyQuestions].sort((a, b) => a.myDurationMs - b.myDurationMs)[0];
+        const highlightCandidates: Array<{ key: string; label: string; data?: QuestionAnalysis }> = [
+            { key: "slowest_room", label: "가장 오래 걸린 문항", data: slowestRoomQuestion },
+            { key: "slowest_me", label: "내가 가장 오래 걸린 문항", data: slowestMyQuestion },
+            { key: "fastest_me", label: "내가 가장 빨리 푼 문항", data: fastestMyQuestion },
+        ];
+        const highlightQuestions = highlightCandidates.reduce<Array<{ key: string; label: string; data: QuestionAnalysis }>>((acc, item) => {
+            if (!item.data) return acc;
+            if (acc.some(existing => existing.data.questionNo === item.data?.questionNo)) return acc;
+            acc.push({ key: item.key, label: item.label, data: item.data });
+            return acc;
+        }, []);
+
+        const handleQuestionSelect = (questionNo: number) => {
+            if (!exam) return;
+            router.push({
+                pathname: "/room/[id]/exam/[examId]/question-analysis",
+                params: { id: roomId, examId: exam.id, questionNo: String(questionNo) }
+            });
+        };
 
         return (
             <>
@@ -881,39 +907,81 @@ export default function AnalysisScreen() {
                     </Section>
                 )}
 
-                {/* Statistics Grid */}
-                {completedCount > 0 && (
-                    <Section title="통계" description={`${completedCount}명 완주`}>
-                        <View style={styles.statsGrid}>
-                            <Card padding="md" radius="xl" style={styles.statItem}>
-                                <Ionicons name="time-outline" size={20} color={COLORS.primary} />
-                                <Typography.H3 bold color={COLORS.text} style={{ marginTop: SPACING.sm }}>
-                                    {formatShortDuration(avgDuration)}
-                                </Typography.H3>
-                                <Typography.Caption color={COLORS.textMuted}>평균</Typography.Caption>
-                            </Card>
-                            <Card padding="md" radius="xl" style={styles.statItem}>
-                                <Ionicons name="analytics-outline" size={20} color={COLORS.warning} />
-                                <Typography.H3 bold color={COLORS.text} style={{ marginTop: SPACING.sm }}>
-                                    {formatShortDuration(median)}
-                                </Typography.H3>
-                                <Typography.Caption color={COLORS.textMuted}>중앙값</Typography.Caption>
-                            </Card>
-                            <Card padding="md" radius="xl" style={styles.statItem}>
-                                <Ionicons name="flash-outline" size={20} color="#10B981" />
-                                <Typography.H3 bold color={COLORS.text} style={{ marginTop: SPACING.sm }}>
-                                    {formatShortDuration(minDuration)}
-                                </Typography.H3>
-                                <Typography.Caption color={COLORS.textMuted}>최고</Typography.Caption>
-                            </Card>
-                            <Card padding="md" radius="xl" style={styles.statItem}>
-                                <Ionicons name="stats-chart-outline" size={20} color={COLORS.error} />
-                                <Typography.H3 bold color={COLORS.text} style={{ marginTop: SPACING.sm }}>
-                                    {formatShortDuration(stdDev)}
-                                </Typography.H3>
-                                <Typography.Caption color={COLORS.textMuted}>표준편차</Typography.Caption>
-                            </Card>
+                {/* Question Highlights */}
+                {highlightQuestions.length > 0 && (
+                    <Section title="문항 하이라이트" description="시간이 많이 쓰인 문항을 모아봤어요">
+                        <View style={styles.highlightGrid}>
+                            {highlightQuestions.map((item) => {
+                                const question = item.data;
+                                const myRatio = question.myDurationMs > 0 ? (question.myDurationMs / maxQuestionDuration) * 100 : 0;
+                                const roomRatio = question.roomAvgMs > 0 ? (question.roomAvgMs / maxQuestionDuration) * 100 : 0;
+
+                                return (
+                                    <Pressable
+                                        key={item.key}
+                                        onPress={() => handleQuestionSelect(question.questionNo)}
+                                        style={({ pressed }) => [
+                                            styles.highlightCard,
+                                            pressed && styles.highlightCardPressed
+                                        ]}
+                                    >
+                                        <View style={styles.highlightHeader}>
+                                            <Typography.Caption color={COLORS.textMuted}>{item.label}</Typography.Caption>
+                                            <Typography.Subtitle1 bold color={COLORS.text}>{question.questionNo}번</Typography.Subtitle1>
+                                        </View>
+                                        <View style={styles.highlightBars}>
+                                            <View style={styles.highlightRow}>
+                                                <Typography.Caption color={COLORS.textMuted} style={styles.highlightLabel}>나</Typography.Caption>
+                                                <View style={styles.highlightTrack}>
+                                                    {question.myDurationMs > 0 && (
+                                                        <View style={[styles.highlightFill, { width: `${myRatio}%` }]} />
+                                                    )}
+                                                </View>
+                                                <Typography.Caption color={COLORS.textMuted} style={styles.highlightValue}>
+                                                    {question.myDurationMs > 0 ? formatShortDuration(question.myDurationMs) : "—"}
+                                                </Typography.Caption>
+                                            </View>
+                                            <View style={styles.highlightRow}>
+                                                <Typography.Caption color={COLORS.textMuted} style={styles.highlightLabel}>평균</Typography.Caption>
+                                                <View style={styles.highlightTrack}>
+                                                    {question.roomAvgMs > 0 && (
+                                                        <View style={[styles.highlightFill, styles.highlightFillAvg, { width: `${roomRatio}%` }]} />
+                                                    )}
+                                                </View>
+                                                <Typography.Caption color={COLORS.textMuted} style={styles.highlightValue}>
+                                                    {question.roomAvgMs > 0 ? formatShortDuration(question.roomAvgMs) : "—"}
+                                                </Typography.Caption>
+                                            </View>
+                                        </View>
+                                    </Pressable>
+                                );
+                            })}
                         </View>
+                    </Section>
+                )}
+
+                {/* Question Time Bars */}
+                {questionAnalysis.length > 0 && (
+                    <Section title="문항별 시간 그래프" description="세로 막대로 나의 시간과 평균을 비교해요">
+                        <Card padding="lg" radius="xl" style={styles.questionChartCard}>
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={styles.questionChartScroll}
+                            >
+                                {renderQuestionBarChart(questionAnalysis, maxQuestionDuration, handleQuestionSelect)}
+                            </ScrollView>
+                            <View style={styles.questionChartLegend}>
+                                <View style={styles.legendItem}>
+                                    <View style={[styles.legendSwatch, styles.legendSwatchMe]} />
+                                    <Typography.Caption color={COLORS.textMuted}>나</Typography.Caption>
+                                </View>
+                                <View style={styles.legendItem}>
+                                    <View style={styles.legendLine} />
+                                    <Typography.Caption color={COLORS.textMuted}>평균</Typography.Caption>
+                                </View>
+                            </View>
+                        </Card>
                     </Section>
                 )}
 
@@ -931,51 +999,34 @@ export default function AnalysisScreen() {
                 )}
 
                 {/* Question-by-Question Analysis Preview */}
-                {myResult?.status === "COMPLETED" && myResult.records.length > 0 && exam && (
+                {questionAnalysis.length > 0 && exam && (
                     <Section title="문항별 분석" description="각 문항의 소요 시간 비교">
-                        {(() => {
-                            // Analyze questions using the helper function
-                            const allRecordsFlat = completedParticipants.flatMap(p => p.records);
-                            const questionAnalysis = analyzeQuestions(
-                                myResult.records.map(r => ({ question_no: r.question_no, duration_ms: r.duration_ms })),
-                                allRecordsFlat.map(r => ({ question_no: r.question_no, duration_ms: r.duration_ms })),
-                                exam.total_questions,
-                                userId || undefined
-                            );
-                            const maxDuration = questionAnalysis.length > 0
-                                ? Math.max(...questionAnalysis.map(q => Math.max(q.myDurationMs, q.roomAvgMs)))
-                                : 60000;
-
-                            // Show first 5 questions as preview
-                            return (
-                                <>
-                                    {questionAnalysis.slice(0, 5).map((q) => (
-                                        <QuestionBar
-                                            key={q.questionNo}
-                                            data={q}
-                                            maxDuration={maxDuration}
-                                            showMedian={false}
-                                        />
-                                    ))}
-                                    {questionAnalysis.length > 5 && (
-                                        <Typography.Caption color={COLORS.textMuted} align="center" style={{ marginTop: SPACING.sm }}>
-                                            +{questionAnalysis.length - 5}개 문항 더보기
-                                        </Typography.Caption>
-                                    )}
-                                    <View style={{ marginTop: SPACING.lg }}>
-                                        <Button
-                                            label="상세 분석 보기"
-                                            variant="outline"
-                                            onPress={() => router.push({
-                                                pathname: "/room/[id]/exam/[examId]/question-analysis",
-                                                params: { id: roomId, examId: exam.id }
-                                            })}
-                                            icon="analytics-outline"
-                                        />
-                                    </View>
-                                </>
-                            );
-                        })()}
+                        <>
+                            {questionAnalysis.slice(0, 5).map((q) => (
+                                <QuestionBar
+                                    key={q.questionNo}
+                                    data={q}
+                                    maxDuration={maxQuestionDuration}
+                                    showMedian={false}
+                                />
+                            ))}
+                            {questionAnalysis.length > 5 && (
+                                <Typography.Caption color={COLORS.textMuted} align="center" style={{ marginTop: SPACING.sm }}>
+                                    +{questionAnalysis.length - 5}개 문항 더보기
+                                </Typography.Caption>
+                            )}
+                            <View style={{ marginTop: SPACING.lg }}>
+                                <Button
+                                    label="상세 분석 보기"
+                                    variant="outline"
+                                    onPress={() => router.push({
+                                        pathname: "/room/[id]/exam/[examId]/question-analysis",
+                                        params: { id: roomId, examId: exam.id }
+                                    })}
+                                    icon="analytics-outline"
+                                />
+                            </View>
+                        </>
                     </Section>
                 )}
             </>
@@ -1047,6 +1098,122 @@ export default function AnalysisScreen() {
                     </SvgText>
                 </Svg>
             </View>
+        );
+    };
+
+    const renderQuestionBarChart = (
+        data: QuestionAnalysis[],
+        maxDuration: number,
+        onSelect?: (questionNo: number) => void
+    ) => {
+        const chartHeight = 180;
+        const padding = { top: 16, right: 16, bottom: 28, left: 40 };
+        const barWidth = 10;
+        const gap = 6;
+        const chartWidth = Math.max(
+            width - 72,
+            data.length * (barWidth + gap) + padding.left + padding.right
+        );
+        const chartInnerHeight = chartHeight - padding.top - padding.bottom;
+        const labelEvery = data.length > 24 ? 5 : data.length > 14 ? 3 : 1;
+        const tickCount = 4;
+
+        const getBarColor = (item: QuestionAnalysis) => {
+            if (item.myDurationMs === 0) return COLORS.border;
+            if (item.highlight === 'slow') return COLORS.error;
+            if (item.highlight === 'fast') return '#10B981';
+            if (item.highlight === 'common_hard') return COLORS.warning;
+            if (item.highlight === 'best') return COLORS.primaryDark;
+            return COLORS.primary;
+        };
+
+        return (
+            <Svg width={chartWidth} height={chartHeight}>
+                {Array.from({ length: tickCount + 1 }).map((_, idx) => {
+                    const value = (maxDuration / tickCount) * idx;
+                    const y = chartHeight - padding.bottom - (value / maxDuration) * chartInnerHeight;
+                    return (
+                        <G key={`tick-${idx}`}>
+                            <Line
+                                x1={padding.left}
+                                y1={y}
+                                x2={chartWidth - padding.right}
+                                y2={y}
+                                stroke={COLORS.border}
+                                strokeWidth={1}
+                            />
+                            <SvgText
+                                x={padding.left - 6}
+                                y={y + 3}
+                                fontSize="9"
+                                fill={COLORS.textMuted}
+                                textAnchor="end"
+                            >
+                                {formatShortDuration(value)}
+                            </SvgText>
+                        </G>
+                    );
+                })}
+                <Line
+                    x1={padding.left}
+                    y1={chartHeight - padding.bottom}
+                    x2={chartWidth - padding.right}
+                    y2={chartHeight - padding.bottom}
+                    stroke={COLORS.border}
+                    strokeWidth={1}
+                />
+                <SvgText x={padding.left} y={padding.top} fontSize="10" fill={COLORS.textMuted}>
+                    느림
+                </SvgText>
+                <SvgText x={padding.left} y={chartHeight - 6} fontSize="10" fill={COLORS.textMuted}>
+                    빠름
+                </SvgText>
+
+                {data.map((item, idx) => {
+                    const barHeight = Math.max(
+                        2,
+                        (item.myDurationMs / maxDuration) * chartInnerHeight
+                    );
+                    const x = padding.left + idx * (barWidth + gap);
+                    const y = chartHeight - padding.bottom - barHeight;
+                    const avgY = chartHeight - padding.bottom - (item.roomAvgMs / maxDuration) * chartInnerHeight;
+
+                    return (
+                        <G key={item.questionNo}>
+                            <Rect
+                                x={x}
+                                y={y}
+                                width={barWidth}
+                                height={barHeight}
+                                rx={3}
+                                fill={getBarColor(item)}
+                                onPress={() => onSelect?.(item.questionNo)}
+                            />
+                            {item.roomAvgMs > 0 && (
+                                <Line
+                                    x1={x}
+                                    x2={x + barWidth}
+                                    y1={avgY}
+                                    y2={avgY}
+                                    stroke={COLORS.textMuted}
+                                    strokeWidth={1}
+                                />
+                            )}
+                            {(idx % labelEvery === 0 || idx === data.length - 1) && (
+                                <SvgText
+                                    x={x + barWidth / 2}
+                                    y={chartHeight - padding.bottom + 16}
+                                    fontSize="9"
+                                    fill={COLORS.textMuted}
+                                    textAnchor="middle"
+                                >
+                                    {item.questionNo}
+                                </SvgText>
+                            )}
+                        </G>
+                    );
+                })}
+            </Svg>
         );
     };
 
@@ -1418,6 +1585,89 @@ const styles = StyleSheet.create({
         height: 32,
         backgroundColor: COLORS.border,
     },
+    highlightGrid: {
+        gap: SPACING.md,
+    },
+    highlightCard: {
+        backgroundColor: COLORS.surface,
+        borderRadius: 16,
+        padding: SPACING.lg,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    highlightCardPressed: {
+        backgroundColor: COLORS.surfaceVariant,
+    },
+    highlightHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: SPACING.sm,
+    },
+    highlightBars: {
+        gap: SPACING.xs,
+    },
+    highlightRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.sm,
+    },
+    highlightLabel: {
+        width: 28,
+    },
+    highlightValue: {
+        width: 56,
+        textAlign: 'right',
+    },
+    highlightTrack: {
+        flex: 1,
+        height: 8,
+        backgroundColor: COLORS.surfaceVariant,
+        borderRadius: 4,
+        overflow: 'hidden',
+    },
+    highlightFill: {
+        height: '100%',
+        backgroundColor: COLORS.primary,
+        borderRadius: 4,
+    },
+    highlightFillAvg: {
+        backgroundColor: COLORS.primaryLight,
+    },
+    questionChartCard: {
+        paddingTop: SPACING.lg,
+    },
+    questionChartScroll: {
+        paddingHorizontal: SPACING.md,
+        paddingBottom: SPACING.sm,
+    },
+    questionChartLegend: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: SPACING.lg,
+        marginTop: SPACING.sm,
+    },
+    legendItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    legendSwatch: {
+        width: 12,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: COLORS.primary,
+    },
+    legendSwatchMe: {
+        backgroundColor: COLORS.primary,
+    },
+    legendLine: {
+        width: 12,
+        height: 2,
+        borderRadius: 1,
+        backgroundColor: COLORS.textMuted,
+    },
     statusBar: {
         flexDirection: 'row',
         height: 10,
@@ -1491,18 +1741,6 @@ const styles = StyleSheet.create({
     },
     paceBarFillAvg: {
         backgroundColor: COLORS.primaryLight,
-    },
-    statsGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: SPACING.md,
-    },
-    statItem: {
-        flex: 1,
-        minWidth: '45%',
-        alignItems: 'center',
-        backgroundColor: COLORS.surface,
-        ...SHADOWS.small,
     },
     notCompletedCard: {
         marginHorizontal: SPACING.xl,
