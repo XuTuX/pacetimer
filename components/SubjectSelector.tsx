@@ -27,6 +27,7 @@ type Props = {
     deleteSubject: (id: string) => void;
     isModalVisible: boolean;
     setModalVisible: React.Dispatch<React.SetStateAction<boolean>>;
+    canManage?: boolean;
 };
 
 const { height } = Dimensions.get('window');
@@ -39,7 +40,8 @@ export default function SubjectSelector({
     updateSubject,
     deleteSubject,
     isModalVisible,
-    setModalVisible
+    setModalVisible,
+    canManage = true
 }: Props) {
     const [newSubjectName, setNewSubjectName] = React.useState('');
     const [isManageMode, setIsManageMode] = React.useState(false);
@@ -131,18 +133,20 @@ export default function SubjectSelector({
 
                             <View style={styles.headerRow}>
                                 <View style={{ flex: 1 }} />
-                                <TouchableOpacity
-                                    onPress={() => {
-                                        setIsManageMode(!isManageMode);
-                                        Haptics.selectionAsync();
-                                    }}
-                                    style={styles.manageBtn}
-                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                >
-                                    <Text style={[styles.manageBtnText, isManageMode && styles.manageBtnTextActive]}>
-                                        {isManageMode ? '완료' : '편집'}
-                                    </Text>
-                                </TouchableOpacity>
+                                {canManage && (
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            setIsManageMode(!isManageMode);
+                                            Haptics.selectionAsync();
+                                        }}
+                                        style={styles.manageBtn}
+                                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                    >
+                                        <Text style={[styles.manageBtnText, isManageMode && styles.manageBtnTextActive]}>
+                                            {isManageMode ? '완료' : '편집'}
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
                             </View>
 
                             <ScrollView style={styles.modalScroll} bounces showsVerticalScrollIndicator={false}>
@@ -215,28 +219,30 @@ export default function SubjectSelector({
                                     ))}
 
                                     {/* Add New Subject Row (Always at bottom) */}
-                                    <View style={styles.addItemRow}>
-                                        <TouchableOpacity
-                                            onPress={handleAddSubject}
-                                            disabled={!newSubjectName.trim()}
-                                            style={styles.addIconBtn}
-                                        >
-                                            <Ionicons
-                                                name="add"
-                                                size={22}
-                                                color={newSubjectName.trim() ? COLORS.primary : COLORS.textMuted}
+                                    {canManage && (
+                                        <View style={styles.addItemRow}>
+                                            <TouchableOpacity
+                                                onPress={handleAddSubject}
+                                                disabled={!newSubjectName.trim()}
+                                                style={styles.addIconBtn}
+                                            >
+                                                <Ionicons
+                                                    name="add"
+                                                    size={22}
+                                                    color={newSubjectName.trim() ? COLORS.primary : COLORS.textMuted}
+                                                />
+                                            </TouchableOpacity>
+                                            <TextInput
+                                                style={styles.addInput}
+                                                placeholder="새로운 과목 추가"
+                                                placeholderTextColor={COLORS.textMuted}
+                                                value={newSubjectName}
+                                                onChangeText={setNewSubjectName}
+                                                onSubmitEditing={handleAddSubject}
+                                                returnKeyType="done"
                                             />
-                                        </TouchableOpacity>
-                                        <TextInput
-                                            style={styles.addInput}
-                                            placeholder="새로운 과목 추가"
-                                            placeholderTextColor={COLORS.textMuted}
-                                            value={newSubjectName}
-                                            onChangeText={setNewSubjectName}
-                                            onSubmitEditing={handleAddSubject}
-                                            returnKeyType="done"
-                                        />
-                                    </View>
+                                        </View>
+                                    )}
                                 </View>
                             </ScrollView>
                         </Pressable>

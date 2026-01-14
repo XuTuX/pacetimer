@@ -2,12 +2,12 @@ import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SubjectSelector from "../../../components/SubjectSelector";
 import { Button } from "../../../components/ui/Button";
 import { ScreenHeader } from "../../../components/ui/ScreenHeader";
-import { getRoomExamSubjectFromTitle } from "../../../lib/roomExam";
+import { formatRoomExamTitle } from "../../../lib/roomExam";
 import { useSupabase } from "../../../lib/supabase";
 import { formatSupabaseError } from "../../../lib/supabaseError";
 import { COLORS, RADIUS, SPACING } from "../../../lib/theme";
@@ -19,6 +19,10 @@ export default function AddExamScreen() {
     const { userId } = useAuth();
     const { id } = useGlobalSearchParams<{ id: string }>();
     const roomId = Array.isArray(id) ? id[0] : id;
+
+    // Permissions & Loading
+    const [isOwner, setIsOwner] = useState(false);
+    const [checkingOwner, setCheckingOwner] = useState(true);
 
     // Local State
     const [title, setTitle] = useState("");
@@ -36,85 +40,129 @@ export default function AddExamScreen() {
 
     // Load existing room subjects
     useEffect(() => {
-        if (!roomId || roomId === 'undefined') {
+        if (!roomId || roomId === 'undefined' || !userId) {
             setLoadingSubjects(false);
+            setCheckingOwner(false);
             return;
         }
 
-        const fetchRoomSubjects = async () => {
+        const loadData = async () => {
             try {
+                // 1. Check Owner
+                const { data: roomData, error: roomError } = await supabase
+                    .from("rooms")
+                    .select("owner_id")
+                    .eq("id", roomId)
+                    .single();
+
+                if (roomError) throw roomError;
+                const owner = roomData.owner_id === userId;
+                setIsOwner(owner);
+
+                // 2. Load Subjects
                 const { data, error } = await supabase
-                    .from("room_exams")
-                    .select("title")
+                    .from("room_subjects")
+                    .select("*")
                     .eq("room_id", roomId)
-                    .order("created_at", { ascending: false });
+                    .eq("is_archived", false)
+                    .order("created_at", { ascending: true });
 
                 if (error) throw error;
 
-                const subjectSet = new Set<string>();
-                data?.forEach(exam => {
-                    const subj = getRoomExamSubjectFromTitle(exam.title);
-                    if (subj) subjectSet.add(subj);
-                });
-
                 // Convert to Subject objects
-                const subjects: Subject[] = Array.from(subjectSet).map((name, idx) => ({
-                    id: name, // We use name as ID for room subjects
+                const subjects: Subject[] = (data || []).map((s: any, idx) => ({
+                    id: s.id, // UUID
                     userId: 'room',
-                    name: name,
+                    name: s.name,
                     order: idx,
-                    isArchived: false,
-                    createdAt: Date.now(),
-                    updatedAt: Date.now()
+                    isArchived: s.is_archived,
+                    createdAt: new Date(s.created_at).getTime(),
+                    updatedAt: new Date(s.updated_at).getTime()
                 }));
 
                 setRoomSubjects(subjects);
-                // Default select the most recent one if available
+                // Default select the first one if available
                 if (subjects.length > 0 && !selectedSubjectId) {
                     setSelectedSubjectId(subjects[0].id);
                 }
             } catch (err) {
-                console.error("Error fetching room subjects:", err);
+                console.error("Error loading room data:", err);
+                setError(formatSupabaseError(err));
             } finally {
                 setLoadingSubjects(false);
+                setCheckingOwner(false);
             }
         };
 
-        fetchRoomSubjects();
-    }, [roomId, supabase]);
+        loadData();
+    }, [roomId, userId, supabase]);
 
-    // Local Subject Management
-    const handleAddSubject = (name: string) => {
-        if (roomSubjects.some(s => s.name === name)) {
-            // Already exists, just select it
-            setSelectedSubjectId(name);
-            return;
+    // DB Subject Management
+    const handleAddSubject = async (name: string) => {
+        if (!roomId || !isOwner) return;
+
+        try {
+            const { data, error } = await supabase
+                .from("room_subjects")
+                .insert({
+                    room_id: roomId,
+                    name: name.trim(),
+                    created_by: userId
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+            if (data) {
+                const newSubject: Subject = {
+                    id: data.id,
+                    userId: 'room',
+                    name: data.name,
+                    order: roomSubjects.length,
+                    isArchived: data.is_archived,
+                    createdAt: new Date(data.created_at).getTime(),
+                    updatedAt: new Date(data.updated_at).getTime()
+                };
+                setRoomSubjects(prev => [...prev, newSubject]);
+                setSelectedSubjectId(newSubject.id);
+            }
+        } catch (err) {
+            Alert.alert("오류", "과목을 추가하지 못했습니다.");
         }
-
-        const newSubject: Subject = {
-            id: name,
-            userId: 'room',
-            name: name,
-            order: roomSubjects.length,
-            isArchived: false,
-            createdAt: Date.now(),
-            updatedAt: Date.now()
-        };
-
-        setRoomSubjects(prev => [...prev, newSubject]);
-        setSelectedSubjectId(name);
     };
 
-    // No-ops for update/delete in room context (simplification)
-    const handleUpdateSubject = (id: string, payload: { name: string }) => {
-        // Just update local state name if we allowed editing
-        // For now, no-op or maybe unsupported
+    const handleUpdateSubject = async (id: string, payload: { name: string }) => {
+        if (!isOwner) return;
+        try {
+            const { error } = await supabase
+                .from("room_subjects")
+                .update({ name: payload.name })
+                .eq("id", id);
+
+            if (error) throw error;
+
+            setRoomSubjects(prev => prev.map(s => s.id === id ? { ...s, name: payload.name } : s));
+        } catch (err) {
+            Alert.alert("오류", "과목을 수정하지 못했습니다.");
+        }
     };
 
-    const handleDeleteSubject = (id: string) => {
-        // Just remove from local list
-        setRoomSubjects(prev => prev.filter(s => s.id !== id));
-        if (selectedSubjectId === id) setSelectedSubjectId(null);
+    const handleDeleteSubject = async (id: string) => {
+        if (!isOwner) return;
+        try {
+            // Soft delete
+            const { error } = await supabase
+                .from("room_subjects")
+                .update({ is_archived: true })
+                .eq("id", id);
+
+            if (error) throw error;
+
+            setRoomSubjects(prev => prev.filter(s => s.id !== id));
+            if (selectedSubjectId === id) setSelectedSubjectId(null);
+        } catch (err) {
+            Alert.alert("오류", "과목을 삭제하지 못했습니다.");
+        }
     };
 
 
@@ -123,7 +171,8 @@ export default function AddExamScreen() {
         parseInt(minutes) > 0 &&
         !!selectedSubjectId &&
         !saving &&
-        !!userId;
+        !!userId &&
+        isOwner; // Only owner can save
 
     // Time/Question Adjusters
     const adjustTime = (delta: number) => {
@@ -147,6 +196,12 @@ export default function AddExamScreen() {
             else if (!roomId) setError("스터디 정보를 찾을 수 없습니다.");
             return;
         }
+
+        if (!isOwner) {
+            setError("스터디장만 모의고사를 생성할 수 있습니다.");
+            return;
+        }
+
         setSaving(true);
         setError(null);
 
@@ -161,14 +216,18 @@ export default function AddExamScreen() {
 
             if (memberError) throw memberError;
 
-            // Use the selected subject name (ID is the name in our local logic)
-            const subjectName = selectedSubjectId; // Since id === name
-            const finalTitle = subjectName ? `${subjectName} • ${title.trim()}` : title.trim();
+            // Use the selected subject NAME for the title, but store ID
+            const selectedSubject = roomSubjects.find(s => s.id === selectedSubjectId);
+            const subjectName = selectedSubject?.name || "";
+
+            // We keep the "Subject • Title" format for backward compatibility
+            const finalTitle = formatRoomExamTitle(subjectName, title.trim());
 
             const { error } = await supabase
                 .from("room_exams")
                 .insert({
                     room_id: roomId,
+                    subject_id: selectedSubjectId, // Link to real subject
                     title: finalTitle,
                     total_questions: parseInt(questions),
                     total_minutes: parseInt(minutes),
@@ -217,6 +276,7 @@ export default function AddExamScreen() {
                             deleteSubject={handleDeleteSubject}
                             isModalVisible={isSubjectModalVisible}
                             setModalVisible={setSubjectModalVisible}
+                            canManage={isOwner} // Only owner can manage subjects
                         />
                     </View>
 

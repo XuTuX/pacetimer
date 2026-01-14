@@ -93,12 +93,14 @@ export default function RaceScreen() {
                 title="모의고사"
                 showBack={false}
                 rightElement={
-                    <TouchableOpacity
-                        onPress={() => router.push(`/room/${roomId}/add-exam`)}
-                        style={styles.addBtn}
-                    >
-                        <Ionicons name="add" size={22} color={COLORS.text} />
-                    </TouchableOpacity>
+                    room?.owner_id === userId && (
+                        <TouchableOpacity
+                            onPress={() => router.push(`/room/${roomId}/add-exam`)}
+                            style={styles.addBtn}
+                        >
+                            <Ionicons name="add" size={22} color={COLORS.text} />
+                        </TouchableOpacity>
+                    )
                 }
             />
 
@@ -130,13 +132,15 @@ export default function RaceScreen() {
                             아직 시험이 없어요
                         </Typography.Subtitle1>
                         <Typography.Body2 color={COLORS.textMuted} align="center" style={{ marginTop: 4 }}>
-                            첫 번째 모의고사를 등록해보세요
+                            {room?.owner_id === userId ? "첫 번째 모의고사를 등록해보세요" : "아직 등록된 시험이 없습니다"}
                         </Typography.Body2>
-                        <Button
-                            label="시험 만들기"
-                            onPress={() => router.push(`/room/${roomId}/add-exam`)}
-                            style={{ marginTop: SPACING.xl }}
-                        />
+                        {room?.owner_id === userId && (
+                            <Button
+                                label="시험 만들기"
+                                onPress={() => router.push(`/room/${roomId}/add-exam`)}
+                                style={{ marginTop: SPACING.xl }}
+                            />
+                        )}
                     </View>
                 ) : (
                     Object.entries(groupedExams).map(([subject, subjectExams]) => (

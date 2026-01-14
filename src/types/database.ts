@@ -135,6 +135,7 @@ export type Database = {
           title: string
           total_minutes: number
           total_questions: number
+          subject_id: string | null
         }
         Insert: {
           created_at?: string
@@ -144,6 +145,7 @@ export type Database = {
           title: string
           total_minutes: number
           total_questions: number
+          subject_id?: string | null
         }
         Update: {
           created_at?: string
@@ -153,6 +155,7 @@ export type Database = {
           title?: string
           total_minutes?: number
           total_questions?: number
+          subject_id?: string | null
         }
         Relationships: [
           {
@@ -167,6 +170,13 @@ export type Database = {
             columns: ["room_id"]
             isOneToOne: false
             referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "room_exams_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "room_subjects"
             referencedColumns: ["id"]
           },
         ]
@@ -240,6 +250,44 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      room_subjects: {
+        Row: {
+          id: string
+          room_id: string
+          name: string
+          is_archived: boolean
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          room_id: string
+          name: string
+          is_archived?: boolean
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          room_id?: string
+          name?: string
+          is_archived?: boolean
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_subjects_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          }
         ]
       }
     }

@@ -44,3 +44,10 @@ export function getRoomExamDisplayTitle(title?: string): string {
 
     return withoutRoomTag;
 }
+
+export const ROOM_EXAM_TITLE_SEPARATOR = " • ";
+
+export function formatRoomExamTitle(subjectName: string, examTitle: string): string {
+    if (!subjectName) return examTitle;
+    return `${subjectName}${ROOM_EXAM_TITLE_SEPARATOR}${examTitle}`;
+}
