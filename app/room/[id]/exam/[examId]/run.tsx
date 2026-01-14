@@ -272,6 +272,19 @@ export default function ExamRunScreen() {
                 }
             }
 
+            // Local Store Sync: Current Question
+            if (localSessionId && localSegmentId && !isCompleted && currentLapDuration > 0) {
+                addQuestionRecord({
+                    sessionId: localSessionId,
+                    segmentId: localSegmentId,
+                    subjectId: "__room_exam__",
+                    durationMs: currentLapDuration,
+                    startedAt: lastLapTime,
+                    endedAt: endedAt.getTime(),
+                    source: "finish",
+                });
+            }
+
             // 아직 시작하지 않은 문제들을 duration_ms: 0으로 기록 (시간 부족으로 못 푼 문제)
             const unsolvedQuestions: { attempt_id: string; question_no: number; duration_ms: number }[] = [];
             for (let q = questionIndex + 1; q <= exam.total_questions; q++) {
@@ -288,6 +301,21 @@ export default function ExamRunScreen() {
                     if (__DEV__) console.log(`시간 초과: ${unsolvedQuestions.length}개 문제를 못 풀었음으로 기록`);
                 } catch (err) {
                     if (__DEV__) console.warn("미완료 문제 기록 실패:", err);
+                }
+            }
+
+            // Local Store Sync: Remaining Questions
+            if (localSessionId && localSegmentId) {
+                for (let q = questionIndex + 1; q <= exam.total_questions; q++) {
+                    addQuestionRecord({
+                        sessionId: localSessionId,
+                        segmentId: localSegmentId,
+                        subjectId: "__room_exam__",
+                        durationMs: 0,
+                        startedAt: endedAt.getTime(),
+                        endedAt: endedAt.getTime(),
+                        source: "finish",
+                    });
                 }
             }
 
@@ -320,7 +348,7 @@ export default function ExamRunScreen() {
             finishingRef.current = false;
             Alert.alert("오류", "시간 종료 처리 중 문제가 발생했습니다.");
         }
-    }, [attemptId, startedAtTime, exam, questionIndex, lastLapTime, isCompleted, supabase, finalizeLocalSession, router, roomId, currentExamId]);
+    }, [attemptId, startedAtTime, exam, questionIndex, lastLapTime, isCompleted, supabase, finalizeLocalSession, router, roomId, currentExamId, localSessionId, localSegmentId, addQuestionRecord]);
 
     // 2. Initialize Attempt
     useEffect(() => {

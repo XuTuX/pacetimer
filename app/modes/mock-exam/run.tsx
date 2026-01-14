@@ -65,15 +65,63 @@ export default function MockExamRunScreen() {
         return () => clearInterval(interval);
     }, [examStartedAt, limitMin, lapStartAt]);
 
+    const finishRef = useRef(false);
+
     useEffect(() => {
         if (remainingSec > 0) return;
+        if (finishRef.current) return;
 
+        finishRef.current = true;
         const t = Date.now();
+
+        if (sessionId && segmentId) {
+            // 1. Record current question (partial time)
+            if (answeredCount < totalQuestions) {
+                const duration = t - lapStartAt;
+                addQuestionRecord({
+                    sessionId,
+                    segmentId,
+                    subjectId: currentSubjectId,
+                    durationMs: duration,
+                    startedAt: lapStartAt,
+                    endedAt: t,
+                    source: 'finish',
+                });
+            }
+
+            // 2. Record remaining questions as skipped (0ms)
+            // We just recorded the current one (index: answeredCount + 1).
+            // So we record skips from (answeredCount + 2) up to totalQuestions.
+            const startSkip = answeredCount + 2;
+            for (let i = startSkip; i <= totalQuestions; i++) {
+                addQuestionRecord({
+                    sessionId,
+                    segmentId,
+                    subjectId: currentSubjectId,
+                    durationMs: 0,
+                    startedAt: t,
+                    endedAt: t,
+                    source: 'finish',
+                });
+            }
+        }
+
         if (segmentId) endSegment(segmentId, t);
         endSession();
 
-        router.replace('/(tabs)');
-    }, [remainingSec]);
+        const skippedCount = Math.max(0, totalQuestions - (answeredCount + 1));
+        const message = skippedCount > 0
+            ? `시험 시간이 종료되었습니다.\n남은 ${skippedCount}개 문항은 풀지 못함(0초)으로 기록됩니다.`
+            : "시험 시간이 종료되었습니다. 수고하셨습니다.";
+
+        Alert.alert("시간 종료", message, [
+            {
+                text: "확인",
+                onPress: () => router.replace('/(tabs)'),
+            }
+        ]);
+
+    }, [remainingSec, sessionId, segmentId, lapStartAt, answeredCount, totalQuestions, currentSubjectId, addQuestionRecord, endSegment, endSession, router]);
 
 
     const handleNextQuestion = useCallback(() => {

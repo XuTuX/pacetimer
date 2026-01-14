@@ -124,13 +124,16 @@ export function analyzeQuestions(
 ): QuestionAnalysis[] {
     const results: QuestionAnalysis[] = [];
 
-    // Group room records by question
+    // Group room records by question (exclude skipped/zero duration)
     const roomRecordsByQ: Map<number, number[]> = new Map();
     allRecords.forEach(r => {
         if (!myUserId || r.user_id !== myUserId) {
-            const existing = roomRecordsByQ.get(r.question_no) || [];
-            existing.push(r.duration_ms);
-            roomRecordsByQ.set(r.question_no, existing);
+            // duration_ms: 0 implies skipped/timed out - exclude from "solving time" stats
+            if (r.duration_ms > 0) {
+                const existing = roomRecordsByQ.get(r.question_no) || [];
+                existing.push(r.duration_ms);
+                roomRecordsByQ.set(r.question_no, existing);
+            }
         }
     });
 

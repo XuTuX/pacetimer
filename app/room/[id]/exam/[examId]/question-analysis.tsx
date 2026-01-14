@@ -139,7 +139,11 @@ export default function QuestionAnalysisScreen() {
     // Solving pattern
     const solvingPattern = useMemo(() => {
         if (myRecords.length === 0) return null;
-        const myDurations = myRecords.map(r => r.duration_ms);
+        // 0초(건너뜀/시간부족)는 패턴 분석(속도/안정성)에서 제외
+        const validRecords = myRecords.filter(r => r.duration_ms > 0);
+        if (validRecords.length === 0) return null;
+
+        const myDurations = validRecords.map(r => r.duration_ms);
         const roomMedian = getMedian(roomDurations);
         const roomVariance = getStdDev(roomDurations) ** 2;
         return detectSolvingPattern(myDurations, roomMedian, roomVariance);
