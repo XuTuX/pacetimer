@@ -15,7 +15,7 @@ export interface QuestionAnalysis {
     roomStdDev: number;
     zScore: number;
     percentile: number;
-    highlight: 'slow' | 'fast' | 'common_hard' | 'best' | null;
+    highlight: 'slow' | 'fast' | 'common_hard' | 'best' | 'skipped' | null;
 }
 
 export interface InsightCard {
@@ -147,6 +147,25 @@ export function analyzeQuestions(
     for (let q = 1; q <= totalQuestions; q++) {
         const myDurationMs = myRecordMap.get(q) || 0;
         const roomTimes = roomRecordsByQ.get(q) || [];
+
+        // 시간 부족으로 못 푼 문제 체크 (duration_ms: 0 = 시간 초과로 건너뜀)
+        if (myDurationMs === 0) {
+            const roomAvgMs = roomTimes.length > 0
+                ? roomTimes.reduce((a, b) => a + b, 0) / roomTimes.length
+                : 0;
+            const roomMedianMs = getMedian(roomTimes);
+            results.push({
+                questionNo: q,
+                myDurationMs: 0,
+                roomAvgMs,
+                roomMedianMs,
+                roomStdDev: getStdDev(roomTimes),
+                zScore: 0,
+                percentile: 0,
+                highlight: 'skipped', // 시간 부족으로 못 푼 문제
+            });
+            continue;
+        }
 
         if (roomTimes.length === 0) {
             results.push({
@@ -344,6 +363,21 @@ export function generateInsightCards(
             body: `${slowQuestions.length}개 문항에서 방 평균보다 많이 느렸어요`,
             tip: '비슷한 유형의 문제를 더 연습해보세요',
             color: '#EF4444',
+        });
+    }
+
+    // 4.5 Time ran out (skipped questions)
+    const skippedQuestions = questionAnalysis.filter(q => q.highlight === 'skipped');
+    if (skippedQuestions.length > 0) {
+        const qNumbers = skippedQuestions.slice(0, 3).map(q => q.questionNo).join(', ');
+        cards.push({
+            type: 'warning',
+            icon: 'time-outline',
+            title: '시간 부족으로 못 푼 문항',
+            subtitle: `문항 ${qNumbers}${skippedQuestions.length > 3 ? ' 외' : ''}`,
+            body: `${skippedQuestions.length}개 문항을 시간 내에 풀지 못했어요`,
+            tip: '시간 배분 연습이 필요해요. 빠르게 넘어가는 연습을 해보세요',
+            color: '#6366F1',
         });
     }
 

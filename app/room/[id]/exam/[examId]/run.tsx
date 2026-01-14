@@ -186,13 +186,32 @@ export default function ExamRunScreen() {
 
     // (A) Force end: long interruption
     const handleForceEndDueToInterruption = async (durationMs: number) => {
-        if (!attemptId || !startedAtTime) return;
+        if (!attemptId || !startedAtTime || !exam) return;
         if (finishingRef.current) return;
         finishingRef.current = true;
 
         try {
             const endedAt = new Date();
             const totalDurationMs = endedAt.getTime() - startedAtTime;
+
+            // 아직 시작하지 않은 문제들을 duration_ms: 0으로 기록 (시간 부족/중단으로 못 푼 문제)
+            const unsolvedQuestions: { attempt_id: string; question_no: number; duration_ms: number }[] = [];
+            for (let q = questionIndex; q <= exam.total_questions; q++) {
+                unsolvedQuestions.push({
+                    attempt_id: attemptId,
+                    question_no: q,
+                    duration_ms: 0, // 중단으로 못 푼 문제 표시
+                });
+            }
+
+            if (unsolvedQuestions.length > 0) {
+                try {
+                    await supabase.from("attempt_records").insert(unsolvedQuestions);
+                    if (__DEV__) console.log(`중단으로 인해 ${unsolvedQuestions.length}개 문제를 못 풀었음으로 기록`);
+                } catch (err) {
+                    if (__DEV__) console.warn("미완료 문제 기록 실패:", err);
+                }
+            }
 
             await supabase
                 .from("attempts")
@@ -204,9 +223,14 @@ export default function ExamRunScreen() {
 
             finalizeLocalSession(endedAt.getTime());
 
+            const skippedCount = unsolvedQuestions.length;
+            const message = skippedCount > 0
+                ? `${formatInterruptionDuration(durationMs)} 동안 이탈하여 시험이 자동 종료되었습니다.\n${skippedCount}개 문제를 풀지 못했습니다.`
+                : `${formatInterruptionDuration(durationMs)} 동안 이탈하여 시험이 자동 종료되었습니다.`;
+
             Alert.alert(
                 "시험 종료",
-                `${formatInterruptionDuration(durationMs)} 동안 이탈하여 시험이 자동 종료되었습니다.`,
+                message,
                 [
                     {
                         text: "확인",
@@ -226,13 +250,46 @@ export default function ExamRunScreen() {
 
     // (B) Force end: time over
     const handleForceEndDueToTimeout = useCallback(async () => {
-        if (!attemptId || !startedAtTime) return;
+        if (!attemptId || !startedAtTime || !exam) return;
         if (finishingRef.current) return;
         finishingRef.current = true;
 
         try {
             const endedAt = new Date();
             const durationMs = endedAt.getTime() - startedAtTime;
+
+            // 현재 풀고 있던 문제의 경과 시간 저장 (시간 초과로 인해 중단)
+            const currentLapDuration = endedAt.getTime() - lastLapTime;
+            if (!isCompleted && currentLapDuration > 0) {
+                try {
+                    await supabase.from("attempt_records").insert({
+                        attempt_id: attemptId,
+                        question_no: questionIndex,
+                        duration_ms: currentLapDuration,
+                    });
+                } catch (err) {
+                    if (__DEV__) console.warn("현재 문제 저장 실패:", err);
+                }
+            }
+
+            // 아직 시작하지 않은 문제들을 duration_ms: 0으로 기록 (시간 부족으로 못 푼 문제)
+            const unsolvedQuestions: { attempt_id: string; question_no: number; duration_ms: number }[] = [];
+            for (let q = questionIndex + 1; q <= exam.total_questions; q++) {
+                unsolvedQuestions.push({
+                    attempt_id: attemptId,
+                    question_no: q,
+                    duration_ms: 0, // 시간 부족으로 못 푼 문제 표시
+                });
+            }
+
+            if (unsolvedQuestions.length > 0) {
+                try {
+                    await supabase.from("attempt_records").insert(unsolvedQuestions);
+                    if (__DEV__) console.log(`시간 초과: ${unsolvedQuestions.length}개 문제를 못 풀었음으로 기록`);
+                } catch (err) {
+                    if (__DEV__) console.warn("미완료 문제 기록 실패:", err);
+                }
+            }
 
             await supabase
                 .from("attempts")
@@ -244,7 +301,12 @@ export default function ExamRunScreen() {
 
             finalizeLocalSession(endedAt.getTime());
 
-            Alert.alert("시간 종료", "시험 시간이 종료되어 자동으로 제출되었습니다.", [
+            const skippedCount = unsolvedQuestions.length;
+            const message = skippedCount > 0
+                ? `시험 시간이 종료되어 자동으로 제출되었습니다.\n${skippedCount}개 문제를 풀지 못했습니다.`
+                : "시험 시간이 종료되어 자동으로 제출되었습니다.";
+
+            Alert.alert("시간 종료", message, [
                 {
                     text: "확인",
                     onPress: () =>
@@ -258,7 +320,7 @@ export default function ExamRunScreen() {
             finishingRef.current = false;
             Alert.alert("오류", "시간 종료 처리 중 문제가 발생했습니다.");
         }
-    }, [attemptId, startedAtTime, supabase, finalizeLocalSession, router, roomId, currentExamId]);
+    }, [attemptId, startedAtTime, exam, questionIndex, lastLapTime, isCompleted, supabase, finalizeLocalSession, router, roomId, currentExamId]);
 
     // 2. Initialize Attempt
     useEffect(() => {

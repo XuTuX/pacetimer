@@ -12,7 +12,7 @@ export interface QuestionBarData {
     roomMedianMs: number;
     zScore: number;
     percentile: number;
-    highlight: 'slow' | 'fast' | 'common_hard' | 'best' | null;
+    highlight: 'slow' | 'fast' | 'common_hard' | 'best' | 'skipped' | null;
 }
 
 interface QuestionBarProps {
@@ -54,6 +54,14 @@ const HIGHLIGHT_CONFIG = {
         label: '최고 기록',
         labelColor: '#7C3AED',
     },
+    skipped: {
+        bg: '#EEF2FF',
+        border: '#A5B4FC',
+        icon: 'time-outline' as const,
+        iconColor: '#6366F1',
+        label: '시간 부족',
+        labelColor: '#4F46E5',
+    },
 };
 
 export function QuestionBar({ data, maxDuration, showMedian = true }: QuestionBarProps) {
@@ -85,13 +93,21 @@ export function QuestionBar({ data, maxDuration, showMedian = true }: QuestionBa
                     )}
                 </View>
                 <View style={styles.timeRow}>
-                    <Typography.Subtitle2 bold color={COLORS.primary}>
-                        {formatShortDuration(myDurationMs)}
-                    </Typography.Subtitle2>
-                    {diffMs !== 0 && (
-                        <Typography.Caption color={diffMs > 0 ? '#EF4444' : '#10B981'}>
-                            {diffMs > 0 ? '+' : ''}{formatShortDuration(Math.abs(diffMs))}
-                        </Typography.Caption>
+                    {highlight === 'skipped' ? (
+                        <Typography.Subtitle2 bold color="#6366F1">
+                            —
+                        </Typography.Subtitle2>
+                    ) : (
+                        <>
+                            <Typography.Subtitle2 bold color={COLORS.primary}>
+                                {formatShortDuration(myDurationMs)}
+                            </Typography.Subtitle2>
+                            {diffMs !== 0 && (
+                                <Typography.Caption color={diffMs > 0 ? '#EF4444' : '#10B981'}>
+                                    {diffMs > 0 ? '+' : ''}{formatShortDuration(Math.abs(diffMs))}
+                                </Typography.Caption>
+                            )}
+                        </>
                     )}
                 </View>
             </View>
@@ -105,6 +121,7 @@ export function QuestionBar({ data, maxDuration, showMedian = true }: QuestionBa
                         highlight === 'slow' && styles.barSlow,
                         highlight === 'fast' && styles.barFast,
                         highlight === 'best' && styles.barBest,
+                        highlight === 'skipped' && styles.barSkipped,
                     ]}
                 />
                 {/* Reference line (median/avg) */}
@@ -175,6 +192,9 @@ const styles = StyleSheet.create({
     },
     barBest: {
         backgroundColor: '#8B5CF6',
+    },
+    barSkipped: {
+        backgroundColor: '#6366F1',
     },
     refLine: {
         position: 'absolute',
