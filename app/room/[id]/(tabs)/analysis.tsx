@@ -659,6 +659,8 @@ export default function AnalysisScreen() {
 
         const completedCount = completedParticipants.length;
         const totalCount = participants.length;
+        const inProgressCount = participants.filter(p => p.status === "IN_PROGRESS").length;
+        const notStartedCount = participants.filter(p => p.status === "NOT_STARTED").length;
 
         // Statistics
         const durations = completedParticipants.map(p => p.durationMs);
@@ -669,6 +671,11 @@ export default function AnalysisScreen() {
             : 0;
         const minDuration = durations.length > 0 ? Math.min(...durations) : 0;
         const maxDuration = durations.length > 0 ? Math.max(...durations) : 0;
+        const avgPerQuestion = exam.total_questions > 0 ? avgDuration / exam.total_questions : 0;
+        const myPerQuestion = myResult?.status === "COMPLETED" && exam.total_questions > 0
+            ? myResult.durationMs / exam.total_questions
+            : null;
+        const paceMax = Math.max(avgPerQuestion, myPerQuestion ?? 0, 1);
 
         const myPercentile = myResult?.status === "COMPLETED" && durations.length > 0
             ? getPercentileRank(myResult.durationMs, durations, true)
@@ -790,6 +797,85 @@ export default function AnalysisScreen() {
                                         {myResult.durationMs < avgDuration ? "-" : "+"}{formatDuration(Math.abs(myResult.durationMs - avgDuration))}
                                     </Typography.Subtitle1>
                                 </View>
+                            </View>
+                        </Card>
+                    </Section>
+                )}
+
+                {/* Participation Breakdown */}
+                {totalCount > 0 && (
+                    <Section title="참여 현황" description={`${completedCount}명 완료`}>
+                        <Card padding="lg" radius="xl">
+                            <View style={styles.statusBar}>
+                                {completedCount > 0 && (
+                                    <View style={[styles.statusSegment, styles.statusSegmentCompleted, { flex: completedCount }]} />
+                                )}
+                                {inProgressCount > 0 && (
+                                    <View style={[styles.statusSegment, styles.statusSegmentInProgress, { flex: inProgressCount }]} />
+                                )}
+                                {notStartedCount > 0 && (
+                                    <View style={[styles.statusSegment, styles.statusSegmentPending, { flex: notStartedCount }]} />
+                                )}
+                            </View>
+                            <View style={styles.statusLegend}>
+                                <View style={styles.statusLegendItem}>
+                                    <View style={[styles.statusDot, styles.statusDotCompleted]} />
+                                    <Typography.Caption color={COLORS.textMuted}>
+                                        완료 {Math.round((completedCount / totalCount) * 100)}%
+                                    </Typography.Caption>
+                                </View>
+                                <View style={styles.statusLegendItem}>
+                                    <View style={[styles.statusDot, styles.statusDotInProgress]} />
+                                    <Typography.Caption color={COLORS.textMuted}>
+                                        진행 중 {Math.round((inProgressCount / totalCount) * 100)}%
+                                    </Typography.Caption>
+                                </View>
+                                <View style={styles.statusLegendItem}>
+                                    <View style={[styles.statusDot, styles.statusDotPending]} />
+                                    <Typography.Caption color={COLORS.textMuted}>
+                                        미응시 {Math.round((notStartedCount / totalCount) * 100)}%
+                                    </Typography.Caption>
+                                </View>
+                            </View>
+                        </Card>
+                    </Section>
+                )}
+
+                {/* Pace Comparison */}
+                {completedCount > 0 && avgPerQuestion > 0 && (
+                    <Section title="문항당 페이스" description="나의 속도 vs 스터디 평균">
+                        <Card padding="lg" radius="xl">
+                            <View style={styles.paceRow}>
+                                <Typography.Caption color={COLORS.textMuted} style={styles.paceLabel}>나</Typography.Caption>
+                                <View style={styles.paceBarTrack}>
+                                    {myPerQuestion !== null && (
+                                        <View
+                                            style={[
+                                                styles.paceBarFill,
+                                                styles.paceBarFillMe,
+                                                { width: `${(myPerQuestion / paceMax) * 100}%` }
+                                            ]}
+                                        />
+                                    )}
+                                </View>
+                                <Typography.Caption color={COLORS.text} style={styles.paceValue}>
+                                    {myPerQuestion !== null ? formatShortDuration(myPerQuestion) : "미완료"}
+                                </Typography.Caption>
+                            </View>
+                            <View style={styles.paceRow}>
+                                <Typography.Caption color={COLORS.textMuted} style={styles.paceLabel}>평균</Typography.Caption>
+                                <View style={styles.paceBarTrack}>
+                                    <View
+                                        style={[
+                                            styles.paceBarFill,
+                                            styles.paceBarFillAvg,
+                                            { width: `${(avgPerQuestion / paceMax) * 100}%` }
+                                        ]}
+                                    />
+                                </View>
+                                <Typography.Caption color={COLORS.text} style={styles.paceValue}>
+                                    {formatShortDuration(avgPerQuestion)}
+                                </Typography.Caption>
                             </View>
                         </Card>
                     </Section>
@@ -1331,6 +1417,80 @@ const styles = StyleSheet.create({
         width: 1,
         height: 32,
         backgroundColor: COLORS.border,
+    },
+    statusBar: {
+        flexDirection: 'row',
+        height: 10,
+        borderRadius: 6,
+        overflow: 'hidden',
+        backgroundColor: COLORS.surfaceVariant,
+    },
+    statusSegment: {
+        height: '100%',
+    },
+    statusSegmentCompleted: {
+        backgroundColor: COLORS.primary,
+    },
+    statusSegmentInProgress: {
+        backgroundColor: COLORS.warning,
+    },
+    statusSegmentPending: {
+        backgroundColor: COLORS.border,
+    },
+    statusLegend: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: SPACING.md,
+        marginTop: SPACING.md,
+    },
+    statusLegendItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    statusDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+    },
+    statusDotCompleted: {
+        backgroundColor: COLORS.primary,
+    },
+    statusDotInProgress: {
+        backgroundColor: COLORS.warning,
+    },
+    statusDotPending: {
+        backgroundColor: COLORS.border,
+    },
+    paceRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.sm,
+        marginBottom: SPACING.sm,
+    },
+    paceLabel: {
+        width: 36,
+    },
+    paceValue: {
+        width: 60,
+        textAlign: 'right',
+    },
+    paceBarTrack: {
+        flex: 1,
+        height: 8,
+        backgroundColor: COLORS.surfaceVariant,
+        borderRadius: 4,
+        overflow: 'hidden',
+    },
+    paceBarFill: {
+        height: '100%',
+        borderRadius: 4,
+    },
+    paceBarFillMe: {
+        backgroundColor: COLORS.primary,
+    },
+    paceBarFillAvg: {
+        backgroundColor: COLORS.primaryLight,
     },
     statsGrid: {
         flexDirection: 'row',
