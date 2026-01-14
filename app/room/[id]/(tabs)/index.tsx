@@ -117,11 +117,16 @@ export default function RoomHomeScreen() {
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 {/* Hero Code Section */}
-                <View style={styles.codeCard}>
+                <LinearGradient
+                    colors={[COLORS.primary, COLORS.primaryDark]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.codeCard}
+                >
                     <View style={styles.codeHeader}>
                         <View style={styles.codeLabelRow}>
                             <View style={styles.codeDot} />
-                            <Typography.Caption color={COLORS.textMuted}>참여 코드</Typography.Caption>
+                            <Text style={styles.codeLabel}>참여 코드</Text>
                         </View>
                     </View>
 
@@ -134,37 +139,42 @@ export default function RoomHomeScreen() {
                         <View style={[styles.copyBtn, copied && styles.copyBtnSuccess]}>
                             <Ionicons
                                 name={copied ? "checkmark" : "copy-outline"}
-                                size={16}
-                                color={copied ? COLORS.white : COLORS.primary}
+                                size={18}
+                                color={copied ? COLORS.primary : COLORS.white}
                             />
                         </View>
                     </TouchableOpacity>
-
-                    {copied && (
-                        <Typography.Caption color={COLORS.primary} style={styles.copiedText}>
-                            복사됨!
-                        </Typography.Caption>
-                    )}
-                </View>
+                </LinearGradient>
 
                 {/* Stats Row */}
                 <View style={styles.statsRow}>
                     <View style={styles.statCard}>
-                        <Ionicons name="people" size={18} color={COLORS.primary} />
-                        <Typography.H3 bold color={COLORS.text}>{participants.length}</Typography.H3>
-                        <Typography.Caption color={COLORS.textMuted}>참여자</Typography.Caption>
+                        <View style={styles.statIconBadge}>
+                            <Ionicons name="people" size={20} color={COLORS.primary} />
+                        </View>
+                        <View>
+                            <Typography.H3 bold color={COLORS.text}>{participants.length}</Typography.H3>
+                            <Typography.Caption color={COLORS.textMuted}>참여자</Typography.Caption>
+                        </View>
                     </View>
                     <View style={styles.statCard}>
-                        <Ionicons name="document-text" size={18} color={COLORS.warning} />
-                        <Typography.H3 bold color={COLORS.text}>-</Typography.H3>
-                        <Typography.Caption color={COLORS.textMuted}>시험</Typography.Caption>
+                        <View style={[styles.statIconBadge, { backgroundColor: COLORS.errorLight }]}>
+                            <Ionicons name="document-text" size={20} color={COLORS.error} />
+                        </View>
+                        <View>
+                            <Typography.H3 bold color={COLORS.text}>-</Typography.H3>
+                            <Typography.Caption color={COLORS.textMuted}>시험</Typography.Caption>
+                        </View>
                     </View>
                 </View>
 
                 {/* Members Section */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Typography.Subtitle2 bold>멤버</Typography.Subtitle2>
+                        <Typography.Subtitle1 bold>멤버</Typography.Subtitle1>
+                        <View style={styles.memberCountBadge}>
+                            <Typography.Caption bold color={COLORS.primary}>{participants.length}명</Typography.Caption>
+                        </View>
                     </View>
 
                     <View style={styles.memberGrid}>
@@ -176,7 +186,7 @@ export default function RoomHomeScreen() {
                                 <View key={p.user_id} style={styles.memberCard}>
                                     <View style={styles.avatarContainer}>
                                         <LinearGradient
-                                            colors={isOwner ? ['#00D094', '#00B380'] : [COLORS.surfaceVariant, COLORS.surfaceVariant]}
+                                            colors={isOwner ? ['#FFD700', '#FFA500'] : [COLORS.surfaceVariant, COLORS.border]}
                                             style={styles.avatarGradient}
                                         >
                                             <View style={styles.avatarInner}>
@@ -193,7 +203,7 @@ export default function RoomHomeScreen() {
                                     </View>
                                     <Typography.Caption
                                         numberOfLines={1}
-                                        color={isOwner ? COLORS.primary : COLORS.text}
+                                        color={isOwner ? COLORS.text : COLORS.textMuted}
                                         bold={isOwner}
                                         style={styles.memberName}
                                     >
@@ -260,67 +270,89 @@ const styles = StyleSheet.create({
         paddingBottom: 120,
     },
     codeCard: {
-        backgroundColor: COLORS.surface,
-        borderRadius: RADIUS.xl,
+        borderRadius: RADIUS.xxl,
         padding: SPACING.xl,
         alignItems: 'center',
-        marginBottom: SPACING.lg,
-        ...SHADOWS.small,
+        marginBottom: SPACING.xl,
+        ...SHADOWS.medium,
+        minHeight: 180,
+        justifyContent: 'center',
     },
     codeHeader: {
-        width: '100%',
-        marginBottom: SPACING.md,
+        position: 'absolute',
+        top: SPACING.lg,
+        left: 0,
+        right: 0,
+        alignItems: 'center',
     },
     codeLabelRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
         gap: 6,
     },
     codeDot: {
         width: 6,
         height: 6,
         borderRadius: 3,
-        backgroundColor: COLORS.primary,
+        backgroundColor: '#4ADE80',
+    },
+    codeLabel: {
+        fontSize: 12,
+        color: COLORS.white,
+        fontWeight: '600',
     },
     codeBox: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: 16,
+        marginTop: SPACING.md,
     },
     codeText: {
-        fontSize: 28,
-        fontWeight: '800',
-        color: COLORS.text,
+        fontSize: 36,
+        fontWeight: '900',
+        color: COLORS.white,
         letterSpacing: 4,
+        fontVariant: ['tabular-nums'],
     },
     copyBtn: {
-        width: 32,
-        height: 32,
-        borderRadius: 10,
-        backgroundColor: COLORS.primaryLight,
+        width: 40,
+        height: 40,
+        borderRadius: 14,
+        backgroundColor: 'rgba(255,255,255,0.2)',
         alignItems: 'center',
         justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.3)',
     },
     copyBtnSuccess: {
-        backgroundColor: COLORS.primary,
-    },
-    copiedText: {
-        marginTop: SPACING.sm,
+        backgroundColor: COLORS.white,
     },
     statsRow: {
         flexDirection: 'row',
         gap: SPACING.md,
-        marginBottom: SPACING.xl,
+        marginBottom: SPACING.xxl,
     },
     statCard: {
         flex: 1,
-        backgroundColor: COLORS.surface,
-        borderRadius: RADIUS.lg,
-        padding: SPACING.md,
+        flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        backgroundColor: COLORS.surface,
+        borderRadius: RADIUS.xl,
+        padding: SPACING.md,
+        gap: SPACING.md,
         ...SHADOWS.small,
+    },
+    statIconBadge: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: COLORS.primaryLight,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     section: {
         flex: 1,
@@ -328,47 +360,62 @@ const styles = StyleSheet.create({
     sectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        marginBottom: SPACING.md,
+        justifyContent: 'space-between',
+        marginBottom: SPACING.lg,
+    },
+    memberCountBadge: {
+        backgroundColor: COLORS.primaryLight,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
     },
     memberGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: SPACING.md,
+        gap: SPACING.lg,
     },
     memberCard: {
         alignItems: 'center',
         width: 72,
-        gap: 6,
+        gap: 8,
     },
     avatarContainer: {
         position: 'relative',
+        ...SHADOWS.small,
     },
     avatarGradient: {
-        width: 52,
-        height: 52,
-        borderRadius: 16,
+        width: 64,
+        height: 64,
+        borderRadius: 24,
         padding: 2,
     },
     avatarInner: {
         flex: 1,
         backgroundColor: COLORS.surface,
-        borderRadius: 14,
+        borderRadius: 22,
         alignItems: 'center',
         justifyContent: 'center',
     },
     avatarText: {
-        fontSize: 18,
+        fontSize: 24,
         fontWeight: '700',
-        color: COLORS.text,
+        color: COLORS.textMuted,
     },
     avatarTextOwner: {
-        color: COLORS.primary,
+        color: '#D97706', // Gold-ish
     },
     crownBadge: {
         position: 'absolute',
-        top: -6,
-        right: -4,
+        top: -8,
+        right: -8,
+        transform: [{ rotate: '15deg' }],
+        backgroundColor: COLORS.surface,
+        borderRadius: 12,
+        width: 24,
+        height: 24,
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...SHADOWS.small,
     },
     crownEmoji: {
         fontSize: 14,
@@ -376,6 +423,7 @@ const styles = StyleSheet.create({
     memberName: {
         textAlign: 'center',
         width: '100%',
+        fontSize: 12,
     },
     footer: {
         position: 'absolute',
@@ -384,10 +432,11 @@ const styles = StyleSheet.create({
         right: 0,
         padding: SPACING.xl,
         paddingBottom: 40,
-        backgroundColor: COLORS.bg,
+        backgroundColor: 'transparent',
     },
     footerBtn: {
-        borderRadius: RADIUS.lg,
+        borderRadius: RADIUS.xl,
+        ...SHADOWS.medium,
     },
     errorToast: {
         position: 'absolute',

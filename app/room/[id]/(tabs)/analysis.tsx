@@ -228,13 +228,13 @@ export default function AnalysisScreen() {
     useFocusEffect(
         useCallback(() => {
             const init = async () => {
-                setLoading(true);
+                if (exams.length === 0) setLoading(true);
                 await loadExams();
                 if (userId) await loadMyAttempts();
                 setLoading(false);
             };
             init();
-        }, [roomId, loadExams, loadMyAttempts, userId])
+        }, [roomId, loadExams, loadMyAttempts, userId, exams.length])
     );
 
     // Load exam data when selected exam changes
@@ -1002,7 +1002,7 @@ export default function AnalysisScreen() {
         );
     };
 
-    if (loading && exams.length === 0) {
+    if (loading) {
         return (
             <View style={styles.container}>
                 <View style={styles.loadingContainer}>

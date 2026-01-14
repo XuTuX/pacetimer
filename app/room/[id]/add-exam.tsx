@@ -1,16 +1,17 @@
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useGlobalSearchParams, useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SubjectSelector from "../../../components/SubjectSelector";
 import { Button } from "../../../components/ui/Button";
 import { ScreenHeader } from "../../../components/ui/ScreenHeader";
-import { useAppStore } from "../../../lib/store";
+import { getRoomExamSubjectFromTitle } from "../../../lib/roomExam";
 import { useSupabase } from "../../../lib/supabase";
 import { formatSupabaseError } from "../../../lib/supabaseError";
 import { COLORS, RADIUS, SPACING } from "../../../lib/theme";
+import type { Subject } from "../../../lib/types";
 
 export default function AddExamScreen() {
     const supabase = useSupabase();
@@ -19,15 +20,6 @@ export default function AddExamScreen() {
     const { id } = useGlobalSearchParams<{ id: string }>();
     const roomId = Array.isArray(id) ? id[0] : id;
 
-    // App Store (For referencing subjects and CRUD)
-    const {
-        subjects,
-        addSubject,
-        updateSubject,
-        deleteSubject,
-        activeSubjectId // We can default to this, or start null
-    } = useAppStore();
-
     // Local State
     const [title, setTitle] = useState("");
     const [questions, setQuestions] = useState("30");
@@ -35,12 +27,96 @@ export default function AddExamScreen() {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Subject Selector State
-    // We use local state for the selected ID for *this* exam
-    const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(
-        activeSubjectId && subjects.find(s => s.id === activeSubjectId) ? activeSubjectId : (subjects[0]?.id || null)
-    );
+    // Room Subjects State (Derived from existing exams + local additions)
+    const [roomSubjects, setRoomSubjects] = useState<Subject[]>([]);
+    const [loadingSubjects, setLoadingSubjects] = useState(true);
+
+    const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
     const [isSubjectModalVisible, setSubjectModalVisible] = useState(false);
+
+    // Load existing room subjects
+    useEffect(() => {
+        if (!roomId || roomId === 'undefined') {
+            setLoadingSubjects(false);
+            return;
+        }
+
+        const fetchRoomSubjects = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from("room_exams")
+                    .select("title")
+                    .eq("room_id", roomId)
+                    .order("created_at", { ascending: false });
+
+                if (error) throw error;
+
+                const subjectSet = new Set<string>();
+                data?.forEach(exam => {
+                    const subj = getRoomExamSubjectFromTitle(exam.title);
+                    if (subj) subjectSet.add(subj);
+                });
+
+                // Convert to Subject objects
+                const subjects: Subject[] = Array.from(subjectSet).map((name, idx) => ({
+                    id: name, // We use name as ID for room subjects
+                    userId: 'room',
+                    name: name,
+                    order: idx,
+                    isArchived: false,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now()
+                }));
+
+                setRoomSubjects(subjects);
+                // Default select the most recent one if available
+                if (subjects.length > 0 && !selectedSubjectId) {
+                    setSelectedSubjectId(subjects[0].id);
+                }
+            } catch (err) {
+                console.error("Error fetching room subjects:", err);
+            } finally {
+                setLoadingSubjects(false);
+            }
+        };
+
+        fetchRoomSubjects();
+    }, [roomId, supabase]);
+
+    // Local Subject Management
+    const handleAddSubject = (name: string) => {
+        if (roomSubjects.some(s => s.name === name)) {
+            // Already exists, just select it
+            setSelectedSubjectId(name);
+            return;
+        }
+
+        const newSubject: Subject = {
+            id: name,
+            userId: 'room',
+            name: name,
+            order: roomSubjects.length,
+            isArchived: false,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        };
+
+        setRoomSubjects(prev => [...prev, newSubject]);
+        setSelectedSubjectId(name);
+    };
+
+    // No-ops for update/delete in room context (simplification)
+    const handleUpdateSubject = (id: string, payload: { name: string }) => {
+        // Just update local state name if we allowed editing
+        // For now, no-op or maybe unsupported
+    };
+
+    const handleDeleteSubject = (id: string) => {
+        // Just remove from local list
+        setRoomSubjects(prev => prev.filter(s => s.id !== id));
+        if (selectedSubjectId === id) setSelectedSubjectId(null);
+    };
+
 
     const canSave = title.trim().length > 0 &&
         parseInt(questions) > 0 &&
@@ -85,8 +161,9 @@ export default function AddExamScreen() {
 
             if (memberError) throw memberError;
 
-            const subject = subjects.find(s => s.id === selectedSubjectId);
-            const finalTitle = subject ? `${subject.name} • ${title.trim()}` : title.trim();
+            // Use the selected subject name (ID is the name in our local logic)
+            const subjectName = selectedSubjectId; // Since id === name
+            const finalTitle = subjectName ? `${subjectName} • ${title.trim()}` : title.trim();
 
             const { error } = await supabase
                 .from("room_exams")
@@ -132,12 +209,12 @@ export default function AddExamScreen() {
                     <View style={styles.fieldSection}>
                         <Text style={styles.label}>과목</Text>
                         <SubjectSelector
-                            subjects={subjects}
+                            subjects={roomSubjects}
                             activeSubjectId={selectedSubjectId}
                             setActiveSubjectId={setSelectedSubjectId}
-                            addSubject={addSubject}
-                            updateSubject={updateSubject}
-                            deleteSubject={deleteSubject}
+                            addSubject={handleAddSubject}
+                            updateSubject={handleUpdateSubject}
+                            deleteSubject={handleDeleteSubject}
                             isModalVisible={isSubjectModalVisible}
                             setModalVisible={setSubjectModalVisible}
                         />
