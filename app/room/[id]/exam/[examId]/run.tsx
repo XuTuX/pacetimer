@@ -24,7 +24,7 @@ import {
 import { useAppStore } from "../../../../../lib/store";
 import { useSupabase } from "../../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../../lib/supabaseError";
-import { COLORS } from "../../../../../lib/theme";
+import { COLORS, SPACING, TYPOGRAPHY } from "../../../../../lib/theme";
 
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
 type AttemptRow = Database["public"]["Tables"]["attempts"]["Row"];
@@ -774,8 +774,8 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: "row",
         justifyContent: "space-between",
-        paddingHorizontal: 24,
-        paddingVertical: 20,
+        paddingHorizontal: SPACING.xxl,
+        paddingVertical: SPACING.xl,
     },
     headerSide: {
         minWidth: 120,
@@ -786,8 +786,7 @@ const styles = StyleSheet.create({
     },
 
     label: {
-        fontSize: 11,
-        fontWeight: "700",
+        ...TYPOGRAPHY.label,
         color: COLORS.textMuted,
         marginBottom: 4,
         letterSpacing: 1,

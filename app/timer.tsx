@@ -7,7 +7,7 @@ import { Animated, AppState, Pressable, ScrollView, StyleSheet, Text, TouchableO
 import PagerView from 'react-native-pager-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppStore } from '../lib/store';
-import { COLORS, RADIUS, SHADOWS } from '../lib/theme';
+import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../lib/theme';
 
 export default function TimerScreen() {
     const router = useRouter();
@@ -174,7 +174,10 @@ export default function TimerScreen() {
     };
 
     const selectedSubjectName = subjects.find(s => s.id === activeSubjectId)?.name || "과목 선택";
-    const animatedBgColor = flashValue.interpolate({ inputRange: [0, 1], outputRange: [COLORS.white, '#EFFFFA'] });
+    const formattedTime = formatTime(totalElapsedMs);
+    const formattedLapTime = formatLapTime(lapElapsed);
+
+    const animatedBgColor = flashValue.interpolate({ inputRange: [0, 1], outputRange: [COLORS.white, COLORS.primaryLight] });
 
     return (
         <SafeAreaView style={styles.container}>
@@ -253,7 +256,7 @@ export default function TimerScreen() {
                                 }}
                             >
                                 <LinearGradient
-                                    colors={stopwatch.isRunning ? ['#444', '#222'] : [COLORS.primary, '#00D197']}
+                                    colors={stopwatch.isRunning ? COLORS.gradientDark : COLORS.gradientPrimary}
                                     style={styles.compactCircleBtn}
                                 >
                                     <Ionicons name={stopwatch.isRunning ? "pause" : "play"} size={32} color={COLORS.white} style={!stopwatch.isRunning && { marginLeft: 4 }} />
@@ -316,21 +319,21 @@ export default function TimerScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.white },
     pager: { flex: 1 },
-    page: { flex: 1, paddingHorizontal: 24 },
+    page: { flex: 1, paddingHorizontal: SPACING.xxl },
 
     // Header
-    headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 },
-    headerCircleBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-    dotIndicator: { flexDirection: 'row', gap: 4 },
+    headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: SPACING.md },
+    headerCircleBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+    dotIndicator: { flexDirection: 'row', gap: SPACING.xs },
     dot: { width: 4, height: 4, borderRadius: 2, backgroundColor: COLORS.border },
     dotActive: { width: 12, backgroundColor: COLORS.primary },
 
     // Page 0 (Selection - 2열 그리드)
-    titleGroup: { marginTop: 16, marginBottom: 24 },
-    preTitle: { fontSize: 11, fontWeight: '800', color: COLORS.primary, letterSpacing: 1.5, marginBottom: 4 },
-    mainTitle: { fontSize: 26, fontWeight: '900', color: COLORS.text },
+    titleGroup: { marginTop: SPACING.lg, marginBottom: SPACING.xxl },
+    preTitle: { ...TYPOGRAPHY.label, color: COLORS.primary, letterSpacing: 1.5, marginBottom: SPACING.xs },
+    mainTitle: { ...TYPOGRAPHY.h1, color: COLORS.text, fontSize: 26 },
     gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingBottom: 40 },
-    gridItem: { width: '48%', backgroundColor: COLORS.bg, padding: 16, borderRadius: RADIUS.xl, marginBottom: 12, alignItems: 'center', justifyContent: 'center', minHeight: 120 },
+    gridItem: { width: '48%', backgroundColor: COLORS.bg, padding: SPACING.lg, borderRadius: RADIUS.xl, marginBottom: SPACING.md, alignItems: 'center', justifyContent: 'center', minHeight: 120 },
     gridItemActive: { backgroundColor: COLORS.white, borderWidth: 1.5, borderColor: COLORS.primary, ...SHADOWS.small },
     gridIconBox: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
     gridIconBoxActive: {},
@@ -339,17 +342,17 @@ const styles = StyleSheet.create({
     gridCheck: { position: 'absolute', top: 10, right: 10 },
 
     // Page 1 (Main Timer)
-    cleanSubjectTitle: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    cleanSubjectText: { fontSize: 24, fontWeight: '800', color: COLORS.text },
+    cleanSubjectTitle: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
+    cleanSubjectText: { ...TYPOGRAPHY.h2, color: COLORS.text },
     timerWrapper: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     timerMainText: { fontSize: 88, fontWeight: '900', color: COLORS.text, fontVariant: ['tabular-nums'], letterSpacing: -3, marginBottom: 60 },
     mainActionGroup: { alignItems: 'center', width: '100%' },
     compactCircleBtn: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', ...SHADOWS.medium },
-    bottomFinishBtn: { marginTop: 120, padding: 15 },
-    bottomFinishText: { fontSize: 15, color: COLORS.textMuted, fontWeight: '600', textDecorationLine: 'underline', opacity: 0.6 },
+    bottomFinishBtn: { marginTop: 120, padding: SPACING.lg },
+    bottomFinishText: { ...TYPOGRAPHY.body1, color: COLORS.textMuted, fontWeight: '600', textDecorationLine: 'underline', opacity: 0.6 },
 
     // Page 2 (Question Tracker - 세로로 길게)
-    largeHeaderSubject: { fontSize: 18, fontWeight: '800', color: COLORS.text },
+    largeHeaderSubject: { ...TYPOGRAPHY.h3, color: COLORS.text },
     trackerContainer: { flex: 1 },
     tallTouchArea: { flex: 1, marginVertical: 15 },
     tallLapCard: {
@@ -362,11 +365,11 @@ const styles = StyleSheet.create({
         borderColor: COLORS.bg,
         ...SHADOWS.medium
     },
-    lapQuestionNo: { fontSize: 22, fontWeight: '800', color: COLORS.primary, marginBottom: 20 },
+    lapQuestionNo: { ...TYPOGRAPHY.h2, color: COLORS.primary, marginBottom: SPACING.xl },
     lapTimerBig: { fontSize: 80, fontWeight: '900', color: COLORS.text, fontVariant: ['tabular-nums'], letterSpacing: -2 },
-    tapGuide: { marginTop: 60, backgroundColor: COLORS.bg, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 24 },
-    tapGuideText: { fontSize: 14, color: COLORS.textMuted, fontWeight: '600' },
-    trackerActions: { paddingBottom: 20, alignItems: 'center', gap: 24 },
+    tapGuide: { marginTop: 60, backgroundColor: COLORS.bg, paddingHorizontal: SPACING.xl, paddingVertical: SPACING.md, borderRadius: RADIUS.lg },
+    tapGuideText: { ...TYPOGRAPHY.body2, color: COLORS.textMuted, fontWeight: '600' },
+    trackerActions: { paddingBottom: SPACING.xl, alignItems: 'center', gap: SPACING.xxl },
     undoBtn: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -378,7 +381,7 @@ const styles = StyleSheet.create({
         borderRadius: RADIUS.xl,
         ...SHADOWS.small
     },
-    undoBtnText: { fontSize: 15, fontWeight: '700', color: COLORS.text },
-    linkStopBtn: { padding: 10 },
-    linkStopBtnText: { fontSize: 14, color: COLORS.textMuted, fontWeight: '600', textDecorationLine: 'underline', opacity: 0.4 },
+    undoBtnText: { ...TYPOGRAPHY.body1, fontWeight: '700', color: COLORS.text },
+    linkStopBtn: { padding: SPACING.sm },
+    linkStopBtnText: { ...TYPOGRAPHY.body2, color: COLORS.textMuted, fontWeight: '600', textDecorationLine: 'underline', opacity: 0.4 },
 });

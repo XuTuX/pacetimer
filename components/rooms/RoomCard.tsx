@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, View } from 'react-native';
 import type { Database } from '../../lib/db-types';
-import { COLORS, RADIUS, SHADOWS, SPACING } from '../../lib/theme';
+import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../lib/theme';
 import { ThemedText } from '../ui/ThemedText';
 
 type Room = Database['public']['Tables']['rooms']['Row'];
@@ -25,7 +25,7 @@ export function RoomCard({ room, onPress, participantCount, unsolvedCount = 0 }:
         >
             {/* Accent Bar */}
             <LinearGradient
-                colors={['#00D094', '#00B380']}
+                colors={COLORS.gradientPrimary}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 0, y: 1 }}
                 style={styles.accentBar}
@@ -104,16 +104,15 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: SPACING.sm,
     },
     name: {
         flex: 1,
-        fontWeight: '600',
-        fontSize: 16,
+        ...TYPOGRAPHY.subtitle2,
         color: COLORS.text,
     },
     badge: {
-        backgroundColor: '#FF3B30',
+        backgroundColor: COLORS.error,
         minWidth: 20,
         height: 20,
         borderRadius: 10,
@@ -122,17 +121,18 @@ const styles = StyleSheet.create({
         paddingHorizontal: 6,
     },
     badgeText: {
-        color: 'white',
+        color: COLORS.white,
         fontSize: 11,
         fontWeight: '700',
     },
     metaRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
+        gap: SPACING.sm,
     },
     desc: {
         flex: 1,
+        ...TYPOGRAPHY.caption,
     },
     stats: {
         flexDirection: 'row',

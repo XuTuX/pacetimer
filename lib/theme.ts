@@ -16,8 +16,8 @@ export const COLORS = {
     primaryDark: "#00B380",  // Darker primary for active states
 
     // Gradients
-    gradientDark: ['#1a1a1a', '#2d2d2d'],
-    gradientPrimary: ['#00D094', '#00C88C'],
+    gradientDark: ['#1a1a1a', '#2d2d2d'] as const,
+    gradientPrimary: ['#00D094', '#00C88C'] as const,
 
     // Status & Feedback
     success: "#34C759",
