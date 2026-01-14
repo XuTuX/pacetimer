@@ -14,6 +14,7 @@ import { COLORS, RADIUS, SHADOWS, SPACING } from "../../../../lib/theme";
 
 type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
+type RoomSubjectRow = Database["public"]["Tables"]["room_subjects"]["Row"];
 
 interface ParticipantWithData {
     user_id: string;
@@ -31,6 +32,7 @@ export default function RoomHomeScreen() {
 
     const [room, setRoom] = useState<RoomRow | null>(null);
     const [participants, setParticipants] = useState<ParticipantWithData[]>([]);
+    const [roomSubjects, setRoomSubjects] = useState<RoomSubjectRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
@@ -39,15 +41,22 @@ export default function RoomHomeScreen() {
         if (!roomId || roomId === 'undefined') return;
         setLoading(true);
         try {
-            const [roomRes, membersRes] = await Promise.all([
+            const [roomRes, membersRes, subjectsRes] = await Promise.all([
                 supabase.from("rooms").select("*").eq("id", roomId).single(),
-                supabase.from("room_members").select(`*, profile:profiles(*)`).eq("room_id", roomId)
+                supabase.from("room_members").select(`*, profile:profiles(*)`).eq("room_id", roomId),
+                supabase
+                    .from("room_subjects")
+                    .select("*")
+                    .eq("room_id", roomId)
+                    .eq("is_archived", false)
+                    .order("created_at", { ascending: true })
             ]);
             if (roomRes.error) throw roomRes.error;
             if (membersRes.error) throw membersRes.error;
 
             setRoom(roomRes.data);
             setParticipants((membersRes.data as any) ?? []);
+            setRoomSubjects(subjectsRes.error ? [] : (subjectsRes.data ?? []));
         } catch (err: any) {
             setError(formatSupabaseError(err));
         } finally {
@@ -59,6 +68,10 @@ export default function RoomHomeScreen() {
 
     const isMember = useMemo(() => participants.some(p => p.user_id === userId), [participants, userId]);
     const shortCode = useMemo(() => room?.id?.substring(0, 6).toUpperCase(), [room?.id]);
+    const visibleSubjects = useMemo(
+        () => roomSubjects.filter((subject) => !subject.is_archived),
+        [roomSubjects]
+    );
 
     const handleJoinRoom = async () => {
         if (!roomId || !userId) return;
@@ -146,26 +159,28 @@ export default function RoomHomeScreen() {
                     </TouchableOpacity>
                 </LinearGradient>
 
-                {/* Stats Row */}
-                <View style={styles.statsRow}>
-                    <View style={styles.statCard}>
-                        <View style={styles.statIconBadge}>
-                            <Ionicons name="people" size={20} color={COLORS.primary} />
-                        </View>
-                        <View>
-                            <Typography.H3 bold color={COLORS.text}>{participants.length}</Typography.H3>
-                            <Typography.Caption color={COLORS.textMuted}>참여자</Typography.Caption>
+                {/* Subjects */}
+                <View style={styles.subjectCard}>
+                    <View style={styles.subjectHeader}>
+                        <Typography.Subtitle1 bold>시험 과목</Typography.Subtitle1>
+                        <View style={styles.memberCountBadge}>
+                            <Typography.Caption bold color={COLORS.primary}>{visibleSubjects.length}과목</Typography.Caption>
                         </View>
                     </View>
-                    <View style={styles.statCard}>
-                        <View style={[styles.statIconBadge, { backgroundColor: COLORS.errorLight }]}>
-                            <Ionicons name="document-text" size={20} color={COLORS.error} />
+
+                    {visibleSubjects.length > 0 ? (
+                        <View style={styles.subjectChips}>
+                            {visibleSubjects.map((subject) => (
+                                <View key={subject.id} style={styles.subjectChip}>
+                                    <Text style={styles.subjectChipText}>{subject.name}</Text>
+                                </View>
+                            ))}
                         </View>
-                        <View>
-                            <Typography.H3 bold color={COLORS.text}>-</Typography.H3>
-                            <Typography.Caption color={COLORS.textMuted}>시험</Typography.Caption>
+                    ) : (
+                        <View style={styles.subjectEmpty}>
+                            <Typography.Caption color={COLORS.textMuted}>등록된 과목이 없어요</Typography.Caption>
                         </View>
-                    </View>
+                    )}
                 </View>
 
                 {/* Members Section */}
@@ -331,28 +346,40 @@ const styles = StyleSheet.create({
     copyBtnSuccess: {
         backgroundColor: COLORS.white,
     },
-    statsRow: {
-        flexDirection: 'row',
-        gap: SPACING.md,
-        marginBottom: SPACING.xxl,
-    },
-    statCard: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
+    subjectCard: {
         backgroundColor: COLORS.surface,
         borderRadius: RADIUS.xl,
-        padding: SPACING.md,
-        gap: SPACING.md,
+        padding: SPACING.lg,
+        gap: SPACING.sm,
+        marginBottom: SPACING.xxl,
         ...SHADOWS.small,
     },
-    statIconBadge: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
-        backgroundColor: COLORS.primaryLight,
+    subjectHeader: {
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'space-between',
+    },
+    subjectChips: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: SPACING.sm,
+    },
+    subjectChip: {
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 999,
+        backgroundColor: COLORS.surfaceVariant,
+    },
+    subjectChipText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: COLORS.text,
+    },
+    subjectEmpty: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingVertical: 4,
     },
     section: {
         flex: 1,

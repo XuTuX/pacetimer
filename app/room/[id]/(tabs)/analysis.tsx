@@ -831,44 +831,6 @@ export default function AnalysisScreen() {
                     </Section>
                 )}
 
-                {/* Ranking List */}
-                {completedCount > 0 && (
-                    <Section title="순위표">
-                        <Card padding="md" radius="xl">
-                            {completedParticipants
-                                .sort((a, b) => a.durationMs - b.durationMs)
-                                .map((p, idx) => (
-                                    <View key={p.userId} style={[
-                                        styles.rankItem,
-                                        p.isMe && styles.rankItemMe,
-                                        idx < completedParticipants.length - 1 && styles.rankItemBorder
-                                    ]}>
-                                        <View style={[
-                                            styles.rankNumber,
-                                            idx === 0 && styles.rankFirst,
-                                            idx === 1 && styles.rankSecond,
-                                            idx === 2 && styles.rankThird,
-                                        ]}>
-                                            {idx < 3 ? (
-                                                <Typography.Body2 bold>{idx === 0 ? "🥇" : idx === 1 ? "🥈" : "🥉"}</Typography.Body2>
-                                            ) : (
-                                                <Typography.Label bold color={COLORS.textMuted}>{idx + 1}</Typography.Label>
-                                            )}
-                                        </View>
-                                        <View style={styles.rankInfo}>
-                                            <Typography.Body1 bold color={p.isMe ? COLORS.primary : COLORS.text}>
-                                                {p.isMe ? "나" : p.name}
-                                            </Typography.Body1>
-                                        </View>
-                                        <Typography.Subtitle2 bold color={p.isMe ? COLORS.primary : COLORS.text}>
-                                            {formatDuration(p.durationMs)}
-                                        </Typography.Subtitle2>
-                                    </View>
-                                ))}
-                        </Card>
-                    </Section>
-                )}
-
                 {/* Not completed message */}
                 {myResult?.status !== "COMPLETED" && (
                     <Card variant="outlined" padding="xl" radius="xl" style={styles.notCompletedCard}>
@@ -1381,42 +1343,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: COLORS.surface,
         ...SHADOWS.small,
-    },
-    rankItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: SPACING.md,
-        gap: SPACING.md,
-    },
-    rankItemMe: {
-        backgroundColor: COLORS.primaryLight,
-        marginHorizontal: -SPACING.md,
-        paddingHorizontal: SPACING.md,
-        borderRadius: 12,
-    },
-    rankItemBorder: {
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.border,
-    },
-    rankNumber: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        backgroundColor: COLORS.surfaceVariant,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    rankFirst: {
-        backgroundColor: '#FEF3C7',
-    },
-    rankSecond: {
-        backgroundColor: '#F3F4F6',
-    },
-    rankThird: {
-        backgroundColor: '#FED7AA',
-    },
-    rankInfo: {
-        flex: 1,
     },
     notCompletedCard: {
         marginHorizontal: SPACING.xl,

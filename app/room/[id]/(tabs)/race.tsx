@@ -109,16 +109,20 @@ export default function RaceScreen() {
                 {totalExams > 0 && (
                     <View style={styles.summaryRow}>
                         <View style={styles.summaryCard}>
-                            <Typography.Caption color={COLORS.textMuted}>전체</Typography.Caption>
-                            <Typography.H3 bold color={COLORS.text}>{totalExams}</Typography.H3>
-                        </View>
-                        <View style={styles.summaryCard}>
-                            <Typography.Caption color={COLORS.textMuted}>완료</Typography.Caption>
-                            <Typography.H3 bold color={COLORS.primary}>{completedCount}</Typography.H3>
-                        </View>
-                        <View style={styles.summaryCard}>
-                            <Typography.Caption color={COLORS.textMuted}>다시 풀기</Typography.Caption>
-                            <Typography.H3 bold color={COLORS.error}>{inProgressCount}</Typography.H3>
+                            <View style={styles.summaryItem}>
+                                <Typography.Caption color={COLORS.textMuted}>전체</Typography.Caption>
+                                <Typography.H3 bold color={COLORS.text}>{totalExams}</Typography.H3>
+                            </View>
+                            <View style={styles.summaryDivider} />
+                            <View style={styles.summaryItem}>
+                                <Typography.Caption color={COLORS.textMuted}>완료</Typography.Caption>
+                                <Typography.H3 bold color={COLORS.primary}>{completedCount}</Typography.H3>
+                            </View>
+                            <View style={styles.summaryDivider} />
+                            <View style={styles.summaryItem}>
+                                <Typography.Caption color={COLORS.textMuted}>다시 풀기</Typography.Caption>
+                                <Typography.H3 bold color={COLORS.error}>{inProgressCount}</Typography.H3>
+                            </View>
                         </View>
                     </View>
                 )}
@@ -248,18 +252,28 @@ const styles = StyleSheet.create({
         paddingBottom: 100,
     },
     summaryRow: {
-        flexDirection: 'row',
-        gap: SPACING.sm,
         marginBottom: SPACING.xl,
     },
     summaryCard: {
-        flex: 1,
+        flexDirection: 'row',
         backgroundColor: COLORS.surface,
-        borderRadius: RADIUS.lg,
-        padding: SPACING.md,
+        borderRadius: RADIUS.xl,
+        paddingVertical: SPACING.md,
+        paddingHorizontal: SPACING.lg,
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    summaryItem: {
         alignItems: 'center',
         gap: 2,
-        ...SHADOWS.small,
+        flex: 1,
+    },
+    summaryDivider: {
+        width: 1,
+        height: 32,
+        backgroundColor: COLORS.border,
     },
     emptyState: {
         alignItems: 'center',
