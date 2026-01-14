@@ -137,6 +137,27 @@ export default function QuestionAnalysisScreen() {
         );
     }, [exam, myRecords, allRecords, userId]);
 
+    const roomSolveCounts = useMemo(() => {
+        const counts: Record<number, number> = {};
+        allRecords.forEach((record) => {
+            if (record.duration_ms > 0) {
+                counts[record.question_no] = (counts[record.question_no] ?? 0) + 1;
+            }
+        });
+        return counts;
+    }, [allRecords]);
+
+    const questionAnalysisForDisplay = useMemo(() => {
+        if (questionAnalysis.length === 0) return [];
+        return questionAnalysis.map((q) => {
+            const solvedCount = roomSolveCounts[q.questionNo] ?? 0;
+            if (solvedCount < 3 && (q.highlight === 'slow' || q.highlight === 'fast')) {
+                return { ...q, highlight: null };
+            }
+            return q;
+        });
+    }, [questionAnalysis, roomSolveCounts]);
+
     // Solving pattern
     const solvingPattern = useMemo(() => {
         if (myRecords.length === 0) return null;
@@ -291,7 +312,7 @@ export default function QuestionAnalysisScreen() {
                     description="나의 기록 vs 방 평균 비교"
                     style={styles.section}
                 >
-                    {questionAnalysis.map((q) => (
+                    {questionAnalysisForDisplay.map((q) => (
                         <View
                             key={q.questionNo}
                             onLayout={
