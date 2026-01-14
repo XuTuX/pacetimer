@@ -36,6 +36,7 @@ interface MyAttemptData {
     exam_id: string;
     duration_ms: number;
     created_at: string;
+    ended_at: string | null;
     room_exams: {
         id: string;
         title: string;
@@ -247,11 +248,13 @@ export default function AnalysisScreen() {
 
     // My Progress View - Subject Growth Analysis
     const renderMyProgressView = () => {
+        // Get valid completed attempts only
+        const validMyAttempts = myAttempts.filter(a => a.duration_ms > 0);
+
         // Get subject-specific history (excluding invalid 0-second records)
         const getSubjectHistory = (subject: string) => {
-            const validAttempts = myAttempts.filter(a => a.duration_ms > 0);
             if (subject === "전체") {
-                return validAttempts.map(a => ({
+                return validMyAttempts.map(a => ({
                     id: a.id,
                     examId: a.exam_id,
                     title: a.room_exams.title.replace(/^(\[.*?\]\s*|.*?•\s*)+/, ""),
@@ -261,7 +264,7 @@ export default function AnalysisScreen() {
                     questions: a.room_exams.total_questions,
                 }));
             }
-            return validAttempts
+            return validMyAttempts
                 .filter(a => (getRoomExamSubjectFromTitle(a.room_exams.title) ?? "기타") === subject)
                 .map(a => ({
                     id: a.id,
@@ -330,8 +333,8 @@ export default function AnalysisScreen() {
                             <ScrollView showsVerticalScrollIndicator={false} style={styles.modalList}>
                                 {uniqueSubjects.map(s => {
                                     const examCount = s === "전체"
-                                        ? myAttempts.length
-                                        : myAttempts.filter(a => (getRoomExamSubjectFromTitle(a.room_exams.title) ?? "기타") === s).length;
+                                        ? validMyAttempts.length
+                                        : validMyAttempts.filter(a => (getRoomExamSubjectFromTitle(a.room_exams.title) ?? "기타") === s).length;
                                     return (
                                         <Pressable
                                             key={s}
