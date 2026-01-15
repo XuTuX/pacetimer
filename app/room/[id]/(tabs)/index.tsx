@@ -212,7 +212,7 @@ export default function RoomHomeScreen() {
             {/* Float Action Button */}
             <View style={styles.fabContainer}>
                 <Button
-                    label={!isMember ? "이 스터디 참여하기" : "친구 초대하기"}
+                    label={!isMember ? "Join Study" : "Invite Friends"}
                     onPress={!isMember ? handleJoinRoom : handleShare}
                     variant="primary"
                     size="lg"

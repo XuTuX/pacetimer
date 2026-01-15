@@ -3,8 +3,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { Tabs, useGlobalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { Platform } from "react-native";
-import { COLORS, SHADOWS } from "../../../../lib/theme";
 import { useSupabase } from "../../../../lib/supabase";
+import { COLORS, SHADOWS } from "../../../../lib/theme";
 
 export default function RoomTabsLayout() {
     const { id: roomId } = useGlobalSearchParams();
@@ -90,6 +90,7 @@ export default function RoomTabsLayout() {
                     fontWeight: "600",
                     marginBottom: Platform.OS === "ios" ? 0 : 4,
                 },
+                tabBarShowLabel: false,
                 tabBarStyle: {
                     backgroundColor: COLORS.surface,
                     borderTopColor: 'transparent',
