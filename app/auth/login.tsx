@@ -89,7 +89,7 @@ export default function LoginScreen() {
                     >
                         <View style={styles.imageShadow} />
                         <Image
-                            source={require("../../assets/images/sprout_stage_3.png")}
+                            source={require("../../assets/images/growth_flower.png")}
                             style={styles.illustration}
                             contentFit="cover"
                         />

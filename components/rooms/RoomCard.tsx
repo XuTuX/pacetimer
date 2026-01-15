@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, View } from 'react-native';
 import type { Database } from '../../lib/db-types';
-import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../lib/theme';
+import { COLORS, RADIUS, SHADOWS } from '../../lib/theme';
 import { ThemedText } from '../ui/ThemedText';
 
 type Room = Database['public']['Tables']['rooms']['Row'];
@@ -82,83 +82,89 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'stretch',
         backgroundColor: COLORS.surface,
-        borderRadius: RADIUS.lg,
+        borderRadius: RADIUS.xl,
         overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: COLORS.border,
         ...SHADOWS.small,
     },
     cardPressed: {
-        transform: [{ scale: 0.98 }],
-        opacity: 0.95,
+        transform: [{ scale: 0.985 }],
+        opacity: 0.9,
     },
     accentBar: {
-        width: 4,
-        borderTopLeftRadius: RADIUS.lg,
-        borderBottomLeftRadius: RADIUS.lg,
+        width: 6,
     },
     content: {
         flex: 1,
-        paddingVertical: SPACING.md + 2,
-        paddingHorizontal: SPACING.md,
+        paddingVertical: 18,
+        paddingHorizontal: 16,
         gap: 6,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: SPACING.sm,
+        gap: 8,
     },
     name: {
         flex: 1,
-        ...TYPOGRAPHY.subtitle2,
+        fontSize: 16,
+        fontWeight: '700',
         color: COLORS.text,
     },
     badge: {
-        backgroundColor: COLORS.error,
-        minWidth: 20,
-        height: 20,
-        borderRadius: 10,
+        backgroundColor: COLORS.primary,
+        minWidth: 22,
+        height: 22,
+        borderRadius: 11,
         justifyContent: 'center',
         alignItems: 'center',
         paddingHorizontal: 6,
+        ...SHADOWS.small,
     },
     badgeText: {
         color: COLORS.white,
         fontSize: 11,
-        fontWeight: '700',
+        fontWeight: '800',
     },
     metaRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: SPACING.sm,
+        gap: 12,
+        marginTop: 2,
     },
     desc: {
         flex: 1,
-        ...TYPOGRAPHY.caption,
+        fontSize: 13,
+        color: COLORS.textMuted,
+        fontWeight: '500',
     },
     stats: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
+        gap: 8,
     },
     avatarStack: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     miniAvatar: {
-        width: 20,
-        height: 20,
-        borderRadius: 10,
-        backgroundColor: COLORS.surfaceVariant,
+        width: 22,
+        height: 22,
+        borderRadius: 8,
+        backgroundColor: COLORS.bg,
         borderWidth: 1.5,
         borderColor: COLORS.surface,
         alignItems: 'center',
         justifyContent: 'center',
     },
     countText: {
-        marginLeft: 2,
+        fontSize: 12,
+        color: COLORS.textMuted,
+        fontWeight: '600',
     },
     chevronWrapper: {
         justifyContent: 'center',
-        paddingRight: SPACING.md,
-        paddingLeft: SPACING.xs,
+        paddingRight: 16,
     },
 });

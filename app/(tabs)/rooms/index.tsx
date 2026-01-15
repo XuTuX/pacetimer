@@ -11,7 +11,7 @@ import { ThemedText } from "../../../components/ui/ThemedText";
 import type { Database } from "../../../lib/db-types";
 import { useSupabase } from "../../../lib/supabase";
 import { formatSupabaseError } from "../../../lib/supabaseError";
-import { COLORS, RADIUS, SPACING } from "../../../lib/theme";
+import { COLORS, RADIUS, SHADOWS, SPACING } from "../../../lib/theme";
 
 type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
 
@@ -152,39 +152,44 @@ export default function RoomsIndexScreen() {
                 align="left"
             />
 
-            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-                {/* Search Bar */}
-                <View style={styles.searchBar}>
-                    <Ionicons name="search" size={18} color={COLORS.textMuted} />
-                    <TextInput
-                        value={roomIdInput}
-                        onChangeText={setRoomIdInput}
-                        placeholder="참여 코드 입력"
-                        placeholderTextColor={COLORS.textMuted}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                        style={styles.searchInput}
-                        onSubmitEditing={handleJoin}
-                    />
-                    {roomIdInput.length > 0 && (
-                        <Pressable onPress={handleJoin} disabled={joining} style={styles.searchBtn}>
-                            {joining ? (
-                                <ActivityIndicator size="small" color={COLORS.white} />
-                            ) : (
-                                <Ionicons name="arrow-forward" size={18} color={COLORS.white} />
-                            )}
-                        </Pressable>
+            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                {/* Search Bar Section */}
+                <View style={styles.searchSection}>
+                    <ThemedText style={styles.sectionTitle}>새로운 스터디 참가</ThemedText>
+                    <View style={styles.searchBar}>
+                        <Ionicons name="search" size={18} color={COLORS.textMuted} />
+                        <TextInput
+                            value={roomIdInput}
+                            onChangeText={setRoomIdInput}
+                            placeholder="참여 코드 입력"
+                            placeholderTextColor={COLORS.textMuted}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            style={styles.searchInput}
+                            onSubmitEditing={handleJoin}
+                        />
+                        {roomIdInput.length > 0 && (
+                            <Pressable onPress={handleJoin} disabled={joining} style={styles.searchBtn}>
+                                {joining ? (
+                                    <ActivityIndicator size="small" color={COLORS.white} />
+                                ) : (
+                                    <Ionicons name="arrow-forward" size={18} color={COLORS.white} />
+                                )}
+                            </Pressable>
+                        )}
+                    </View>
+
+                    {error && (
+                        <View style={styles.errorBanner}>
+                            <Ionicons name="alert-circle" size={14} color={COLORS.error} />
+                            <ThemedText variant="caption" color={COLORS.error}>{error}</ThemedText>
+                        </View>
                     )}
                 </View>
 
-                {error && (
-                    <View style={styles.errorBanner}>
-                        <ThemedText variant="caption" color={COLORS.error}>{error}</ThemedText>
-                    </View>
-                )}
-
-                {/* List */}
+                {/* List Section */}
                 <View style={styles.listSection}>
+                    <ThemedText style={styles.sectionTitle}>나의 스터디 ({rooms.length})</ThemedText>
                     {loading && <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 20 }} />}
 
                     {hasLoadedOnce && rooms.length === 0 ? (
@@ -231,60 +236,85 @@ const styles = StyleSheet.create({
     headerActions: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        gap: 8,
     },
     addBtn: {
-        width: 40,
-        height: 40,
+        width: 36,
+        height: 36,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 12,
         alignItems: "center",
         justifyContent: "center",
+        backgroundColor: COLORS.surface,
     },
     content: {
-        padding: SPACING.xl,
+        padding: SPACING.lg,
         paddingBottom: 40,
+    },
+    searchSection: {
+        marginBottom: SPACING.xl,
+    },
+    sectionTitle: {
+        marginBottom: SPACING.md,
+        fontSize: 14,
+        fontWeight: '700',
+        color: COLORS.text,
+        opacity: 0.8,
     },
     searchBar: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
+        gap: 12,
         backgroundColor: COLORS.surface,
-        borderRadius: RADIUS.lg,
-        paddingLeft: SPACING.md,
-        paddingRight: 4,
-        height: 48,
+        borderRadius: RADIUS.xl,
+        paddingLeft: SPACING.lg,
+        paddingRight: 6,
+        height: 54,
+        ...SHADOWS.small,
         borderWidth: 1,
         borderColor: COLORS.border,
-        marginBottom: SPACING.lg,
     },
     searchInput: {
         flex: 1,
         fontSize: 15,
         color: COLORS.text,
-        fontWeight: '500',
+        fontWeight: '600',
     },
     searchBtn: {
-        width: 36,
-        height: 36,
-        borderRadius: 10,
+        width: 42,
+        height: 42,
+        borderRadius: RADIUS.lg,
         backgroundColor: COLORS.primary,
         alignItems: 'center',
         justifyContent: 'center',
+        ...SHADOWS.small,
     },
     errorBanner: {
         backgroundColor: COLORS.errorLight,
         padding: SPACING.sm,
+        paddingHorizontal: SPACING.md,
         borderRadius: RADIUS.md,
-        marginBottom: SPACING.md,
+        marginTop: SPACING.sm,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
     },
     listSection: {
-        gap: SPACING.sm
+        marginTop: SPACING.sm,
     },
     roomList: {
-        gap: SPACING.sm
+        gap: SPACING.md,
     },
     emptyState: {
         alignItems: 'center',
-        paddingVertical: 60,
+        justifyContent: 'center',
+        paddingVertical: 80,
+        backgroundColor: COLORS.surface,
+        borderRadius: RADIUS.xxl,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderStyle: 'dashed',
     },
     emptyIcon: {
         width: 64,
@@ -301,8 +331,10 @@ const styles = StyleSheet.create({
     emptyDesc: {
         marginBottom: SPACING.xl,
         lineHeight: 22,
+        paddingHorizontal: SPACING.xl,
     },
     emptyBtn: {
         paddingHorizontal: 32,
+        borderRadius: RADIUS.xl,
     },
 });

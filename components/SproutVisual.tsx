@@ -18,31 +18,36 @@ export default function SproutVisual({ totalMinutes }: SproutVisualProps) {
     }, []);
 
     // Growth by daily study time:
-    // 0-3h: Stage 1
-    // 3h-6h: Stage 2
-    // 6h-10h: Stage 4
-    // 10h+: Stage 5 (Tree)
-    let stage = 1;
-    if (totalMinutes >= 600) stage = 5;
-    else if (totalMinutes >= 360) stage = 4;
-    else if (totalMinutes >= 180) stage = 2;
+    // < 1h (60 min): Seed
+    // < 3h (180 min): Sprout
+    // < 10h (600 min): Advanced (covers < 6h and up to 10h)
+    // >= 10h (600 min): Flower
+    let stage = 'seed';
+    if (totalMinutes >= 600) stage = 'flower';
+    else if (totalMinutes >= 180) stage = 'advanced';
+    else if (totalMinutes >= 60) stage = 'sprout';
+    else stage = 'seed';
 
-    const getStageImage = (s: number) => {
+    const getStageImage = (s: string) => {
         switch (s) {
-            case 5: return require('../assets/images/sprout_stage_5.png');
-            case 4: return require('../assets/images/sprout_stage_4.png');
-            case 2: return require('../assets/images/sprout_stage_2.png');
-            default: return require('../assets/images/sprout_stage_1.png');
+            case 'flower': return require('../assets/images/growth_flower.png');
+            case 'advanced': return require('../assets/images/growth_advanced.png');
+            case 'sprout': return require('../assets/images/growth_sprout.png');
+            default: return require('../assets/images/growth_seed.png');
         }
     };
 
     const animatedStyle = useAnimatedStyle(() => {
-        const scale = 1 + (stage % 6) * 0.05;
-        const translateY = -(stage % 6) * 2;
+        // Adjust scale/position based on stage
+        let scaleFactor = 1;
+        if (stage === 'sprout') scaleFactor = 1.05;
+        if (stage === 'advanced') scaleFactor = 1.1;
+        if (stage === 'flower') scaleFactor = 1.15;
+
         return {
             transform: [
-                { scale: withSpring(scale) },
-                { translateY: withSpring(translateY) },
+                { scale: withSpring(scaleFactor) },
+                { translateY: withSpring(0) },
             ],
         };
     });

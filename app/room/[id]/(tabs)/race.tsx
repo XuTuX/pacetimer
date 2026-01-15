@@ -10,7 +10,7 @@ import type { Database } from "../../../../lib/db-types";
 import { getRoomExamDisplayTitle, getRoomExamSubjectFromTitle } from "../../../../lib/roomExam";
 import { useSupabase } from "../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../lib/supabaseError";
-import { COLORS, RADIUS, SHADOWS, SPACING } from "../../../../lib/theme";
+import { COLORS, SHADOWS, SPACING } from "../../../../lib/theme";
 
 type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
@@ -105,23 +105,34 @@ export default function RaceScreen() {
             />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                {/* Progress Summary */}
+                {/* Progress Summary Dashboard */}
                 {totalExams > 0 && (
                     <View style={styles.summaryRow}>
-                        <View style={styles.summaryCard}>
+                        <View style={styles.summaryHeader}>
+                            <Ionicons name="stats-chart" size={16} color={COLORS.primary} />
+                            <Typography.Caption bold color={COLORS.primary}>나의 현황</Typography.Caption>
+                        </View>
+                        <View style={styles.summaryGrid}>
                             <View style={styles.summaryItem}>
-                                <Typography.Caption color={COLORS.textMuted}>전체</Typography.Caption>
-                                <Typography.H3 bold color={COLORS.text}>{totalExams}</Typography.H3>
+                                <Text style={styles.summaryLabel}>전체</Text>
+                                <Text style={styles.summaryValue}>{totalExams}</Text>
                             </View>
                             <View style={styles.summaryDivider} />
                             <View style={styles.summaryItem}>
-                                <Typography.Caption color={COLORS.textMuted}>완료</Typography.Caption>
-                                <Typography.H3 bold color={COLORS.primary}>{completedCount}</Typography.H3>
+                                <Text style={styles.summaryLabel}>완료</Text>
+                                <Text style={[styles.summaryValue, { color: '#10B981' }]}>{completedCount}</Text>
                             </View>
                             <View style={styles.summaryDivider} />
                             <View style={styles.summaryItem}>
-                                <Typography.Caption color={COLORS.textMuted}>다시 풀기</Typography.Caption>
-                                <Typography.H3 bold color={COLORS.error}>{inProgressCount}</Typography.H3>
+                                <Text style={styles.summaryLabel}>재풀이</Text>
+                                <Text style={[styles.summaryValue, { color: '#EF4444' }]}>{inProgressCount}</Text>
+                            </View>
+                            <View style={styles.summaryDivider} />
+                            <View style={styles.summaryItem}>
+                                <Text style={styles.summaryLabel}>미응시</Text>
+                                <Text style={[styles.summaryValue, { color: COLORS.textMuted }]}>
+                                    {totalExams - completedCount - inProgressCount}
+                                </Text>
                             </View>
                         </View>
                     </View>
@@ -142,7 +153,7 @@ export default function RaceScreen() {
                             <Button
                                 label="시험 만들기"
                                 onPress={() => router.push(`/room/${roomId}/add-exam`)}
-                                style={{ marginTop: SPACING.xl }}
+                                style={{ marginTop: SPACING.xl, borderRadius: 16 }}
                             />
                         )}
                     </View>
@@ -150,7 +161,6 @@ export default function RaceScreen() {
                     Object.entries(groupedExams).map(([subject, subjectExams]) => (
                         <View key={subject} style={styles.section}>
                             <View style={styles.sectionHeader}>
-                                <Text style={styles.subjectEmoji}>{SUBJECT_ICONS[subject] || "📝"}</Text>
                                 <Text style={styles.subjectTitle}>{subject}</Text>
                                 <View style={styles.countBadge}>
                                     <Text style={styles.countText}>{subjectExams.length}</Text>
@@ -178,41 +188,29 @@ export default function RaceScreen() {
                                                 pressed && styles.examCardPressed
                                             ]}
                                         >
-                                            {/* Status Accent Bar */}
-                                            <View style={[
-                                                styles.accentBar,
-                                                isCompleted && styles.accentBarDone,
-                                                isInProgress && styles.accentBarProgress,
-                                                !isCompleted && !isInProgress && styles.accentBarPending
-                                            ]} />
-
                                             <View style={styles.examMain}>
-                                                <View style={styles.examInfo}>
-                                                    <Text style={styles.examTitle} numberOfLines={1}>
-                                                        {getRoomExamDisplayTitle(item.title) || "모의고사"}
-                                                    </Text>
-                                                    <Text style={styles.examMeta}>
-                                                        {item.total_questions}문항 · {item.total_minutes}분
-                                                    </Text>
-                                                </View>
+                                                <Text style={styles.examTitle} numberOfLines={1}>
+                                                    {getRoomExamDisplayTitle(item.title) || "모의고사"}
+                                                </Text>
+                                                <Text style={styles.examMeta}>
+                                                    {item.total_questions}문항 · {item.total_minutes}분
+                                                </Text>
                                             </View>
 
                                             <View style={styles.examRight}>
-                                                {isCompleted && (
-                                                    <View style={styles.doneBadge}>
-                                                        <Ionicons name="checkmark-circle" size={14} color={COLORS.primary} />
-                                                        <Text style={styles.doneText}>완료</Text>
+                                                {isCompleted ? (
+                                                    <View style={[styles.statusBadge, styles.badgeDone]}>
+                                                        <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                                                        <Text style={[styles.statusText, styles.textDone]}>완료</Text>
                                                     </View>
-                                                )}
-                                                {isInProgress && (
-                                                    <View style={styles.retryBadge}>
-                                                        <Ionicons name="refresh" size={12} color={COLORS.error} />
-                                                        <Text style={styles.retryText}>다시 풀기</Text>
+                                                ) : isInProgress ? (
+                                                    <View style={[styles.statusBadge, styles.badgeRetry]}>
+                                                        <Ionicons name="refresh" size={12} color="#EF4444" />
+                                                        <Text style={[styles.statusText, styles.textRetry]}>재풀이</Text>
                                                     </View>
-                                                )}
-                                                {!isCompleted && !isInProgress && (
-                                                    <View style={styles.pendingBadge}>
-                                                        <Text style={styles.pendingText}>미응시</Text>
+                                                ) : (
+                                                    <View style={[styles.statusBadge, styles.badgePending]}>
+                                                        <Text style={[styles.statusText, styles.textPending]}>미응시</Text>
                                                     </View>
                                                 )}
                                                 <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
@@ -240,39 +238,58 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     addBtn: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: COLORS.surfaceVariant,
+        width: 40,
+        height: 40,
+        borderRadius: 14,
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
         alignItems: 'center',
         justifyContent: 'center',
+        ...SHADOWS.small,
     },
     scrollContent: {
-        padding: SPACING.xl,
-        paddingBottom: 100,
+        padding: SPACING.lg,
+        paddingBottom: 120,
     },
     summaryRow: {
         marginBottom: SPACING.xl,
-    },
-    summaryCard: {
-        flexDirection: 'row',
         backgroundColor: COLORS.surface,
-        borderRadius: RADIUS.xl,
-        paddingVertical: SPACING.md,
-        paddingHorizontal: SPACING.lg,
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        borderRadius: 24,
+        padding: 20,
         borderWidth: 1,
         borderColor: COLORS.border,
+        ...SHADOWS.medium,
+    },
+    summaryHeader: {
+        marginBottom: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    summaryGrid: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
     summaryItem: {
         alignItems: 'center',
-        gap: 2,
         flex: 1,
+    },
+    summaryLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: COLORS.textMuted,
+        marginBottom: 4,
+    },
+    summaryValue: {
+        fontSize: 22,
+        fontWeight: '800',
+        color: COLORS.text,
     },
     summaryDivider: {
         width: 1,
-        height: 32,
+        height: 20,
         backgroundColor: COLORS.border,
     },
     emptyState: {
@@ -292,121 +309,97 @@ const styles = StyleSheet.create({
         fontSize: 32,
     },
     section: {
-        marginBottom: SPACING.xxl,
+        marginBottom: 24,
     },
     sectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: SPACING.md,
-        gap: 8,
-    },
-    subjectEmoji: {
-        fontSize: 18,
+        marginBottom: 14,
+        paddingHorizontal: 4,
     },
     subjectTitle: {
-        fontSize: 16,
-        fontWeight: '700',
+        fontSize: 18,
+        fontWeight: '800',
         color: COLORS.text,
+        marginRight: 8,
     },
     countBadge: {
         backgroundColor: COLORS.surfaceVariant,
         paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: RADIUS.full,
+        paddingVertical: 2,
+        borderRadius: 8,
     },
     countText: {
         fontSize: 11,
         color: COLORS.textMuted,
-        fontWeight: '600',
+        fontWeight: '700',
     },
     examList: {
-        gap: SPACING.sm,
+        gap: 12,
     },
     examCard: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: COLORS.surface,
-        borderRadius: RADIUS.lg,
-        overflow: 'hidden',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        padding: 16,
         ...SHADOWS.small,
     },
     examCardPressed: {
-        opacity: 0.9,
-        transform: [{ scale: 0.99 }],
-    },
-    accentBar: {
-        width: 4,
-        alignSelf: 'stretch',
-    },
-    accentBarDone: {
-        backgroundColor: COLORS.primary,
-    },
-    accentBarProgress: {
-        backgroundColor: COLORS.warning,
-    },
-    accentBarPending: {
-        backgroundColor: COLORS.border,
+        opacity: 0.8,
+        transform: [{ scale: 0.98 }],
     },
     examMain: {
         flex: 1,
-        paddingVertical: SPACING.md,
-        paddingHorizontal: SPACING.md,
-    },
-    examInfo: {
-        gap: 2,
+        gap: 4,
     },
     examTitle: {
-        fontSize: 15,
-        fontWeight: '600',
+        fontSize: 16,
+        fontWeight: '700',
         color: COLORS.text,
     },
     examMeta: {
-        fontSize: 12,
+        fontSize: 13,
         color: COLORS.textMuted,
+        fontWeight: '500',
     },
     examRight: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        paddingRight: SPACING.md,
+        gap: 12,
     },
-    doneBadge: {
+    statusBadge: {
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 10,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
-        backgroundColor: COLORS.primaryLight,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8,
     },
-    doneText: {
-        fontSize: 11,
-        fontWeight: '600',
-        color: COLORS.primary,
+    statusText: {
+        fontSize: 12,
+        fontWeight: '700',
     },
-    retryBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        backgroundColor: COLORS.errorLight,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8,
+    badgeDone: {
+        backgroundColor: '#ECFDF5',
     },
-    retryText: {
-        fontSize: 11,
-        fontWeight: '600',
-        color: COLORS.error,
+    textDone: {
+        color: '#10B981',
     },
-    pendingBadge: {
-        backgroundColor: COLORS.surfaceVariant,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8,
+    badgeRetry: {
+        backgroundColor: '#FEF2F2',
     },
-    pendingText: {
-        fontSize: 11,
-        fontWeight: '600',
+    textRetry: {
+        color: '#EF4444',
+    },
+    badgePending: {
+        backgroundColor: COLORS.bg,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    textPending: {
         color: COLORS.textMuted,
     },
 });

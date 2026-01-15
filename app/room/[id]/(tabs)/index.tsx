@@ -1,6 +1,5 @@
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useFocusEffect, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Clipboard, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -10,7 +9,7 @@ import { Typography } from "../../../../components/ui/Typography";
 import type { Database } from "../../../../lib/db-types";
 import { useSupabase } from "../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../lib/supabaseError";
-import { COLORS, RADIUS, SHADOWS, SPACING } from "../../../../lib/theme";
+import { COLORS, SHADOWS } from "../../../../lib/theme";
 
 type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
@@ -123,134 +122,103 @@ export default function RoomHomeScreen() {
                         onPress={() => router.replace('/(tabs)/rooms')}
                         style={styles.closeBtn}
                     >
-                        <Ionicons name="close" size={22} color={COLORS.text} />
+                        <Ionicons name="close" size={20} color={COLORS.text} />
                     </TouchableOpacity>
                 }
             />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                {/* Hero Code Section */}
-                <LinearGradient
-                    colors={[COLORS.primary, COLORS.primaryDark]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.codeCard}
-                >
-                    <View style={styles.codeHeader}>
-                        <View style={styles.codeLabelRow}>
-                            <View style={styles.codeDot} />
-                            <Text style={styles.codeLabel}>참여 코드</Text>
-                        </View>
-                    </View>
-
+                {/* Hero Section */}
+                <View style={styles.heroSection}>
                     <TouchableOpacity
-                        activeOpacity={0.8}
-                        style={styles.codeBox}
+                        style={styles.codeBadge}
                         onPress={handleCopyCode}
+                        activeOpacity={0.7}
                     >
-                        <Text style={styles.codeText}>{shortCode}</Text>
-                        <View style={[styles.copyBtn, copied && styles.copyBtnSuccess]}>
-                            <Ionicons
-                                name={copied ? "checkmark" : "copy-outline"}
-                                size={18}
-                                color={copied ? COLORS.primary : COLORS.white}
-                            />
-                        </View>
+                        <Text style={styles.codeLabelText}>입장코드</Text>
+                        <Text style={styles.codeValueText}>{shortCode}</Text>
+                        <Ionicons name={copied ? "checkmark-circle" : "copy-outline"} size={14} color={COLORS.primary} />
                     </TouchableOpacity>
-                </LinearGradient>
-
-                {/* Subjects */}
-                <View style={styles.subjectCard}>
-                    <View style={styles.subjectHeader}>
-                        <Typography.Subtitle1 bold>시험 과목</Typography.Subtitle1>
-                        <View style={styles.memberCountBadge}>
-                            <Typography.Caption bold color={COLORS.primary}>{visibleSubjects.length}과목</Typography.Caption>
-                        </View>
-                    </View>
-
-                    {visibleSubjects.length > 0 ? (
-                        <View style={styles.subjectChips}>
-                            {visibleSubjects.map((subject) => (
-                                <View key={subject.id} style={styles.subjectChip}>
-                                    <Text style={styles.subjectChipText}>{subject.name}</Text>
-                                </View>
-                            ))}
-                        </View>
-                    ) : (
-                        <View style={styles.subjectEmpty}>
-                            <Typography.Caption color={COLORS.textMuted}>등록된 과목이 없어요</Typography.Caption>
-                        </View>
-                    )}
                 </View>
 
-                {/* Members Section */}
-                <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <Typography.Subtitle1 bold>멤버</Typography.Subtitle1>
-                        <View style={styles.memberCountBadge}>
-                            <Typography.Caption bold color={COLORS.primary}>{participants.length}명</Typography.Caption>
+                {/* Unified Content Flow */}
+                <View style={styles.contentFlow}>
+                    {/* Stats Row */}
+                    <View style={styles.statsRow}>
+                        <View style={styles.statItem}>
+                            <Text style={styles.statValue}>{visibleSubjects.length}</Text>
+                            <Text style={styles.statLabel}>시험 과목</Text>
+                        </View>
+                        <View style={styles.statDivider} />
+                        <View style={styles.statItem}>
+                            <Text style={styles.statValue}>{participants.length}</Text>
+                            <Text style={styles.statLabel}>참여 멤버</Text>
                         </View>
                     </View>
 
-                    <View style={styles.memberGrid}>
-                        {sortedParticipants.map((p, index) => {
-                            const isOwner = p.user_id === room?.owner_id;
-                            const initial = (p.profile?.display_name || '?').charAt(0).toUpperCase();
-
-                            return (
-                                <View key={p.user_id} style={styles.memberCard}>
-                                    <View style={styles.avatarContainer}>
-                                        <LinearGradient
-                                            colors={isOwner ? ['#FFD700', '#FFA500'] : [COLORS.surfaceVariant, COLORS.border]}
-                                            style={styles.avatarGradient}
-                                        >
-                                            <View style={styles.avatarInner}>
-                                                <Text style={[styles.avatarText, isOwner && styles.avatarTextOwner]}>
-                                                    {initial}
-                                                </Text>
-                                            </View>
-                                        </LinearGradient>
-                                        {isOwner && (
-                                            <View style={styles.crownBadge}>
-                                                <Text style={styles.crownEmoji}>👑</Text>
-                                            </View>
-                                        )}
+                    {/* Subjects Section */}
+                    <View style={styles.flowSection}>
+                        <View style={styles.flowHeader}>
+                            <Ionicons name="book-outline" size={18} color={COLORS.textMuted} />
+                            <Text style={styles.flowTitle}>진행 중인 과목</Text>
+                        </View>
+                        <View style={styles.subjectGrid}>
+                            {visibleSubjects.length > 0 ? (
+                                visibleSubjects.map((s) => (
+                                    <View key={s.id} style={styles.minimalChip}>
+                                        <Text style={styles.minimalChipText}>{s.name}</Text>
                                     </View>
-                                    <Typography.Caption
-                                        numberOfLines={1}
-                                        color={isOwner ? COLORS.text : COLORS.textMuted}
-                                        bold={isOwner}
-                                        style={styles.memberName}
-                                    >
-                                        {p.profile?.display_name || '익명'}
-                                    </Typography.Caption>
-                                </View>
-                            );
-                        })}
+                                ))
+                            ) : (
+                                <Text style={styles.emptyText}>등록된 과목이 없습니다.</Text>
+                            )}
+                        </View>
+                    </View>
+
+                    {/* Members Section */}
+                    <View style={styles.flowSection}>
+                        <View style={styles.flowHeader}>
+                            <Ionicons name="people-outline" size={18} color={COLORS.textMuted} />
+                            <Text style={styles.flowTitle}>함께하는 멤버</Text>
+                        </View>
+                        <View style={styles.memberGrid}>
+                            {sortedParticipants.map((p) => {
+                                const isOwner = p.user_id === room?.owner_id;
+                                const initial = (p.profile?.display_name || '?').charAt(0).toUpperCase();
+
+                                return (
+                                    <View key={p.user_id} style={styles.memberGridItem}>
+                                        <View style={[styles.gridAvatar, isOwner && styles.ownerAvatarBorder]}>
+                                            <Text style={[styles.avatarTxt, isOwner && styles.ownerAvatarTxt]}>
+                                                {initial}
+                                            </Text>
+                                            {isOwner && (
+                                                <View style={styles.ownerGridBadge}>
+                                                    <Text style={styles.ownerGridBadgeValue}>방장</Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                        <Text style={styles.gridMemberName} numberOfLines={1}>
+                                            {p.profile?.display_name || '익명'}
+                                        </Text>
+                                    </View>
+                                );
+                            })}
+                        </View>
                     </View>
                 </View>
             </ScrollView>
 
-            {/* Footer */}
-            <View style={styles.footer}>
-                {!isMember ? (
-                    <Button
-                        label="이 스터디에 참여하기"
-                        onPress={handleJoinRoom}
-                        size="lg"
-                        variant="primary"
-                        style={styles.footerBtn}
-                    />
-                ) : (
-                    <Button
-                        label="친구 초대하기"
-                        onPress={handleShare}
-                        icon="share-social-outline"
-                        size="lg"
-                        variant="primary"
-                        style={styles.footerBtn}
-                    />
-                )}
+            {/* Float Action Button */}
+            <View style={styles.fabContainer}>
+                <Button
+                    label={!isMember ? "이 스터디 참여하기" : "친구 초대하기"}
+                    onPress={!isMember ? handleJoinRoom : handleShare}
+                    variant="primary"
+                    size="lg"
+                    style={styles.fabButton}
+                    icon={!isMember ? "add" : "share-social"}
+                />
             </View>
 
             {error && (
@@ -275,194 +243,199 @@ const styles = StyleSheet.create({
     closeBtn: {
         width: 36,
         height: 36,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: 18,
-        backgroundColor: COLORS.surfaceVariant,
-    },
-    scrollContent: {
-        padding: SPACING.xl,
-        paddingBottom: 120,
-    },
-    codeCard: {
-        borderRadius: RADIUS.xxl,
-        padding: SPACING.xl,
-        alignItems: 'center',
-        marginBottom: SPACING.xl,
-        ...SHADOWS.medium,
-        minHeight: 180,
-        justifyContent: 'center',
-    },
-    codeHeader: {
-        position: 'absolute',
-        top: SPACING.lg,
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-    },
-    codeLabelRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 20,
-        gap: 6,
-    },
-    codeDot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: '#4ADE80',
-    },
-    codeLabel: {
-        fontSize: 12,
-        color: COLORS.white,
-        fontWeight: '600',
-    },
-    codeBox: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 16,
-        marginTop: SPACING.md,
-    },
-    codeText: {
-        fontSize: 36,
-        fontWeight: '900',
-        color: COLORS.white,
-        letterSpacing: 4,
-        fontVariant: ['tabular-nums'],
-    },
-    copyBtn: {
-        width: 40,
-        height: 40,
-        borderRadius: 14,
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.3)',
-    },
-    copyBtnSuccess: {
-        backgroundColor: COLORS.white,
-    },
-    subjectCard: {
+        borderRadius: 12,
         backgroundColor: COLORS.surface,
-        borderRadius: RADIUS.xl,
-        padding: SPACING.lg,
-        gap: SPACING.sm,
-        marginBottom: SPACING.xxl,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    heroSection: {
+        paddingHorizontal: 24,
+        paddingTop: 12,
+        paddingBottom: 24,
+        alignItems: 'flex-start',
+        gap: 12,
+    },
+    heroTitle: {
+        fontSize: 26,
+        fontWeight: '900',
+        color: COLORS.text,
+        letterSpacing: -0.5,
+    },
+    codeBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.surface,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 12,
+        gap: 10,
+        borderWidth: 1,
+        borderColor: COLORS.border,
         ...SHADOWS.small,
     },
-    subjectHeader: {
+    codeLabelText: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: COLORS.textMuted,
+        letterSpacing: 0.5,
+    },
+    codeValueText: {
+        fontSize: 16,
+        fontWeight: '900',
+        color: COLORS.primary,
+        fontVariant: ['tabular-nums'],
+    },
+    scrollContent: {
+        paddingBottom: 140,
+    },
+    contentFlow: {
+        backgroundColor: COLORS.surface,
+        borderTopLeftRadius: 32,
+        borderTopRightRadius: 32,
+        paddingTop: 32,
+        paddingHorizontal: 24,
+        flex: 1,
+        minHeight: 500,
+    },
+    statsRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        marginBottom: 32,
+        paddingVertical: 12,
+        backgroundColor: COLORS.bg,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: COLORS.border,
     },
-    subjectChips: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: SPACING.sm,
+    statItem: {
+        flex: 1,
+        alignItems: 'center',
+        gap: 2,
     },
-    subjectChip: {
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 999,
-        backgroundColor: COLORS.surfaceVariant,
-    },
-    subjectChipText: {
-        fontSize: 12,
-        fontWeight: '600',
+    statValue: {
+        fontSize: 20,
+        fontWeight: '900',
         color: COLORS.text,
     },
-    subjectEmpty: {
+    statLabel: {
+        fontSize: 12,
+        color: COLORS.textMuted,
+        fontWeight: '600',
+    },
+    statDivider: {
+        width: 1,
+        height: 24,
+        backgroundColor: COLORS.border,
+    },
+    flowSection: {
+        marginBottom: 32,
+    },
+    flowHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        paddingVertical: 4,
+        gap: 8,
+        marginBottom: 16,
+        paddingHorizontal: 4,
     },
-    section: {
-        flex: 1,
+    flowTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: COLORS.textMuted,
     },
-    sectionHeader: {
+    subjectGrid: {
         flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: SPACING.lg,
+        flexWrap: 'wrap',
+        gap: 8,
     },
-    memberCountBadge: {
-        backgroundColor: COLORS.primaryLight,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8,
+    minimalChip: {
+        backgroundColor: COLORS.bg,
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    minimalChipText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: COLORS.text,
     },
     memberGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: SPACING.lg,
+        gap: 20,
+        paddingHorizontal: 4,
     },
-    memberCard: {
+    memberGridItem: {
+        width: '28%',
         alignItems: 'center',
-        width: 72,
         gap: 8,
+        marginBottom: 8,
     },
-    avatarContainer: {
-        position: 'relative',
-        ...SHADOWS.small,
-    },
-    avatarGradient: {
-        width: 64,
-        height: 64,
-        borderRadius: 24,
-        padding: 2,
-    },
-    avatarInner: {
-        flex: 1,
-        backgroundColor: COLORS.surface,
-        borderRadius: 22,
+    gridAvatar: {
+        width: 60,
+        height: 60,
+        borderRadius: 20,
+        backgroundColor: COLORS.bg,
         alignItems: 'center',
         justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: COLORS.border,
     },
-    avatarText: {
-        fontSize: 24,
-        fontWeight: '700',
+    ownerAvatarBorder: {
+        borderColor: '#FFD700',
+        backgroundColor: '#FFFBEB',
+    },
+    avatarTxt: {
+        fontSize: 20,
+        fontWeight: '800',
         color: COLORS.textMuted,
     },
-    avatarTextOwner: {
-        color: '#D97706', // Gold-ish
+    ownerAvatarTxt: {
+        color: '#B45309',
     },
-    crownBadge: {
+    ownerGridBadge: {
         position: 'absolute',
-        top: -8,
-        right: -8,
-        transform: [{ rotate: '15deg' }],
-        backgroundColor: COLORS.surface,
-        borderRadius: 12,
-        width: 24,
-        height: 24,
-        alignItems: 'center',
-        justifyContent: 'center',
+        top: -6,
+        right: -6,
+        backgroundColor: '#FFFBEB',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 6,
+        borderWidth: 1,
+        borderColor: '#FFD700',
         ...SHADOWS.small,
     },
-    crownEmoji: {
-        fontSize: 14,
+    ownerGridBadgeValue: {
+        fontSize: 9,
+        fontWeight: '900',
+        color: '#B45309',
     },
-    memberName: {
+    gridMemberName: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: COLORS.text,
         textAlign: 'center',
-        width: '100%',
-        fontSize: 12,
     },
-    footer: {
+    emptyText: {
+        fontSize: 14,
+        color: COLORS.textMuted,
+        paddingHorizontal: 4,
+    },
+    fabContainer: {
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
-        padding: SPACING.xl,
+        padding: 24,
         paddingBottom: 40,
-        backgroundColor: 'transparent',
+        backgroundColor: 'rgba(255,255,255,0.85)',
     },
-    footerBtn: {
-        borderRadius: RADIUS.xl,
+    fabButton: {
+        height: 60,
+        borderRadius: 20,
         ...SHADOWS.medium,
     },
     errorToast: {
@@ -470,9 +443,9 @@ const styles = StyleSheet.create({
         bottom: 120,
         left: 20,
         right: 20,
-        backgroundColor: 'rgba(0,0,0,0.8)',
-        padding: SPACING.md,
-        borderRadius: RADIUS.md,
+        backgroundColor: COLORS.error,
+        padding: 12,
+        borderRadius: 12,
         alignItems: 'center',
-    }
+    },
 });
