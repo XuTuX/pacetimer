@@ -109,7 +109,6 @@ export default function LoginScreen() {
                                 <Text style={styles.title}>Pacetime</Text>
                                 <View style={styles.dot} />
                             </View>
-                            <Text style={styles.tagline}>페이스를 잡고, 레이스를 완주하세요</Text>
                         </Animated.View>
 
                         <Animated.View entering={FadeInDown.delay(400).duration(800)} style={styles.descriptionWrapper}>
