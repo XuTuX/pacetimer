@@ -106,15 +106,15 @@ export default function LoginScreen() {
                     <View style={styles.textContainer}>
                         <Animated.View entering={FadeInDown.delay(200).duration(800)}>
                             <View style={styles.titleContainer}>
-                                <Text style={styles.title}>Pacetime</Text>
+                                <Text style={styles.title}>11:57</Text>
                                 <View style={styles.dot} />
                             </View>
                         </Animated.View>
 
                         <Animated.View entering={FadeInDown.delay(400).duration(800)} style={styles.descriptionWrapper}>
                             <Text style={styles.description}>
-                                나만의 공부 페이스를 찾고{"\n"}
-                                <Text style={{ color: COLORS.primary, fontWeight: "700" }}>함께 성장하는 즐거움</Text>을 느껴보세요.
+                                시험 종료 3분 전, 승패를 가르는 골든타임{"\n"}
+                                <Text style={{ color: COLORS.primary, fontWeight: "700" }}>기적을 만드는 57분의 관리</Text>
                             </Text>
                         </Animated.View>
                     </View>

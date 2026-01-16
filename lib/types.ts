@@ -21,7 +21,7 @@ export type Session = {
     id: string;
     userId: string;
     mode: SessionMode;
-    studyDate: string; // YYYY-MM-DD (uses Pacetime "study day" boundary)
+    studyDate: string; // YYYY-MM-DD (uses 11:57 "study day" boundary)
     title?: string;
     startedAt: number;
     endedAt?: number;

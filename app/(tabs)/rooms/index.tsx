@@ -146,7 +146,7 @@ export default function RoomsIndexScreen() {
     return (
         <View style={styles.container}>
             <ScreenHeader
-                title="스터디"
+                title="스터디 룸"
                 rightElement={RightActions}
                 showBack={false}
                 align="left"
@@ -155,7 +155,7 @@ export default function RoomsIndexScreen() {
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                 {/* Search Bar Section */}
                 <View style={styles.searchSection}>
-                    <ThemedText style={styles.sectionTitle}>스터디 참가</ThemedText>
+                    <ThemedText style={styles.sectionTitle}>참여하기</ThemedText>
                     <View style={styles.searchBar}>
                         <Ionicons name="search" size={18} color={COLORS.textMuted} />
                         <TextInput

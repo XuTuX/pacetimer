@@ -97,7 +97,7 @@ export default function RoomHomeScreen() {
         if (!room) return;
         try {
             await Share.share({
-                message: `[Pacetime] "${room.name}" 스터디 초대\n참여 코드: ${shortCode}\n링크: https://pacetime.app/room/${room.id}`,
+                message: `[11:57] "${room.name}" 스터디 초대\n참여 코드: ${shortCode}\n링크: https://pacetime.app/room/${room.id}`,
             });
         } catch (error) { /* ignore */ }
     };

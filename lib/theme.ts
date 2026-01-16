@@ -1,5 +1,5 @@
 /**
- * Design System Tokens for Pacetime
+ * Design System Tokens for 11:57
  * This file centralizes all visual constants to ensure UI consistency.
  */
 
