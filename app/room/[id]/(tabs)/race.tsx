@@ -10,7 +10,7 @@ import type { Database } from "../../../../lib/db-types";
 import { getRoomExamDisplayTitle, getRoomExamSubjectFromTitle } from "../../../../lib/roomExam";
 import { useSupabase } from "../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../lib/supabaseError";
-import { COLORS, SHADOWS, SPACING } from "../../../../lib/theme";
+import { COLORS, RADIUS, SHADOWS, SPACING } from "../../../../lib/theme";
 
 type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
@@ -92,13 +92,14 @@ export default function RaceScreen() {
             <ScreenHeader
                 title="모의고사"
                 showBack={false}
+                align="left"
                 rightElement={
                     room?.owner_id === userId && (
                         <TouchableOpacity
                             onPress={() => router.push(`/room/${roomId}/add-exam`)}
                             style={styles.addBtn}
                         >
-                            <Ionicons name="add" size={22} color={COLORS.text} />
+                            <Ionicons name="add" size={26} color={COLORS.text} />
                         </TouchableOpacity>
                     )
                 }
@@ -250,11 +251,11 @@ const styles = StyleSheet.create({
     summaryRow: {
         marginBottom: SPACING.xl,
         backgroundColor: COLORS.surface,
-        borderRadius: 24,
-        padding: 20,
+        borderRadius: RADIUS.xl,
+        padding: SPACING.lg,
         borderWidth: 1,
         borderColor: COLORS.border,
-        ...SHADOWS.medium,
+        ...SHADOWS.small,
     },
     summaryHeader: {
         marginBottom: 16,
@@ -336,10 +337,10 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: COLORS.surface,
-        borderRadius: 20,
+        borderRadius: RADIUS.xl,
         borderWidth: 1,
         borderColor: COLORS.border,
-        padding: 16,
+        padding: SPACING.lg,
         ...SHADOWS.small,
     },
     examCardPressed: {

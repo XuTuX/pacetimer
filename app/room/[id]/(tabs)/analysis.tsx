@@ -4,7 +4,6 @@ import { useFocusEffect, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Rect, Stop, Text as SvgText } from "react-native-svg";
-import { QuestionBar } from "../../../../components/analysis/QuestionBar";
 import { Button } from "../../../../components/ui/Button";
 import { Card } from "../../../../components/ui/Card";
 import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
@@ -15,7 +14,7 @@ import { analyzeQuestions, type QuestionAnalysis } from "../../../../lib/insight
 import { getRoomExamSubjectFromTitle } from "../../../../lib/roomExam";
 import { useSupabase } from "../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../lib/supabaseError";
-import { COLORS, SHADOWS, SPACING } from "../../../../lib/theme";
+import { COLORS, RADIUS, SHADOWS, SPACING } from "../../../../lib/theme";
 
 type RoomExamRow = Database["public"]["Tables"]["room_exams"]["Row"];
 type RecordRow = Database["public"]["Tables"]["attempt_records"]["Row"];
@@ -366,53 +365,7 @@ export default function AnalysisScreen() {
                     </View>
                 )}
 
-                {/* Subject Selection Modal */}
-                <Modal
-                    visible={showSubjectModal}
-                    transparent
-                    animationType="fade"
-                    onRequestClose={() => setShowSubjectModal(false)}
-                >
-                    <Pressable style={styles.modalBackdrop} onPress={() => setShowSubjectModal(false)}>
-                        <View style={styles.modalContent}>
-                            <View style={styles.modalHeader}>
-                                <Typography.Subtitle1 bold>과목 선택</Typography.Subtitle1>
-                                <Pressable onPress={() => setShowSubjectModal(false)}>
-                                    <Ionicons name="close" size={24} color={COLORS.textMuted} />
-                                </Pressable>
-                            </View>
-                            <ScrollView showsVerticalScrollIndicator={false} style={styles.modalList}>
-                                {uniqueSubjects.map(s => {
-                                    const examCount = s === "전체"
-                                        ? validMyAttempts.length
-                                        : validMyAttempts.filter(a => (getRoomExamSubjectFromTitle(a.room_exams.title) ?? "기타") === s).length;
-                                    return (
-                                        <Pressable
-                                            key={s}
-                                            style={[styles.modalItem, selectedSubject === s && styles.modalItemActive]}
-                                            onPress={() => {
-                                                setSelectedSubject(s);
-                                                setShowSubjectModal(false);
-                                            }}
-                                        >
-                                            <View style={styles.modalItemContent}>
-                                                <Typography.Body1 bold={selectedSubject === s} color={selectedSubject === s ? COLORS.primary : COLORS.text}>
-                                                    {s}
-                                                </Typography.Body1>
-                                                <Typography.Caption color={COLORS.textMuted}>
-                                                    {examCount}회 응시
-                                                </Typography.Caption>
-                                            </View>
-                                            {selectedSubject === s && (
-                                                <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
-                                            )}
-                                        </Pressable>
-                                    );
-                                })}
-                            </ScrollView>
-                        </View>
-                    </Pressable>
-                </Modal>
+                {/* Subject Selection Modal moved to global return */}
 
                 {history.length === 0 ? (
                     <View style={styles.emptyContainer}>
@@ -463,30 +416,7 @@ export default function AnalysisScreen() {
                 ) : (
                     <>
                         {/* Improvement Summary Cards */}
-                        {selectedSubject === "전체" ? (
-                            <Section title="활동 요약" description="최근 나의 참여 현황">
-                                <View style={styles.summaryGrid}>
-                                    <Card padding="lg" radius="xl" style={styles.summaryCard}>
-                                        <View style={styles.summaryCardHeader}>
-                                            <Ionicons name="calendar-outline" size={20} color={COLORS.primary} />
-                                        </View>
-                                        <Typography.H2 bold color={COLORS.text}>
-                                            {activityStats?.activeDays || 0}일
-                                        </Typography.H2>
-                                        <Typography.Caption color={COLORS.textMuted}>총 활동 일수</Typography.Caption>
-                                    </Card>
-                                    <Card padding="lg" radius="xl" style={styles.summaryCard}>
-                                        <View style={styles.summaryCardHeader}>
-                                            <Ionicons name="flame" size={20} color="#F59E0B" />
-                                        </View>
-                                        <Typography.H2 bold color={COLORS.text}>
-                                            {activityStats?.streak || 0}일
-                                        </Typography.H2>
-                                        <Typography.Caption color={COLORS.textMuted}>연속 학습</Typography.Caption>
-                                    </Card>
-                                </View>
-                            </Section>
-                        ) : stats && (
+                        {selectedSubject !== "전체" && stats && (
                             <Section title="성장 요약" description={`총 ${stats.totalExams}회 응시`}>
                                 <View style={styles.summaryGrid}>
                                     <Card padding="lg" radius="xl" style={[
@@ -529,7 +459,6 @@ export default function AnalysisScreen() {
                         {selectedSubject === "전체" ? (
                             <Section
                                 title="최근 활동량"
-                                description="일자별 시험 참여 횟수"
                             >
                                 <Card padding="lg" radius="xl" style={styles.chartCard}>
                                     {renderActivityBarChart()}
@@ -824,6 +753,29 @@ export default function AnalysisScreen() {
         );
     };
 
+    // Helper to calculate top 3 hard questions
+    const getTopHardQuestions = (analysis: QuestionAnalysis[]) => {
+        return [...analysis].sort((a, b) => b.roomAvgMs - a.roomAvgMs).slice(0, 3);
+    };
+
+    // Helper to calculate participant ranking
+    const getParticipantRankings = (results: ParticipantResult[]) => {
+        const completed = results
+            .filter(p => p.status === "COMPLETED")
+            .sort((a, b) => {
+                // Pace is duration / count
+                const paceA = a.durationMs / (exam?.total_questions || 1);
+                const paceB = b.durationMs / (exam?.total_questions || 1);
+                return paceA - paceB;
+            });
+
+        return completed.map((p, index) => ({
+            ...p,
+            rank: index + 1,
+            avgPace: p.durationMs / (exam?.total_questions || 1)
+        }));
+    };
+
     // Exam Analysis View - Compare with others
     const renderExamAnalysisView = () => {
         if (!exam) {
@@ -903,317 +855,175 @@ export default function AnalysisScreen() {
             });
         };
 
+        const topHardQuestions = getTopHardQuestions(questionAnalysis);
+        const rankings = getParticipantRankings(participants);
+        const myRankInfo = rankings.find(r => r.isMe);
+
         return (
             <>
-                {/* Exam Dropdown Selector */}
-                <View style={styles.dropdownSection}>
-                    <Pressable
-                        style={styles.dropdownButton}
-                        onPress={() => setShowExamModal(true)}
-                    >
-                        <View style={{ flex: 1 }}>
-                            <Typography.Body1 bold color={COLORS.text} numberOfLines={1}>
-                                {exam?.title?.replace(/^(\[.*?\]\s*|.*?•\s*)+/, "") ?? "시험 선택"}
-                            </Typography.Body1>
-                            {exam && (
-                                <Typography.Caption color={COLORS.textMuted}>
-                                    {new Date(exam.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' })}
-                                </Typography.Caption>
-                            )}
-                        </View>
-                        <Ionicons name="chevron-down" size={18} color={COLORS.textMuted} />
-                    </Pressable>
+                {/* Selection Section */}
+                <View style={{ gap: SPACING.sm, marginBottom: SPACING.md }}>
+                    {/* Subject Selector */}
+                    <View style={styles.dropdownSection}>
+                        <Pressable
+                            style={styles.dropdownButton}
+                            onPress={() => setShowSubjectModal(true)}
+                        >
+                            <View style={{ flex: 1 }}>
+                                <Typography.Caption color={COLORS.textMuted}>과목 선택</Typography.Caption>
+                                <Typography.Body1 bold color={COLORS.text}>{selectedSubject}</Typography.Body1>
+                            </View>
+                            <Ionicons name="chevron-down" size={18} color={COLORS.textMuted} />
+                        </Pressable>
+                    </View>
+
+                    {/* Exam Selector */}
+                    <View style={styles.dropdownSection}>
+                        <Pressable
+                            style={[styles.dropdownButton, filteredExams.length === 0 && { opacity: 0.5 }]}
+                            onPress={() => filteredExams.length > 0 && setShowExamModal(true)}
+                            disabled={filteredExams.length === 0}
+                        >
+                            <View style={{ flex: 1 }}>
+                                <Typography.Caption color={COLORS.textMuted}>시험 선택</Typography.Caption>
+                                <Typography.Body1 bold color={COLORS.text} numberOfLines={1}>
+                                    {exam?.title?.replace(/^(\[.*?\]\s*|.*?•\s*)+/, "") ?? "해당 과목에 시험이 없습니다"}
+                                </Typography.Body1>
+                            </View>
+                            <Ionicons name="chevron-down" size={18} color={COLORS.textMuted} />
+                        </Pressable>
+                    </View>
                 </View>
 
-                {/* Exam Selection Modal */}
-                <Modal
-                    visible={showExamModal}
-                    transparent
-                    animationType="fade"
-                    onRequestClose={() => setShowExamModal(false)}
-                >
-                    <Pressable style={styles.modalBackdrop} onPress={() => setShowExamModal(false)}>
-                        <View style={[styles.modalContent, styles.modalContentLarge]}>
-                            <View style={styles.modalHeader}>
-                                <Typography.Subtitle1 bold>시험 선택</Typography.Subtitle1>
-                                <Pressable onPress={() => setShowExamModal(false)}>
-                                    <Ionicons name="close" size={24} color={COLORS.textMuted} />
-                                </Pressable>
-                            </View>
-                            <ScrollView showsVerticalScrollIndicator={false} style={styles.modalList}>
-                                {filteredExams.map(e => {
-                                    const isSelected = selectedExamId === e.id;
-                                    return (
-                                        <Pressable
-                                            key={e.id}
-                                            style={[styles.modalItem, isSelected && styles.modalItemActive]}
-                                            onPress={() => {
-                                                setSelectedExamId(e.id);
-                                                setShowExamModal(false);
-                                            }}
-                                        >
-                                            <View style={styles.modalItemContent}>
-                                                <Typography.Body1 bold={isSelected} color={isSelected ? COLORS.primary : COLORS.text} numberOfLines={1}>
-                                                    {e.title.replace(/^(\[.*?\]\s*|.*?•\s*)+/, "")}
-                                                </Typography.Body1>
-                                                <View style={styles.modalItemMeta}>
-                                                    <Typography.Caption color={COLORS.textMuted}>
-                                                        {new Date(e.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
-                                                    </Typography.Caption>
-                                                    <Typography.Caption color={COLORS.textMuted}> • </Typography.Caption>
-                                                    <Typography.Caption color={COLORS.textMuted}>
-                                                        {e.total_questions}문항
-                                                    </Typography.Caption>
-                                                </View>
-                                            </View>
-                                            {isSelected && (
-                                                <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
-                                            )}
-                                        </Pressable>
-                                    );
-                                })}
-                            </ScrollView>
-                        </View>
-                    </Pressable>
-                </Modal>
-
-                {/* My Position Card - Hero Section */}
-                {myResult?.status === "COMPLETED" && completedCount > 1 && myPercentile !== null && (
-                    <Section title="">
-                        <Card padding="xl" radius="xxl" style={styles.heroCard}>
-                            <View style={styles.heroHeader}>
-                                <View style={styles.percentileBadge}>
-                                    <Typography.Label bold color={COLORS.white}>상위</Typography.Label>
-                                </View>
-                            </View>
-                            <Typography.H1 bold color={COLORS.text} style={styles.heroPercentile}>
-                                {100 - myPercentile}%
-                            </Typography.H1>
-                            <Typography.Body2 color={COLORS.textMuted} align="center">
-                                {completedCount}명 중 {completedParticipants.sort((a, b) => a.durationMs - b.durationMs).findIndex(p => p.isMe) + 1}위
-                            </Typography.Body2>
-
-                            {/* Distribution Visualization */}
-                            <View style={styles.distributionContainer}>
-                                {renderDistributionChart(durations, myResult.durationMs, minDuration, maxDuration)}
-                            </View>
-
-                            <View style={styles.heroStats}>
-                                <View style={styles.heroStatItem}>
-                                    <Typography.Caption color={COLORS.textMuted}>나의 기록</Typography.Caption>
-                                    <Typography.Subtitle1 bold color={COLORS.primary}>
-                                        {formatDuration(myResult.durationMs)}
-                                    </Typography.Subtitle1>
-                                </View>
-                                <View style={styles.heroStatDivider} />
-                                <View style={styles.heroStatItem}>
-                                    <Typography.Caption color={COLORS.textMuted}>스터디 평균</Typography.Caption>
-                                    <Typography.Subtitle1 bold color={COLORS.text}>
-                                        {formatDuration(avgDuration)}
-                                    </Typography.Subtitle1>
-                                </View>
-                                <View style={styles.heroStatDivider} />
-                                <View style={styles.heroStatItem}>
-                                    <Typography.Caption color={COLORS.textMuted}>차이</Typography.Caption>
-                                    <Typography.Subtitle1 bold color={myResult.durationMs < avgDuration ? "#10B981" : COLORS.error}>
-                                        {myResult.durationMs < avgDuration ? "-" : "+"}{formatDuration(Math.abs(myResult.durationMs - avgDuration))}
-                                    </Typography.Subtitle1>
-                                </View>
-                            </View>
-                        </Card>
-                    </Section>
-                )}
-
-                {/* Participation Breakdown */}
-                {totalCount > 0 && (
-                    <Section title="참여 현황" description={`${completedCount}명 완료`}>
-                        <Card padding="lg" radius="xl">
-                            <View style={styles.statusBar}>
-                                {completedCount > 0 && (
-                                    <View style={[styles.statusSegment, styles.statusSegmentCompleted, { flex: completedCount }]} />
-                                )}
-                                {inProgressCount > 0 && (
-                                    <View style={[styles.statusSegment, styles.statusSegmentInProgress, { flex: inProgressCount }]} />
-                                )}
-                                {notStartedCount > 0 && (
-                                    <View style={[styles.statusSegment, styles.statusSegmentPending, { flex: notStartedCount }]} />
-                                )}
-                            </View>
-                            <View style={styles.statusLegend}>
-                                <View style={styles.statusLegendItem}>
-                                    <View style={[styles.statusDot, styles.statusDotCompleted]} />
-                                    <Typography.Caption color={COLORS.textMuted}>
-                                        완료 {Math.round((completedCount / totalCount) * 100)}%
-                                    </Typography.Caption>
-                                </View>
-                                <View style={styles.statusLegendItem}>
-                                    <View style={[styles.statusDot, styles.statusDotInProgress]} />
-                                    <Typography.Caption color={COLORS.textMuted}>
-                                        진행 중 {Math.round((inProgressCount / totalCount) * 100)}%
-                                    </Typography.Caption>
-                                </View>
-                                <View style={styles.statusLegendItem}>
-                                    <View style={[styles.statusDot, styles.statusDotPending]} />
-                                    <Typography.Caption color={COLORS.textMuted}>
-                                        미응시 {Math.round((notStartedCount / totalCount) * 100)}%
-                                    </Typography.Caption>
-                                </View>
-                            </View>
-                        </Card>
-                    </Section>
-                )}
-
-                {/* Pace Comparison */}
-                {completedCount > 0 && avgPerQuestion > 0 && (
-                    <Section title="문항당 페이스" description="나의 속도 vs 스터디 평균">
-                        <Card padding="lg" radius="xl">
-                            <View style={styles.paceRow}>
-                                <Typography.Caption color={COLORS.textMuted} style={styles.paceLabel}>나</Typography.Caption>
-                                <View style={styles.paceBarTrack}>
-                                    {myPerQuestion !== null && (
-                                        <View
-                                            style={[
-                                                styles.paceBarFill,
-                                                styles.paceBarFillMe,
-                                                { width: `${(myPerQuestion / paceMax) * 100}%` }
-                                            ]}
-                                        />
-                                    )}
-                                </View>
-                                <Typography.Caption color={COLORS.text} style={styles.paceValue}>
-                                    {myPerQuestion !== null ? formatShortDuration(myPerQuestion) : "미완료"}
-                                </Typography.Caption>
-                            </View>
-                            <View style={styles.paceRow}>
-                                <Typography.Caption color={COLORS.textMuted} style={styles.paceLabel}>평균</Typography.Caption>
-                                <View style={styles.paceBarTrack}>
-                                    <View
-                                        style={[
-                                            styles.paceBarFill,
-                                            styles.paceBarFillAvg,
-                                            { width: `${(avgPerQuestion / paceMax) * 100}%` }
-                                        ]}
-                                    />
-                                </View>
-                                <Typography.Caption color={COLORS.text} style={styles.paceValue}>
-                                    {formatShortDuration(avgPerQuestion)}
-                                </Typography.Caption>
-                            </View>
-                        </Card>
-                    </Section>
-                )}
-
-                {/* Question Highlights */}
-                {highlightQuestions.length > 0 && (
-                    <Section title="문항 하이라이트" description="시간이 많이 쓰인 문항을 모아봤어요">
-                        <View style={styles.highlightGrid}>
-                            {highlightQuestions.map((item) => {
-                                const question = item.data;
-                                const myRatio = question.myDurationMs > 0 ? (question.myDurationMs / maxQuestionDuration) * 100 : 0;
-                                const roomRatio = question.roomAvgMs > 0 ? (question.roomAvgMs / maxQuestionDuration) * 100 : 0;
-
-                                return (
-                                    <Pressable
-                                        key={item.key}
-                                        onPress={() => handleQuestionSelect(question.questionNo)}
-                                        style={({ pressed }) => [
-                                            styles.highlightCard,
-                                            pressed && styles.highlightCardPressed
-                                        ]}
-                                    >
-                                        <View style={styles.highlightHeader}>
-                                            <Typography.Caption color={COLORS.textMuted}>{item.label}</Typography.Caption>
-                                            <Typography.Subtitle1 bold color={COLORS.text}>{question.questionNo}번</Typography.Subtitle1>
-                                        </View>
-                                        <View style={styles.highlightBars}>
-                                            <View style={styles.highlightRow}>
-                                                <Typography.Caption color={COLORS.textMuted} style={styles.highlightLabel}>나</Typography.Caption>
-                                                <View style={styles.highlightTrack}>
-                                                    {question.myDurationMs > 0 && (
-                                                        <View style={[styles.highlightFill, { width: `${myRatio}%` }]} />
-                                                    )}
-                                                </View>
-                                                <Typography.Caption color={COLORS.textMuted} style={styles.highlightValue}>
-                                                    {question.myDurationMs > 0 ? formatShortDuration(question.myDurationMs) : "—"}
-                                                </Typography.Caption>
-                                            </View>
-                                            <View style={styles.highlightRow}>
-                                                <Typography.Caption color={COLORS.textMuted} style={styles.highlightLabel}>평균</Typography.Caption>
-                                                <View style={styles.highlightTrack}>
-                                                    {question.roomAvgMs > 0 && (
-                                                        <View style={[styles.highlightFill, styles.highlightFillAvg, { width: `${roomRatio}%` }]} />
-                                                    )}
-                                                </View>
-                                                <Typography.Caption color={COLORS.textMuted} style={styles.highlightValue}>
-                                                    {question.roomAvgMs > 0 ? formatShortDuration(question.roomAvgMs) : "—"}
-                                                </Typography.Caption>
-                                            </View>
-                                        </View>
-                                    </Pressable>
-                                );
-                            })}
-                        </View>
-                    </Section>
-                )}
-
-                {/* Question Time Bars */}
-                {questionAnalysis.length > 0 && (
-                    <Section title="문항별 시간 그래프" description="세로 막대로 나의 시간과 평균을 비교해요">
-                        <Card padding="lg" radius="xl" style={styles.questionChartCard}>
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                contentContainerStyle={styles.questionChartScroll}
-                            >
-                                {renderQuestionBarChart(questionAnalysis, maxQuestionDuration, handleQuestionSelect)}
-                            </ScrollView>
-                            <View style={styles.questionChartLegend}>
-                                <View style={styles.legendItem}>
-                                    <View style={[styles.legendSwatch, styles.legendSwatchMe]} />
-                                    <Typography.Caption color={COLORS.textMuted}>나</Typography.Caption>
-                                </View>
-                                <View style={styles.legendItem}>
-                                    <View style={styles.legendLine} />
-                                    <Typography.Caption color={COLORS.textMuted}>평균</Typography.Caption>
-                                </View>
-                            </View>
-                        </Card>
-                    </Section>
-                )}
-
-                {/* Not completed message */}
-                {myResult?.status !== "COMPLETED" && (
-                    <Card variant="outlined" padding="xl" radius="xl" style={styles.notCompletedCard}>
-                        <Ionicons name="lock-closed-outline" size={32} color={COLORS.textMuted} />
-                        <Typography.Body1 bold align="center" color={COLORS.text} style={{ marginTop: SPACING.md }}>
-                            시험을 완료하면
+                {!exam ? (
+                    <View style={styles.emptyContainer}>
+                        <Ionicons name="document-text-outline" size={48} color={COLORS.textMuted} />
+                        <Typography.Body1 align="center" color={COLORS.textMuted} style={{ marginTop: SPACING.md }}>
+                            분석할 시험을 선택해주세요
                         </Typography.Body1>
-                        <Typography.Body2 align="center" color={COLORS.textMuted}>
-                            다른 참가자들과 비교 분석을 볼 수 있어요
-                        </Typography.Body2>
-                    </Card>
-                )}
+                    </View>
+                ) : (
+                    <>
+                        {/* Summary: My Rank & Leaderboard */}
+                        {myRankInfo && (
+                            <Section title="나의 순위">
+                                <Card padding="xl" radius="xxl" style={styles.heroCard}>
+                                    <View style={styles.heroHeader}>
+                                        <View style={styles.percentileBadge}>
+                                            <Typography.Label bold color={COLORS.white}>페이스 순위</Typography.Label>
+                                        </View>
+                                    </View>
+                                    <Typography.H1 bold color={COLORS.text} style={styles.heroPercentile}>
+                                        {myRankInfo.rank}위
+                                    </Typography.H1>
+                                    <Typography.Body2 color={COLORS.textMuted} align="center">
+                                        완료 인원 {rankings.length}명 중
+                                    </Typography.Body2>
 
-                {/* Question-by-Question Analysis Preview */}
-                {questionAnalysis.length > 0 && exam && (
-                    <Section title="문항별 분석" description="각 문항의 소요 시간 비교">
-                        <>
-                            {questionAnalysis.slice(0, 5).map((q) => (
-                                <QuestionBar
-                                    key={q.questionNo}
-                                    data={q}
-                                    maxDuration={maxQuestionDuration}
-                                    showMedian={false}
-                                />
-                            ))}
-                            {questionAnalysis.length > 5 && (
-                                <Typography.Caption color={COLORS.textMuted} align="center" style={{ marginTop: SPACING.sm }}>
-                                    +{questionAnalysis.length - 5}개 문항 더보기
-                                </Typography.Caption>
-                            )}
-                            <View style={{ marginTop: SPACING.lg }}>
+                                    <View style={styles.heroStats}>
+                                        <View style={styles.heroStatItem}>
+                                            <Typography.Caption color={COLORS.textMuted}>나의 페이스</Typography.Caption>
+                                            <Typography.Subtitle1 bold color={COLORS.primary}>
+                                                {formatShortDuration(myRankInfo.avgPace)}
+                                            </Typography.Subtitle1>
+                                        </View>
+                                        <View style={styles.heroStatDivider} />
+                                        <View style={styles.heroStatItem}>
+                                            <Typography.Caption color={COLORS.textMuted}>스터디 평균</Typography.Caption>
+                                            <Typography.Subtitle1 bold color={COLORS.text}>
+                                                {formatShortDuration(avgPerQuestion)}
+                                            </Typography.Subtitle1>
+                                        </View>
+                                    </View>
+                                </Card>
+                            </Section>
+                        )}
+
+                        {/* Top 3 Hardest Questions */}
+                        {topHardQuestions.length > 0 && (
+                            <Section title="가장 오래 걸린 문항 TOP 3" description="스터디 평균 소요 시간 기준">
+                                <View style={styles.highlightGrid}>
+                                    {topHardQuestions.map((q, idx) => {
+                                        const myRatio = q.myDurationMs > 0 ? (q.myDurationMs / maxQuestionDuration) * 100 : 0;
+                                        const roomRatio = q.roomAvgMs > 0 ? (q.roomAvgMs / maxQuestionDuration) * 100 : 0;
+
+                                        return (
+                                            <Pressable
+                                                key={q.questionNo}
+                                                onPress={() => handleQuestionSelect(q.questionNo)}
+                                                style={({ pressed }) => [
+                                                    styles.highlightCard,
+                                                    pressed && styles.highlightCardPressed
+                                                ]}
+                                            >
+                                                <View style={styles.highlightHeader}>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                                        <View style={[styles.topBadge, idx === 0 && { backgroundColor: COLORS.error }]}>
+                                                            <Typography.Label bold color={COLORS.white}>{idx + 1}</Typography.Label>
+                                                        </View>
+                                                        <Typography.Subtitle1 bold color={COLORS.text}>{q.questionNo}번</Typography.Subtitle1>
+                                                    </View>
+                                                    <Typography.Caption color={COLORS.textMuted}>평균 {formatShortDuration(q.roomAvgMs)}</Typography.Caption>
+                                                </View>
+                                                <View style={styles.highlightBars}>
+                                                    <View style={styles.highlightRow}>
+                                                        <Typography.Caption color={COLORS.textMuted} style={styles.highlightLabel}>나</Typography.Caption>
+                                                        <View style={styles.highlightTrack}>
+                                                            {q.myDurationMs > 0 && <View style={[styles.highlightFill, { width: `${myRatio}%` }]} />}
+                                                        </View>
+                                                        <Typography.Caption color={COLORS.textMuted} style={styles.highlightValue}>
+                                                            {q.myDurationMs > 0 ? formatShortDuration(q.myDurationMs) : "—"}
+                                                        </Typography.Caption>
+                                                    </View>
+                                                    <View style={styles.highlightRow}>
+                                                        <Typography.Caption color={COLORS.textMuted} style={styles.highlightLabel}>평균</Typography.Caption>
+                                                        <View style={styles.highlightTrack}>
+                                                            <View style={[styles.highlightFill, styles.highlightFillAvg, { width: `${roomRatio}%` }]} />
+                                                        </View>
+                                                        <Typography.Caption color={COLORS.textMuted} style={styles.highlightValue}>
+                                                            {formatShortDuration(q.roomAvgMs)}
+                                                        </Typography.Caption>
+                                                    </View>
+                                                </View>
+                                            </Pressable>
+                                        );
+                                    })}
+                                </View>
+                            </Section>
+                        )}
+
+                        {/* Participant Pace List */}
+                        {rankings.length > 0 && (
+                            <Section title="참여자별 평균 페이스">
+                                <View style={styles.historyList}>
+                                    {rankings.map((p) => (
+                                        <View key={p.userId} style={[styles.historyItem, p.isMe && { borderColor: COLORS.primary, backgroundColor: COLORS.primaryLight + '20' }]}>
+                                            <View style={[styles.historyRank, p.isMe && { backgroundColor: COLORS.primary }]}>
+                                                <Typography.Caption bold color={p.isMe ? COLORS.white : COLORS.textMuted}>{p.rank}</Typography.Caption>
+                                            </View>
+                                            <View style={styles.historyContent}>
+                                                <Typography.Body1 bold>{p.name}</Typography.Body1>
+                                                <Typography.Caption color={COLORS.textMuted}>{p.status === "COMPLETED" ? "응시 완료" : "응시 중"}</Typography.Caption>
+                                            </View>
+                                            <View style={styles.historyStats}>
+                                                <Typography.Subtitle2 bold color={COLORS.text}>
+                                                    {formatShortDuration(p.avgPace)}/문항
+                                                </Typography.Subtitle2>
+                                            </View>
+                                        </View>
+                                    ))}
+                                </View>
+                            </Section>
+                        )}
+
+                        {/* Detailed View Button */}
+                        <Section title="상세 분석">
+                            <Card padding="lg" radius="xl" style={styles.questionChartCard}>
+                                <Typography.Body2 color={COLORS.textMuted} style={{ marginBottom: SPACING.md }}>
+                                    문항별로 '나의 페이스'와 '그룹 평균 페이스'를 상세하게 비교합니다.
+                                </Typography.Body2>
                                 <Button
-                                    label="상세 분석 보기"
+                                    label="문항별 상세 분석 보기"
                                     variant="outline"
                                     onPress={() => router.push({
                                         pathname: "/room/[id]/exam/[examId]/question-analysis",
@@ -1221,9 +1031,16 @@ export default function AnalysisScreen() {
                                     })}
                                     icon="analytics-outline"
                                 />
-                            </View>
-                        </>
-                    </Section>
+                                {questionAnalysis.length > 0 && (
+                                    <View style={{ marginTop: SPACING.lg }}>
+                                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                                            {renderQuestionBarChart(questionAnalysis, maxQuestionDuration, handleQuestionSelect)}
+                                        </ScrollView>
+                                    </View>
+                                )}
+                            </Card>
+                        </Section>
+                    </>
                 )}
             </>
         );
@@ -1424,65 +1241,164 @@ export default function AnalysisScreen() {
     }
 
     return (
-        <View style={styles.container}>
-            <ScreenHeader title="분석" showBack={false} />
+        <>
+            <View style={styles.container}>
+                <ScreenHeader title="분석" showBack={false} align="left" />
 
-            {/* View Mode Toggle */}
-            <View style={styles.toggleContainer}>
-                <View style={styles.toggleWrapper}>
-                    <Pressable
-                        onPress={() => setViewMode("my_progress")}
-                        style={[styles.toggleButton, viewMode === "my_progress" && styles.toggleButtonActive]}
-                    >
-                        <Ionicons
-                            name="trending-up"
-                            size={16}
-                            color={viewMode === "my_progress" ? COLORS.white : COLORS.textMuted}
-                        />
-                        <Typography.Body2
-                            bold
-                            color={viewMode === "my_progress" ? COLORS.white : COLORS.textMuted}
+                {/* View Mode Toggle */}
+                <View style={styles.toggleContainer}>
+                    <View style={styles.toggleWrapper}>
+                        <Pressable
+                            onPress={() => setViewMode("my_progress")}
+                            style={[styles.toggleButton, viewMode === "my_progress" && styles.toggleButtonActive]}
                         >
-                            나의 성장
-                        </Typography.Body2>
-                    </Pressable>
-                    <Pressable
-                        onPress={() => setViewMode("exam_analysis")}
-                        style={[styles.toggleButton, viewMode === "exam_analysis" && styles.toggleButtonActive]}
-                    >
-                        <Ionicons
-                            name="people"
-                            size={16}
-                            color={viewMode === "exam_analysis" ? COLORS.white : COLORS.textMuted}
-                        />
-                        <Typography.Body2
-                            bold
-                            color={viewMode === "exam_analysis" ? COLORS.white : COLORS.textMuted}
+                            <Ionicons
+                                name="trending-up"
+                                size={18}
+                                color={viewMode === "my_progress" ? COLORS.primary : COLORS.textMuted}
+                            />
+                            <Typography.Body2
+                                bold
+                                color={viewMode === "my_progress" ? COLORS.text : COLORS.textMuted}
+                            >
+                                나의 성장
+                            </Typography.Body2>
+                        </Pressable>
+                        <Pressable
+                            onPress={() => setViewMode("exam_analysis")}
+                            style={[styles.toggleButton, viewMode === "exam_analysis" && styles.toggleButtonActive]}
                         >
-                            시험 분석
-                        </Typography.Body2>
-                    </Pressable>
+                            <Ionicons
+                                name="people"
+                                size={18}
+                                color={viewMode === "exam_analysis" ? COLORS.primary : COLORS.textMuted}
+                            />
+                            <Typography.Body2
+                                bold
+                                color={viewMode === "exam_analysis" ? COLORS.text : COLORS.textMuted}
+                            >
+                                시험 분석
+                            </Typography.Body2>
+                        </Pressable>
+                    </View>
                 </View>
+
+                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                    {exams.length === 0 ? (
+                        <View style={styles.emptyContainer}>
+                            <View style={styles.emptyIconBox}>
+                                <Ionicons name="layers-outline" size={48} color={COLORS.textMuted} />
+                            </View>
+                            <Typography.H3 align="center" color={COLORS.text} bold style={{ marginTop: SPACING.lg }}>
+                                아직 시험이 없어요
+                            </Typography.H3>
+                            <Typography.Body2 align="center" color={COLORS.textMuted} style={{ marginTop: SPACING.sm }}>
+                                시험이 등록되면 이곳에서{"\n"}분석 결과를 확인할 수 있어요
+                            </Typography.Body2>
+                        </View>
+                    ) : (
+                        viewMode === "my_progress" ? renderMyProgressView() : renderExamAnalysisView()
+                    )}
+                </ScrollView>
             </View>
 
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                {exams.length === 0 ? (
-                    <View style={styles.emptyContainer}>
-                        <View style={styles.emptyIconBox}>
-                            <Ionicons name="layers-outline" size={48} color={COLORS.textMuted} />
+            {/* Global Selection Modals */}
+            <Modal
+                visible={showSubjectModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowSubjectModal(false)}
+            >
+                <Pressable style={styles.modalBackdrop} onPress={() => setShowSubjectModal(false)}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Typography.Subtitle1 bold>과목 선택</Typography.Subtitle1>
+                            <Pressable onPress={() => setShowSubjectModal(false)}>
+                                <Ionicons name="close" size={24} color={COLORS.textMuted} />
+                            </Pressable>
                         </View>
-                        <Typography.H3 align="center" color={COLORS.text} bold style={{ marginTop: SPACING.lg }}>
-                            아직 시험이 없어요
-                        </Typography.H3>
-                        <Typography.Body2 align="center" color={COLORS.textMuted} style={{ marginTop: SPACING.sm }}>
-                            시험이 등록되면 이곳에서{"\n"}분석 결과를 확인할 수 있어요
-                        </Typography.Body2>
+                        <ScrollView showsVerticalScrollIndicator={false} style={styles.modalList}>
+                            {uniqueSubjects.map(s => {
+                                const examCount = s === "전체"
+                                    ? myAttempts.length
+                                    : myAttempts.filter(a => (getRoomExamSubjectFromTitle(a.room_exams.title) ?? "기타") === s).length;
+                                return (
+                                    <Pressable
+                                        key={s}
+                                        style={[styles.modalItem, selectedSubject === s && styles.modalItemActive]}
+                                        onPress={() => {
+                                            setSelectedSubject(s);
+                                            setShowSubjectModal(false);
+                                            // Reset exam if it doesn't belong to the new subject
+                                            const subjectExams = exams.filter(e => (getRoomExamSubjectFromTitle(e.title) ?? "기타") === s);
+                                            if (s !== "전체" && subjectExams.length > 0) {
+                                                setSelectedExamId(subjectExams[0].id);
+                                            }
+                                        }}
+                                    >
+                                        <View style={styles.modalItemContent}>
+                                            <Typography.Body1 bold={selectedSubject === s} color={selectedSubject === s ? COLORS.primary : COLORS.text}>
+                                                {s}
+                                            </Typography.Body1>
+                                            <Typography.Caption color={COLORS.textMuted}>
+                                                {examCount}회 응시
+                                            </Typography.Caption>
+                                        </View>
+                                        {selectedSubject === s && (
+                                            <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+                                        )}
+                                    </Pressable>
+                                );
+                            })}
+                        </ScrollView>
                     </View>
-                ) : (
-                    viewMode === "my_progress" ? renderMyProgressView() : renderExamAnalysisView()
-                )}
-            </ScrollView>
-        </View>
+                </Pressable>
+            </Modal>
+
+            <Modal
+                visible={showExamModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowExamModal(false)}
+            >
+                <Pressable style={styles.modalBackdrop} onPress={() => setShowExamModal(false)}>
+                    <View style={[styles.modalContent, styles.modalContentLarge]}>
+                        <View style={styles.modalHeader}>
+                            <Typography.Subtitle1 bold>시험 선택</Typography.Subtitle1>
+                            <Pressable onPress={() => setShowExamModal(false)}>
+                                <Ionicons name="close" size={24} color={COLORS.textMuted} />
+                            </Pressable>
+                        </View>
+                        <ScrollView showsVerticalScrollIndicator={false} style={styles.modalList}>
+                            {filteredExams.map(e => (
+                                <Pressable
+                                    key={e.id}
+                                    style={[styles.modalItem, selectedExamId === e.id && styles.modalItemActive]}
+                                    onPress={() => {
+                                        setSelectedExamId(e.id);
+                                        setShowExamModal(false);
+                                    }}
+                                >
+                                    <View style={styles.modalItemContent}>
+                                        <Typography.Body1 bold={selectedExamId === e.id} color={selectedExamId === e.id ? COLORS.primary : COLORS.text} numberOfLines={1}>
+                                            {e.title.replace(/^(\[.*?\]\s*|.*?•\s*)+/, "")}
+                                        </Typography.Body1>
+                                        <View style={styles.modalItemMeta}>
+                                            <Typography.Caption color={COLORS.textMuted}>
+                                                {e.total_questions}문항 • {new Date(e.created_at).toLocaleDateString()}
+                                            </Typography.Caption>
+                                        </View>
+                                    </View>
+                                    {selectedExamId === e.id && (
+                                        <Ionicons name="checkmark-circle" size={20} color={COLORS.primary} />
+                                    )}
+                                </Pressable>
+                            ))}
+                        </ScrollView>
+                    </View>
+                </Pressable>
+            </Modal>
+        </>
     );
 }
 
@@ -1497,17 +1413,22 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     scrollContent: {
+        padding: SPACING.lg,
         paddingBottom: 40,
+        gap: SPACING.xl,
     },
     toggleContainer: {
-        paddingHorizontal: SPACING.xl,
-        paddingVertical: SPACING.md,
+        paddingHorizontal: SPACING.lg,
+        paddingBottom: SPACING.md,
     },
     toggleWrapper: {
         flexDirection: 'row',
-        backgroundColor: COLORS.surfaceVariant,
-        borderRadius: 12,
+        backgroundColor: COLORS.surface,
+        borderRadius: RADIUS.xl,
         padding: 4,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        ...SHADOWS.small,
     },
     toggleButton: {
         flex: 1,
@@ -1515,12 +1436,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         gap: SPACING.xs,
-        paddingVertical: 10,
-        borderRadius: 10,
+        paddingVertical: 12,
+        borderRadius: RADIUS.lg,
     },
     toggleButtonActive: {
-        backgroundColor: COLORS.primary,
-        ...SHADOWS.small,
+        backgroundColor: COLORS.bg,
     },
     // Dropdown Styles
     dropdownSection: {
@@ -1800,6 +1720,14 @@ const styles = StyleSheet.create({
         paddingVertical: 6,
         borderRadius: 20,
     },
+    topBadge: {
+        width: 18,
+        height: 18,
+        borderRadius: 9,
+        backgroundColor: COLORS.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     highlightHeader: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -1953,4 +1881,4 @@ const styles = StyleSheet.create({
         padding: 60,
         alignItems: 'center',
     },
-});
+},);

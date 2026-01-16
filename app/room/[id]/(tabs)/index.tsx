@@ -9,7 +9,7 @@ import { Typography } from "../../../../components/ui/Typography";
 import type { Database } from "../../../../lib/db-types";
 import { useSupabase } from "../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../lib/supabaseError";
-import { COLORS, SHADOWS } from "../../../../lib/theme";
+import { COLORS, RADIUS, SHADOWS, SPACING } from "../../../../lib/theme";
 
 type RoomRow = Database["public"]["Tables"]["rooms"]["Row"];
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
@@ -117,19 +117,20 @@ export default function RoomHomeScreen() {
             <ScreenHeader
                 title={room?.name || "스터디"}
                 showBack={false}
+                align="left"
                 rightElement={
                     <TouchableOpacity
                         onPress={() => router.replace('/(tabs)/rooms')}
                         style={styles.closeBtn}
                     >
-                        <Ionicons name="close" size={20} color={COLORS.text} />
+                        <Ionicons name="close" size={24} color={COLORS.text} />
                     </TouchableOpacity>
                 }
             />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 {/* Hero Section */}
-                <View style={styles.heroSection}>
+                <View style={styles.card}>
                     <TouchableOpacity
                         style={styles.codeBadge}
                         onPress={handleCopyCode}
@@ -141,70 +142,67 @@ export default function RoomHomeScreen() {
                     </TouchableOpacity>
                 </View>
 
-                {/* Unified Content Flow */}
-                <View style={styles.contentFlow}>
-                    {/* Stats Row */}
-                    <View style={styles.statsRow}>
-                        <View style={styles.statItem}>
-                            <Text style={styles.statValue}>{visibleSubjects.length}</Text>
-                            <Text style={styles.statLabel}>시험 과목</Text>
-                        </View>
-                        <View style={styles.statDivider} />
-                        <View style={styles.statItem}>
-                            <Text style={styles.statValue}>{participants.length}</Text>
-                            <Text style={styles.statLabel}>참여 멤버</Text>
-                        </View>
+                {/* Stats Row */}
+                <View style={[styles.card, styles.statsRow]}>
+                    <View style={styles.statItem}>
+                        <Text style={styles.statValue}>{visibleSubjects.length}</Text>
+                        <Text style={styles.statLabel}>시험 과목</Text>
                     </View>
-
-                    {/* Subjects Section */}
-                    <View style={styles.flowSection}>
-                        <View style={styles.flowHeader}>
-                            <Ionicons name="book-outline" size={18} color={COLORS.textMuted} />
-                            <Text style={styles.flowTitle}>진행 중인 과목</Text>
-                        </View>
-                        <View style={styles.subjectGrid}>
-                            {visibleSubjects.length > 0 ? (
-                                visibleSubjects.map((s) => (
-                                    <View key={s.id} style={styles.minimalChip}>
-                                        <Text style={styles.minimalChipText}>{s.name}</Text>
-                                    </View>
-                                ))
-                            ) : (
-                                <Text style={styles.emptyText}>등록된 과목이 없습니다.</Text>
-                            )}
-                        </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statItem}>
+                        <Text style={styles.statValue}>{participants.length}</Text>
+                        <Text style={styles.statLabel}>참여 멤버</Text>
                     </View>
+                </View>
 
-                    {/* Members Section */}
-                    <View style={styles.flowSection}>
-                        <View style={styles.flowHeader}>
-                            <Ionicons name="people-outline" size={18} color={COLORS.textMuted} />
-                            <Text style={styles.flowTitle}>함께하는 멤버</Text>
-                        </View>
-                        <View style={styles.memberGrid}>
-                            {sortedParticipants.map((p) => {
-                                const isOwner = p.user_id === room?.owner_id;
-                                const initial = (p.profile?.display_name || '?').charAt(0).toUpperCase();
+                {/* Subjects Section */}
+                <View style={[styles.card, styles.flowSection]}>
+                    <View style={styles.flowHeader}>
+                        <Ionicons name="book-outline" size={18} color={COLORS.textMuted} />
+                        <Text style={styles.flowTitle}>진행 중인 과목</Text>
+                    </View>
+                    <View style={styles.subjectGrid}>
+                        {visibleSubjects.length > 0 ? (
+                            visibleSubjects.map((s) => (
+                                <View key={s.id} style={styles.minimalChip}>
+                                    <Text style={styles.minimalChipText}>{s.name}</Text>
+                                </View>
+                            ))
+                        ) : (
+                            <Text style={styles.emptyText}>등록된 과목이 없습니다.</Text>
+                        )}
+                    </View>
+                </View>
 
-                                return (
-                                    <View key={p.user_id} style={styles.memberGridItem}>
-                                        <View style={[styles.gridAvatar, isOwner && styles.ownerAvatarBorder]}>
-                                            <Text style={[styles.avatarTxt, isOwner && styles.ownerAvatarTxt]}>
-                                                {initial}
-                                            </Text>
-                                            {isOwner && (
-                                                <View style={styles.ownerGridBadge}>
-                                                    <Text style={styles.ownerGridBadgeValue}>방장</Text>
-                                                </View>
-                                            )}
-                                        </View>
-                                        <Text style={styles.gridMemberName} numberOfLines={1}>
-                                            {p.profile?.display_name || '익명'}
+                {/* Members Section */}
+                <View style={[styles.card, styles.flowSection, { marginBottom: 0 }]}>
+                    <View style={styles.flowHeader}>
+                        <Ionicons name="people-outline" size={18} color={COLORS.textMuted} />
+                        <Text style={styles.flowTitle}>함께하는 멤버</Text>
+                    </View>
+                    <View style={styles.memberGrid}>
+                        {sortedParticipants.map((p) => {
+                            const isOwner = p.user_id === room?.owner_id;
+                            const initial = (p.profile?.display_name || '?').charAt(0).toUpperCase();
+
+                            return (
+                                <View key={p.user_id} style={styles.memberGridItem}>
+                                    <View style={[styles.gridAvatar, isOwner && styles.ownerAvatarBorder]}>
+                                        <Text style={[styles.avatarTxt, isOwner && styles.ownerAvatarTxt]}>
+                                            {initial}
                                         </Text>
+                                        {isOwner && (
+                                            <View style={styles.ownerGridBadge}>
+                                                <Text style={styles.ownerGridBadgeValue}>방장</Text>
+                                            </View>
+                                        )}
                                     </View>
-                                );
-                            })}
-                        </View>
+                                    <Text style={styles.gridMemberName} numberOfLines={1}>
+                                        {p.profile?.display_name || '익명'}
+                                    </Text>
+                                </View>
+                            );
+                        })}
                     </View>
                 </View>
             </ScrollView>
@@ -246,30 +244,35 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    heroSection: {
-        paddingHorizontal: 24,
-        paddingTop: 12,
-        paddingBottom: 24,
-        alignItems: 'flex-start',
-        gap: 12,
+    scrollContent: {
+        padding: SPACING.lg,
+        paddingBottom: 140,
+        gap: SPACING.md,
     },
-    heroTitle: {
-        fontSize: 26,
-        fontWeight: '900',
-        color: COLORS.text,
-        letterSpacing: -0.5,
+    card: {
+        backgroundColor: COLORS.surface,
+        borderRadius: RADIUS.xl,
+        padding: SPACING.lg,
+        ...SHADOWS.small,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    statsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: SPACING.lg,
     },
     codeBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: COLORS.surface,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 12,
+        backgroundColor: COLORS.bg,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderRadius: RADIUS.lg,
         gap: 10,
         borderWidth: 1,
         borderColor: COLORS.border,
-        ...SHADOWS.small,
+        alignSelf: 'flex-start',
     },
     codeLabelText: {
         fontSize: 10,
@@ -282,28 +285,6 @@ const styles = StyleSheet.create({
         fontWeight: '900',
         color: COLORS.primary,
         fontVariant: ['tabular-nums'],
-    },
-    scrollContent: {
-        paddingBottom: 140,
-    },
-    contentFlow: {
-        backgroundColor: COLORS.surface,
-        borderTopLeftRadius: 32,
-        borderTopRightRadius: 32,
-        paddingTop: 32,
-        paddingHorizontal: 24,
-        flex: 1,
-        minHeight: 500,
-    },
-    statsRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 32,
-        paddingVertical: 12,
-        backgroundColor: COLORS.bg,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: COLORS.border,
     },
     statItem: {
         flex: 1,
@@ -326,7 +307,6 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.border,
     },
     flowSection: {
-        marginBottom: 32,
     },
     flowHeader: {
         flexDirection: 'row',
@@ -427,7 +407,6 @@ const styles = StyleSheet.create({
         right: 0,
         padding: 24,
         paddingBottom: 40,
-        backgroundColor: 'rgba(255,255,255,0.85)',
     },
     fabButton: {
         height: 60,

@@ -14,6 +14,7 @@ import {
     detectSolvingPattern,
     getMedian,
     getStdDev,
+    type QuestionAnalysis,
 } from "../../../../../lib/insights";
 import { useSupabase } from "../../../../../lib/supabase";
 import { formatSupabaseError } from "../../../../../lib/supabaseError";
@@ -211,6 +212,60 @@ export default function QuestionAnalysisScreen() {
         );
     }, [questionAnalysis]);
 
+    const renderQuestionBarChart = (
+        data: QuestionAnalysis[],
+        maxDur: number
+    ) => {
+        const chartHeight = 160;
+        const padding = { top: 16, right: 16, bottom: 28, left: 40 };
+        const barWidth = 10;
+        const gap = 6;
+        const screenWidth = 375; // fallback
+        const chartWidth = Math.max(
+            screenWidth - 72,
+            data.length * (barWidth + gap) + padding.left + padding.right
+        );
+        const chartInnerHeight = chartHeight - padding.top - padding.bottom;
+        const labelEvery = data.length > 24 ? 5 : data.length > 14 ? 3 : 1;
+        const tickCount = 4;
+
+        const getBarColor = (item: QuestionAnalysis) => {
+            if (item.myDurationMs === 0) return COLORS.border;
+            if (item.highlight === 'slow') return COLORS.error;
+            if (item.highlight === 'fast') return '#10B981';
+            if (item.highlight === 'common_hard') return COLORS.warning;
+            if (item.highlight === 'best') return COLORS.primaryDark;
+            return COLORS.primary;
+        };
+
+        return (
+            <View style={{ height: chartHeight, marginBottom: SPACING.lg }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    {/* SVG Implementation simplified for this screen */}
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-end', paddingLeft: padding.left, height: chartInnerHeight + padding.top }}>
+                        {data.map((item, idx) => {
+                            const h = (item.myDurationMs / maxDur) * chartInnerHeight;
+                            const avgH = (item.roomAvgMs / maxDur) * chartInnerHeight;
+                            return (
+                                <View key={item.questionNo} style={{ width: barWidth, marginRight: gap, alignItems: 'center' }}>
+                                    <View style={{ width: '100%', height: h, backgroundColor: getBarColor(item), borderRadius: 2 }} />
+                                    {item.roomAvgMs > 0 && (
+                                        <View style={{ position: 'absolute', bottom: avgH, width: '140%', height: 2, backgroundColor: COLORS.textMuted, opacity: 0.6 }} />
+                                    )}
+                                    <View style={{ height: 16, marginTop: 4 }}>
+                                        {(idx % labelEvery === 0 || idx === data.length - 1) && (
+                                            <Typography.Label color={COLORS.textMuted}>{item.questionNo}</Typography.Label>
+                                        )}
+                                    </View>
+                                </View>
+                            );
+                        })}
+                    </View>
+                </ScrollView>
+            </View>
+        );
+    };
+
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
@@ -245,9 +300,28 @@ export default function QuestionAnalysisScreen() {
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
+                {/* Overview Graph */}
+                {questionAnalysis.length > 0 && (
+                    <Section title="전체 비교 그래프" description="막대(나) vs 가로선(통계)">
+                        <Card padding="lg" radius="xl">
+                            {renderQuestionBarChart(questionAnalysis, maxDuration)}
+                            <View style={{ flexDirection: 'row', justifyContent: 'center', gap: SPACING.lg }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                    <View style={{ width: 12, height: 8, borderRadius: 2, backgroundColor: COLORS.primary }} />
+                                    <Typography.Caption color={COLORS.textMuted}>나</Typography.Caption>
+                                </View>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                    <View style={{ width: 12, height: 2, backgroundColor: COLORS.textMuted }} />
+                                    <Typography.Caption color={COLORS.textMuted}>평균</Typography.Caption>
+                                </View>
+                            </View>
+                        </Card>
+                    </Section>
+                )}
+
                 {/* Recap */}
                 {stats && (
-                    <Section title="리캡" style={styles.section} contentStyle={styles.recapContent}>
+                    <Section title="요약 리캡" style={styles.section} contentStyle={styles.recapContent}>
                         <View style={styles.recapGrid}>
                             <View style={styles.recapCard}>
                                 <Typography.Caption color={COLORS.textMuted}>총 시간</Typography.Caption>
