@@ -2,6 +2,7 @@ import { useAuth, useUser } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
@@ -205,6 +206,18 @@ export default function SettingsScreen() {
                 {/* Support Section */}
                 <View style={styles.sectionSpacer} />
                 <Card style={styles.menuCard} padding="none">
+                    <SettingItem
+                        icon="document-text-outline"
+                        label="서비스 이용약관"
+                        onPress={() => WebBrowser.openBrowserAsync("https://narrow-parrot-7ce.notion.site/11-57-3-2e90ac852a17804fbbdbde3119997a51?pvs=73")}
+                    />
+                    <View style={styles.divider} />
+                    <SettingItem
+                        icon="shield-checkmark-outline"
+                        label="개인정보 처리방침"
+                        onPress={() => WebBrowser.openBrowserAsync("https://narrow-parrot-7ce.notion.site/11-57-3-2e90ac852a17804fbbdbde3119997a51?pvs=73")}
+                    />
+                    <View style={styles.divider} />
                     <SettingItem icon="information-circle-outline" label="버전 정보" showArrow={false} />
                     <View style={styles.divider} />
                     <View style={styles.versionRow}>

@@ -70,6 +70,14 @@ export default function LoginScreen() {
         }
     };
 
+    const onOpenTOS = () => {
+        WebBrowser.openBrowserAsync("https://narrow-parrot-7ce.notion.site/11-57-3-2e90ac852a17804fbbdbde3119997a51?pvs=73");
+    };
+
+    const onOpenPrivacy = () => {
+        WebBrowser.openBrowserAsync("https://narrow-parrot-7ce.notion.site/11-57-3-2e90ac852a17804fbbdbde3119997a51?pvs=73");
+    };
+
     return (
         <View style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
             <LinearGradient
@@ -119,27 +127,21 @@ export default function LoginScreen() {
                         <TouchableOpacity
                             style={[styles.button, styles.appleButton, isLoggingIn && { opacity: 0.7 }]}
                             onPress={() => onSelectAuth("apple")}
-                            activeOpacity={0.9}
+                            activeOpacity={0.85}
                             disabled={isLoggingIn}
                         >
-                            <Ionicons name="logo-apple" size={22} color="#FFFFFF" style={styles.buttonIcon} />
-                            <Text style={[styles.buttonText, { color: "#FFFFFF" }]}>애플로 계속하기</Text>
+                            <Ionicons name="logo-apple" size={20} color="#FFFFFF" style={styles.buttonIcon} />
+                            <Text style={[styles.buttonText, { color: "#FFFFFF" }]}>Apple로 계속하기</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
                             style={[styles.button, styles.googleButton, isLoggingIn && { opacity: 0.7 }]}
                             onPress={() => onSelectAuth("google")}
-                            activeOpacity={0.9}
+                            activeOpacity={0.85}
                             disabled={isLoggingIn}
                         >
-                            <Image
-                                source={require("../../assets/images/icon.png")} // 앱 아이콘이나 구글 아이콘 대용
-                                style={{ width: 20, height: 20, marginRight: 10 }}
-                                contentFit="contain"
-                            />
-                            {/* 구글 로고 아이콘이 보통 없으므로 Ionicons 사용 */}
-                            <Ionicons name="logo-google" size={20} color="#1C1C1E" style={{ position: 'absolute', left: 24 }} />
-                            <Text style={[styles.buttonText, { color: "#1C1C1E" }]}>구글로 계속하기</Text>
+                            <Ionicons name="logo-google" size={18} color="#1C1C1E" style={styles.buttonIcon} />
+                            <Text style={[styles.buttonText, { color: "#1C1C1E" }]}>Google로 계속하기</Text>
                         </TouchableOpacity>
                     </Animated.View>
 
@@ -148,8 +150,15 @@ export default function LoginScreen() {
                         style={styles.footer}
                     >
                         <Text style={styles.footerText}>
-                            계속 진행하면 <Text style={styles.linkText}>서비스 이용약관</Text> 및{"\n"}
-                            <Text style={styles.linkText}>개인정보 처리방침</Text>에 동의하게 됩니다.
+                            계속 진행하면{" "}
+                            <Text style={styles.linkText} onPress={onOpenTOS}>
+                                서비스 이용약관
+                            </Text>{" "}
+                            및{"\n"}
+                            <Text style={styles.linkText} onPress={onOpenPrivacy}>
+                                개인정보 처리방침
+                            </Text>
+                            에 동의하게 됩니다.
                         </Text>
                     </Animated.View>
                 </View>
@@ -246,13 +255,14 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        height: 62,
-        borderRadius: 20,
+        height: 58,
+        borderRadius: 16,
+        paddingHorizontal: 20,
         // Premium shadow
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
         elevation: 3,
     },
     appleButton: {
@@ -268,8 +278,9 @@ const styles = StyleSheet.create({
         left: 24,
     },
     buttonText: {
-        fontSize: 17,
-        fontWeight: "700",
+        fontSize: 16,
+        fontWeight: "600",
+        letterSpacing: -0.3,
     },
     footer: {
         marginTop: 20,
