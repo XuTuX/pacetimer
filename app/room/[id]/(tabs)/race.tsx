@@ -240,13 +240,8 @@ const styles = StyleSheet.create({
     addBtn: {
         width: 40,
         height: 40,
-        borderRadius: 14,
-        backgroundColor: COLORS.surface,
-        borderWidth: 1,
-        borderColor: COLORS.border,
         alignItems: 'center',
         justifyContent: 'center',
-        ...SHADOWS.small,
     },
     scrollContent: {
         padding: SPACING.lg,

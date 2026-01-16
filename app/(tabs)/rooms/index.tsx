@@ -137,7 +137,7 @@ export default function RoomsIndexScreen() {
                 onPress={() => router.push("/(tabs)/rooms/create")}
                 style={({ pressed }) => [styles.addBtn, pressed && { opacity: 0.7 }]}
             >
-                <Ionicons name="add" size={24} color={COLORS.text} />
+                <Ionicons name="add-outline" size={26} color={COLORS.text} />
             </Pressable>
             <HeaderSettings />
         </View>
@@ -155,7 +155,7 @@ export default function RoomsIndexScreen() {
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                 {/* Search Bar Section */}
                 <View style={styles.searchSection}>
-                    <ThemedText style={styles.sectionTitle}>새로운 스터디 참가</ThemedText>
+                    <ThemedText style={styles.sectionTitle}>스터디 참가</ThemedText>
                     <View style={styles.searchBar}>
                         <Ionicons name="search" size={18} color={COLORS.textMuted} />
                         <TextInput
@@ -189,7 +189,7 @@ export default function RoomsIndexScreen() {
 
                 {/* List Section */}
                 <View style={styles.listSection}>
-                    <ThemedText style={styles.sectionTitle}>나의 스터디 ({rooms.length})</ThemedText>
+                    <ThemedText style={styles.sectionTitle}>스터디 목록 {rooms.length}</ThemedText>
                     {loading && <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 20 }} />}
 
                     {hasLoadedOnce && rooms.length === 0 ? (
@@ -239,14 +239,10 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     addBtn: {
-        width: 36,
-        height: 36,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        borderRadius: 12,
+        width: 40,
+        height: 40,
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: COLORS.surface,
     },
     content: {
         padding: SPACING.lg,

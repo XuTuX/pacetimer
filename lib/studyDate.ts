@@ -16,6 +16,17 @@ export function formatDisplayDate(dateKey: string, nowMs: number = Date.now()): 
     return `${m}월 ${d}일 (${dayOfWeek})`;
 }
 
+export function formatDisplayDayOnly(dateKey: string): string {
+    const [y, m, d] = dateKey.split('-').map(s => parseInt(s, 10));
+    const date = new Date(y, m - 1, d);
+    return ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'][date.getDay()];
+}
+
+export function formatDisplayDateOnly(dateKey: string): string {
+    const [y, m, d] = dateKey.split('-').map(s => parseInt(s, 10));
+    return `${d} ${['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][m - 1]}`;
+}
+
 export function formatClockTime(timestampMs: number): string {
     return new Date(timestampMs).toLocaleTimeString('ko-KR', {
         hour: '2-digit',

@@ -229,6 +229,60 @@ export default function AnalysisScreen() {
         }, [roomId, loadExams, loadMyAttempts, userId, exams.length])
     );
 
+    // Activity & Participation Stats
+    const activityStats = useMemo(() => {
+        if (myAttempts.length === 0) return null;
+
+        const dates = myAttempts.map(a => {
+            const d = new Date(a.created_at);
+            d.setHours(0, 0, 0, 0);
+            return d.getTime();
+        });
+
+        const uniqueDates = Array.from(new Set(dates)).sort((a, b) => b - a);
+
+        // Streak calculation
+        let streak = 0;
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+
+        let checkDate = uniqueDates.includes(today.getTime()) ? today : yesterday;
+        if (uniqueDates.includes(checkDate.getTime())) {
+            streak = 1;
+            const tempDate = new Date(checkDate);
+            while (true) {
+                tempDate.setDate(tempDate.getDate() - 1);
+                if (uniqueDates.includes(tempDate.getTime())) {
+                    streak++;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        // Recent activity (last 7 days counts)
+        const last7Days = Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(today);
+            d.setDate(today.getDate() - i);
+            return d.getTime();
+        }).reverse();
+
+        const dailyCounts = last7Days.map(time => ({
+            time,
+            count: dates.filter(d => d === time).length
+        }));
+
+        return {
+            totalExams: myAttempts.length,
+            activeDays: uniqueDates.length,
+            streak,
+            dailyCounts,
+            lastSeen: uniqueDates[0] ? new Date(uniqueDates[0]) : null,
+        };
+    }, [myAttempts]);
+
     // Load exam data when selected exam changes
     useFocusEffect(
         useCallback(() => {
@@ -276,13 +330,18 @@ export default function AnalysisScreen() {
             if (history.length < 2) return null;
             const first = history[0];
             const last = history[history.length - 1];
-            const improvement = ((first.val - last.val) / first.val) * 100;
+            const prev = history[history.length - 2];
+
+            const improvementFromFirst = ((first.val - last.val) / first.val) * 100;
+            const improvementFromPrev = ((prev.val - last.val) / prev.val) * 100;
+
             const avgVal = history.reduce((sum, h) => sum + h.val, 0) / history.length;
             const bestVal = Math.min(...history.map(h => h.val));
             const worstVal = Math.max(...history.map(h => h.val));
 
             return {
-                improvement: Math.round(improvement),
+                improvementFromFirst: Math.round(improvementFromFirst),
+                improvementFromPrev: Math.round(improvementFromPrev),
                 avgPerQ: avgVal,
                 bestPerQ: bestVal,
                 worstPerQ: worstVal,
@@ -404,24 +463,47 @@ export default function AnalysisScreen() {
                 ) : (
                     <>
                         {/* Improvement Summary Cards */}
-                        {stats && (
+                        {selectedSubject === "전체" ? (
+                            <Section title="활동 요약" description="최근 나의 참여 현황">
+                                <View style={styles.summaryGrid}>
+                                    <Card padding="lg" radius="xl" style={styles.summaryCard}>
+                                        <View style={styles.summaryCardHeader}>
+                                            <Ionicons name="calendar-outline" size={20} color={COLORS.primary} />
+                                        </View>
+                                        <Typography.H2 bold color={COLORS.text}>
+                                            {activityStats?.activeDays || 0}일
+                                        </Typography.H2>
+                                        <Typography.Caption color={COLORS.textMuted}>총 활동 일수</Typography.Caption>
+                                    </Card>
+                                    <Card padding="lg" radius="xl" style={styles.summaryCard}>
+                                        <View style={styles.summaryCardHeader}>
+                                            <Ionicons name="flame" size={20} color="#F59E0B" />
+                                        </View>
+                                        <Typography.H2 bold color={COLORS.text}>
+                                            {activityStats?.streak || 0}일
+                                        </Typography.H2>
+                                        <Typography.Caption color={COLORS.textMuted}>연속 학습</Typography.Caption>
+                                    </Card>
+                                </View>
+                            </Section>
+                        ) : stats && (
                             <Section title="성장 요약" description={`총 ${stats.totalExams}회 응시`}>
                                 <View style={styles.summaryGrid}>
                                     <Card padding="lg" radius="xl" style={[
                                         styles.summaryCard,
-                                        stats.improvement > 0 ? styles.positiveCard : styles.negativeCard
+                                        stats.improvementFromPrev > 0 ? styles.positiveCard : styles.negativeCard
                                     ]}>
                                         <View style={styles.summaryCardHeader}>
                                             <Ionicons
-                                                name={stats.improvement > 0 ? "trending-up" : "trending-down"}
+                                                name={stats.improvementFromPrev > 0 ? "trending-up" : "trending-down"}
                                                 size={20}
-                                                color={stats.improvement > 0 ? "#10B981" : COLORS.error}
+                                                color={stats.improvementFromPrev > 0 ? "#10B981" : COLORS.error}
                                             />
                                         </View>
-                                        <Typography.H2 bold color={stats.improvement > 0 ? "#10B981" : COLORS.error}>
-                                            {stats.improvement > 0 ? "-" : "+"}{Math.abs(stats.improvement)}%
+                                        <Typography.H2 bold color={stats.improvementFromPrev > 0 ? "#10B981" : COLORS.error}>
+                                            {stats.improvementFromPrev > 0 ? "-" : "+"}{Math.abs(stats.improvementFromPrev)}%
                                         </Typography.H2>
-                                        <Typography.Caption color={COLORS.textMuted}>첫 시험 대비</Typography.Caption>
+                                        <Typography.Caption color={COLORS.textMuted}>이전 시험 대비</Typography.Caption>
                                     </Card>
                                     <Card padding="lg" radius="xl" style={styles.summaryCard}>
                                         <View style={styles.summaryCardHeader}>
@@ -433,18 +515,36 @@ export default function AnalysisScreen() {
                                         <Typography.Caption color={COLORS.textMuted}>최고 기록</Typography.Caption>
                                     </Card>
                                 </View>
+                                <View style={{ marginTop: SPACING.sm, alignItems: 'center' }}>
+                                    <View style={styles.firstExamBadge}>
+                                        <Typography.Caption color={COLORS.textMuted}>
+                                            첫 시험 대비 총 {stats.improvementFromFirst > 0 ? "—" : "+"}{Math.abs(stats.improvementFromFirst)}% 단축됨
+                                        </Typography.Caption>
+                                    </View>
+                                </View>
                             </Section>
                         )}
 
-                        {/* Growth Chart */}
-                        <Section
-                            title="문항당 시간 추이"
-                            description="시험을 거듭할수록 어떻게 변화했는지 확인하세요"
-                        >
-                            <Card padding="lg" radius="xl" style={styles.chartCard}>
-                                {renderGrowthChart(history)}
-                            </Card>
-                        </Section>
+                        {/* Growth or Activity Chart */}
+                        {selectedSubject === "전체" ? (
+                            <Section
+                                title="최근 활동량"
+                                description="일자별 시험 참여 횟수"
+                            >
+                                <Card padding="lg" radius="xl" style={styles.chartCard}>
+                                    {renderActivityBarChart()}
+                                </Card>
+                            </Section>
+                        ) : (
+                            <Section
+                                title="문항당 시간 추이"
+                                description="시험을 거듭할수록 어떻게 변화했는지 확인하세요"
+                            >
+                                <Card padding="lg" radius="xl" style={styles.chartCard}>
+                                    {renderGrowthChart(history)}
+                                </Card>
+                            </Section>
+                        )}
 
                         {/* Exam History List */}
                         <Section title="응시 기록">
@@ -501,6 +601,102 @@ export default function AnalysisScreen() {
                     </>
                 )}
             </>
+        );
+    };
+
+    // Activity Bar Chart for Total Progress
+    const renderActivityBarChart = () => {
+        if (!activityStats) return null;
+
+        const graphWidth = Math.min(width - 72, 500);
+        const graphHeight = 180;
+        const padding = { top: 30, right: 20, bottom: 40, left: 40 };
+
+        const maxCount = Math.max(...activityStats.dailyCounts.map(d => d.count), 1);
+        const barWidth = 24;
+        const dataCount = activityStats.dailyCounts.length;
+        const totalBarWidth = dataCount * barWidth;
+        const gap = (graphWidth - padding.left - padding.right - totalBarWidth) / (dataCount - 1);
+
+        return (
+            <Svg width={graphWidth} height={graphHeight}>
+                <Defs>
+                    <LinearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+                        <Stop offset="0" stopColor={COLORS.primary} stopOpacity="1" />
+                        <Stop offset="1" stopColor={COLORS.primaryLight} stopOpacity="0.8" />
+                    </LinearGradient>
+                </Defs>
+
+                {/* Grid Lines */}
+                {[0, 0.5, 1].map((p, i) => {
+                    const y = padding.top + (1 - p) * (graphHeight - padding.top - padding.bottom);
+                    const val = Math.round(p * maxCount);
+                    return (
+                        <G key={`grid-${i}`}>
+                            <Line
+                                x1={padding.left}
+                                y1={y}
+                                x2={graphWidth - padding.right}
+                                y2={y}
+                                stroke={COLORS.border}
+                                strokeWidth={1}
+                                strokeDasharray="4 4"
+                            />
+                            <SvgText
+                                x={padding.left - 8}
+                                y={y + 4}
+                                fontSize="10"
+                                fill={COLORS.textMuted}
+                                textAnchor="end"
+                            >
+                                {val}
+                            </SvgText>
+                        </G>
+                    );
+                })}
+
+                {/* Bars */}
+                {activityStats.dailyCounts.map((d, i) => {
+                    const x = padding.left + i * (barWidth + gap);
+                    const barHeight = (d.count / maxCount) * (graphHeight - padding.top - padding.bottom);
+                    const y = graphHeight - padding.bottom - barHeight;
+                    const date = new Date(d.time);
+
+                    return (
+                        <G key={i}>
+                            <Rect
+                                x={x}
+                                y={y}
+                                width={barWidth}
+                                height={Math.max(barHeight, 4)}
+                                rx={6}
+                                fill={d.count > 0 ? "url(#barGrad)" : COLORS.surfaceVariant}
+                            />
+                            {d.count > 0 && (
+                                <SvgText
+                                    x={x + barWidth / 2}
+                                    y={y - 8}
+                                    fontSize="10"
+                                    fontWeight="bold"
+                                    fill={COLORS.primary}
+                                    textAnchor="middle"
+                                >
+                                    {d.count}
+                                </SvgText>
+                            )}
+                            <SvgText
+                                x={x + barWidth / 2}
+                                y={graphHeight - padding.bottom + 16}
+                                fontSize="10"
+                                fill={COLORS.textMuted}
+                                textAnchor="middle"
+                            >
+                                {`${date.getMonth() + 1}/${date.getDate()}`}
+                            </SvgText>
+                        </G>
+                    );
+                })}
+            </Svg>
         );
     };
 
@@ -1597,6 +1793,12 @@ const styles = StyleSheet.create({
     },
     highlightCardPressed: {
         backgroundColor: COLORS.surfaceVariant,
+    },
+    firstExamBadge: {
+        backgroundColor: COLORS.surfaceVariant,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
     },
     highlightHeader: {
         flexDirection: 'row',

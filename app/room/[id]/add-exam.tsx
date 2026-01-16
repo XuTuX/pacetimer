@@ -377,8 +377,10 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.bg,
     },
     closeBtn: {
-        backgroundColor: COLORS.surfaceVariant,
-        borderRadius: RADIUS.full,
+        width: 40,
+        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     formContainer: {
         flex: 1,

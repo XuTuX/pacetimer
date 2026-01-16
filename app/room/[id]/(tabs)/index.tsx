@@ -212,7 +212,7 @@ export default function RoomHomeScreen() {
             {/* Float Action Button */}
             <View style={styles.fabContainer}>
                 <Button
-                    label={!isMember ? "Join Study" : "Invite Friends"}
+                    label={!isMember ? "같이 공부하기" : "링크 공유하기"}
                     onPress={!isMember ? handleJoinRoom : handleShare}
                     variant="primary"
                     size="lg"
@@ -241,12 +241,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     closeBtn: {
-        width: 36,
-        height: 36,
-        borderRadius: 12,
-        backgroundColor: COLORS.surface,
-        borderWidth: 1,
-        borderColor: COLORS.border,
+        width: 40,
+        height: 40,
         alignItems: 'center',
         justifyContent: 'center',
     },
