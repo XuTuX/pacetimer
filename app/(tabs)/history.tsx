@@ -17,7 +17,7 @@ import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { buildRecordsIndex } from '../../lib/recordsIndex';
 import { useAppStore } from '../../lib/store';
 import { getStudyDateKey } from '../../lib/studyDate';
-import { COLORS } from '../../lib/theme';
+import { COLORS, RADIUS, SHADOWS } from '../../lib/theme';
 
 LocaleConfig.locales['kr'] = {
     monthNames: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'],
@@ -188,7 +188,7 @@ export default function HistoryScreen() {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
             >
-                <ResponsiveContainer>
+                <ResponsiveContainer maxWidth={isAtLeastTablet ? 1200 : 800}>
                     <View style={[styles.historyWrapper, isAtLeastTablet && styles.historyWrapperTablet]}>
                         <View style={[styles.calendarContainer, isAtLeastTablet && styles.calendarContainerTablet]}>
                             <Calendar
@@ -334,16 +334,24 @@ export default function HistoryScreen() {
                 if (!session || !sessionStats) return null;
 
                 return (
-                    <View style={[StyleSheet.absoluteFill, { backgroundColor: COLORS.bg, zIndex: 100 }]}>
-                        <SessionDetail
-                            nowMs={nowMs}
-                            session={session}
-                            sessionStats={sessionStats}
-                            segments={index.segmentsBySessionId[session.id] ?? []}
-                            questionsBySegmentId={index.questionsBySegmentId}
-                            subjectsById={subjectsById}
-                            onClose={() => setSelectedSessionId(null)}
-                        />
+                    <View style={[
+                        StyleSheet.absoluteFill,
+                        { backgroundColor: 'rgba(0,0,0,0.3)', zIndex: 100, justifyContent: 'center', alignItems: 'center' }
+                    ]}>
+                        <View style={[
+                            { backgroundColor: COLORS.bg },
+                            isAtLeastTablet ? { width: 800, height: '90%', borderRadius: RADIUS.xxl, overflow: 'hidden', ...SHADOWS.heavy } : StyleSheet.absoluteFill
+                        ]}>
+                            <SessionDetail
+                                nowMs={nowMs}
+                                session={session}
+                                sessionStats={sessionStats}
+                                segments={index.segmentsBySessionId[session.id] ?? []}
+                                questionsBySegmentId={index.questionsBySegmentId}
+                                subjectsById={subjectsById}
+                                onClose={() => setSelectedSessionId(null)}
+                            />
+                        </View>
                     </View>
                 );
             })()}

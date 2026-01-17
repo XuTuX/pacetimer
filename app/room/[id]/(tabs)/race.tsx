@@ -4,6 +4,7 @@ import { useFocusEffect, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Button } from "../../../../components/ui/Button";
+import { ResponsiveContainer, useBreakpoint } from "../../../../components/ui/Layout";
 import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
 import { Typography } from "../../../../components/ui/Typography";
 import type { Database } from "../../../../lib/db-types";
@@ -27,6 +28,7 @@ const SUBJECT_ICONS: Record<string, string> = {
 };
 
 export default function RaceScreen() {
+    const { isAtLeastTablet } = useBreakpoint();
     const supabase = useSupabase();
     const router = useRouter();
     const { userId } = useAuth();
@@ -114,123 +116,126 @@ export default function RaceScreen() {
             />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                {/* Progress Summary Dashboard */}
-                {totalExams > 0 && (
-                    <View style={styles.summaryRow}>
-                        <View style={styles.summaryHeader}>
-                            <Ionicons name="stats-chart" size={16} color={COLORS.primary} />
-                            <Typography.Caption bold color={COLORS.primary}>나의 현황</Typography.Caption>
-                        </View>
-                        <View style={styles.summaryGrid}>
-                            <View style={styles.summaryItem}>
-                                <Text style={styles.summaryLabel}>전체</Text>
-                                <Text style={styles.summaryValue}>{totalExams}</Text>
+                <ResponsiveContainer maxWidth={isAtLeastTablet ? 1200 : 800}>
+                    {/* Progress Summary Dashboard */}
+                    {totalExams > 0 && (
+                        <View style={[styles.summaryRow, isAtLeastTablet && styles.summaryRowTablet]}>
+                            <View style={[styles.summaryHeader, isAtLeastTablet && styles.summaryHeaderTablet]}>
+                                <Ionicons name="stats-chart" size={isAtLeastTablet ? 24 : 16} color={COLORS.primary} />
+                                <Text style={[styles.summaryHeaderText, isAtLeastTablet && styles.summaryHeaderTextTablet]}>나의 현황</Text>
                             </View>
-                            <View style={styles.summaryDivider} />
-                            <View style={styles.summaryItem}>
-                                <Text style={styles.summaryLabel}>완료</Text>
-                                <Text style={[styles.summaryValue, { color: '#10B981' }]}>{completedCount}</Text>
-                            </View>
-                            <View style={styles.summaryDivider} />
-                            <View style={styles.summaryItem}>
-                                <Text style={styles.summaryLabel}>재풀이</Text>
-                                <Text style={[styles.summaryValue, { color: '#EF4444' }]}>{inProgressCount}</Text>
-                            </View>
-                            <View style={styles.summaryDivider} />
-                            <View style={styles.summaryItem}>
-                                <Text style={styles.summaryLabel}>미응시</Text>
-                                <Text style={[styles.summaryValue, { color: COLORS.textMuted }]}>
-                                    {totalExams - completedCount - inProgressCount}
-                                </Text>
-                            </View>
-                        </View>
-                    </View>
-                )}
-
-                {exams.length === 0 ? (
-                    <View style={styles.emptyState}>
-                        <View style={styles.emptyIcon}>
-                            <Text style={styles.emptyEmoji}>📋</Text>
-                        </View>
-                        <Typography.Subtitle1 color={COLORS.text} bold>
-                            아직 시험이 없어요
-                        </Typography.Subtitle1>
-                        <Typography.Body2 color={COLORS.textMuted} align="center" style={{ marginTop: 4 }}>
-                            {room?.owner_id === userId ? "첫 번째 모의고사를 등록해보세요" : "아직 등록된 시험이 없습니다"}
-                        </Typography.Body2>
-                        {room?.owner_id === userId && (
-                            <Button
-                                label="시험 만들기"
-                                onPress={() => router.push(`/room/${roomId}/add-exam`)}
-                                style={{ marginTop: SPACING.xl, borderRadius: 16 }}
-                            />
-                        )}
-                    </View>
-                ) : (
-                    Object.entries(groupedExams).map(([subject, subjectExams]) => (
-                        <View key={subject} style={styles.section}>
-                            <View style={styles.sectionHeader}>
-                                <Text style={styles.subjectTitle}>{subject}</Text>
-                                <View style={styles.countBadge}>
-                                    <Text style={styles.countText}>{subjectExams.length}</Text>
+                            <View style={styles.summaryGrid}>
+                                <View style={styles.summaryItem}>
+                                    <Text style={[styles.summaryLabel, isAtLeastTablet && styles.summaryLabelTablet]}>전체</Text>
+                                    <Text style={[styles.summaryValue, isAtLeastTablet && styles.summaryValueTablet]}>{totalExams}</Text>
+                                </View>
+                                <View style={[styles.summaryDivider, isAtLeastTablet && styles.summaryDividerTablet]} />
+                                <View style={styles.summaryItem}>
+                                    <Text style={[styles.summaryLabel, isAtLeastTablet && styles.summaryLabelTablet]}>완료</Text>
+                                    <Text style={[styles.summaryValue, isAtLeastTablet && styles.summaryValueTablet, { color: '#10B981' }]}>{completedCount}</Text>
+                                </View>
+                                <View style={[styles.summaryDivider, isAtLeastTablet && styles.summaryDividerTablet]} />
+                                <View style={styles.summaryItem}>
+                                    <Text style={[styles.summaryLabel, isAtLeastTablet && styles.summaryLabelTablet]}>재풀이</Text>
+                                    <Text style={[styles.summaryValue, isAtLeastTablet && styles.summaryValueTablet, { color: '#EF4444' }]}>{inProgressCount}</Text>
+                                </View>
+                                <View style={[styles.summaryDivider, isAtLeastTablet && styles.summaryDividerTablet]} />
+                                <View style={styles.summaryItem}>
+                                    <Text style={[styles.summaryLabel, isAtLeastTablet && styles.summaryLabelTablet]}>미응시</Text>
+                                    <Text style={[styles.summaryValue, isAtLeastTablet && styles.summaryValueTablet, { color: COLORS.textMuted }]}>
+                                        {totalExams - completedCount - inProgressCount}
+                                    </Text>
                                 </View>
                             </View>
-
-                            <View style={styles.examList}>
-                                {subjectExams.map((item) => {
-                                    const attempt = myAttempts.find(a => a.exam_id === item.id);
-                                    const isCompleted = !!attempt?.ended_at;
-                                    const isInProgress = !!attempt && !attempt.ended_at;
-
-                                    return (
-                                        <Pressable
-                                            key={item.id}
-                                            onPress={() => {
-                                                if (isCompleted) {
-                                                    router.push({ pathname: `/room/${roomId}/analysis` as any, params: { initialExamId: item.id } });
-                                                } else {
-                                                    router.push(`/room/${roomId}/exam/${item.id}/run`);
-                                                }
-                                            }}
-                                            style={({ pressed }) => [
-                                                styles.examCard,
-                                                pressed && styles.examCardPressed
-                                            ]}
-                                        >
-                                            <View style={styles.examMain}>
-                                                <Text style={styles.examTitle} numberOfLines={1}>
-                                                    {getRoomExamDisplayTitle(item.title) || "모의고사"}
-                                                </Text>
-                                                <Text style={styles.examMeta}>
-                                                    {item.total_questions}문항 · {item.total_minutes}분
-                                                </Text>
-                                            </View>
-
-                                            <View style={styles.examRight}>
-                                                {isCompleted ? (
-                                                    <View style={[styles.statusBadge, styles.badgeDone]}>
-                                                        <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-                                                        <Text style={[styles.statusText, styles.textDone]}>완료</Text>
-                                                    </View>
-                                                ) : isInProgress ? (
-                                                    <View style={[styles.statusBadge, styles.badgeRetry]}>
-                                                        <Ionicons name="refresh" size={12} color="#EF4444" />
-                                                        <Text style={[styles.statusText, styles.textRetry]}>재풀이</Text>
-                                                    </View>
-                                                ) : (
-                                                    <View style={[styles.statusBadge, styles.badgePending]}>
-                                                        <Text style={[styles.statusText, styles.textPending]}>미응시</Text>
-                                                    </View>
-                                                )}
-                                                <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
-                                            </View>
-                                        </Pressable>
-                                    );
-                                })}
-                            </View>
                         </View>
-                    ))
-                )}
+                    )}
+
+                    {exams.length === 0 ? (
+                        <View style={styles.emptyState}>
+                            <View style={styles.emptyIcon}>
+                                <Text style={styles.emptyEmoji}>📋</Text>
+                            </View>
+                            <Typography.Subtitle1 color={COLORS.text} bold>
+                                아직 시험이 없어요
+                            </Typography.Subtitle1>
+                            <Typography.Body2 color={COLORS.textMuted} align="center" style={{ marginTop: 4 }}>
+                                {room?.owner_id === userId ? "첫 번째 모의고사를 등록해보세요" : "아직 등록된 시험이 없습니다"}
+                            </Typography.Body2>
+                            {room?.owner_id === userId && (
+                                <Button
+                                    label="시험 만들기"
+                                    onPress={() => router.push(`/room/${roomId}/add-exam`)}
+                                    style={{ marginTop: SPACING.xl, borderRadius: 16 }}
+                                />
+                            )}
+                        </View>
+                    ) : (
+                        Object.entries(groupedExams).map(([subject, subjectExams]) => (
+                            <View key={subject} style={styles.section}>
+                                <View style={[styles.sectionHeader, isAtLeastTablet && styles.sectionHeaderTablet]}>
+                                    <Text style={[styles.subjectTitle, isAtLeastTablet && styles.subjectTitleTablet]}>{subject}</Text>
+                                    <View style={[styles.countBadge, isAtLeastTablet && styles.countBadgeTablet]}>
+                                        <Text style={[styles.countText, isAtLeastTablet && styles.countTextTablet]}>{subjectExams.length}</Text>
+                                    </View>
+                                </View>
+
+                                <View style={styles.examList}>
+                                    {subjectExams.map((item) => {
+                                        const attempt = myAttempts.find(a => a.exam_id === item.id);
+                                        const isCompleted = !!attempt?.ended_at;
+                                        const isInProgress = !!attempt && !attempt.ended_at;
+
+                                        return (
+                                            <Pressable
+                                                key={item.id}
+                                                onPress={() => {
+                                                    if (isCompleted) {
+                                                        router.push({ pathname: `/room/${roomId}/analysis` as any, params: { initialExamId: item.id } });
+                                                    } else {
+                                                        router.push(`/room/${roomId}/exam/${item.id}/run`);
+                                                    }
+                                                }}
+                                                style={({ pressed }) => [
+                                                    styles.examCard,
+                                                    isAtLeastTablet && styles.examCardTablet,
+                                                    pressed && styles.examCardPressed
+                                                ]}
+                                            >
+                                                <View style={styles.examMain}>
+                                                    <Text style={[styles.examTitle, isAtLeastTablet && styles.examTitleTablet]} numberOfLines={1}>
+                                                        {getRoomExamDisplayTitle(item.title) || "모의고사"}
+                                                    </Text>
+                                                    <Text style={[styles.examMeta, isAtLeastTablet && styles.examMetaTablet]}>
+                                                        {item.total_questions}문항 · {item.total_minutes}분
+                                                    </Text>
+                                                </View>
+
+                                                <View style={styles.examRight}>
+                                                    {isCompleted ? (
+                                                        <View style={[styles.statusBadge, isAtLeastTablet && styles.statusBadgeTablet, styles.badgeDone]}>
+                                                            <Ionicons name="checkmark-circle" size={isAtLeastTablet ? 20 : 14} color="#10B981" />
+                                                            <Text style={[styles.statusText, isAtLeastTablet && styles.statusTextTablet, styles.textDone]}>완료</Text>
+                                                        </View>
+                                                    ) : isInProgress ? (
+                                                        <View style={[styles.statusBadge, isAtLeastTablet && styles.statusBadgeTablet, styles.badgeRetry]}>
+                                                            <Ionicons name="refresh" size={isAtLeastTablet ? 18 : 12} color="#EF4444" />
+                                                            <Text style={[styles.statusText, isAtLeastTablet && styles.statusTextTablet, styles.textRetry]}>재풀이</Text>
+                                                        </View>
+                                                    ) : (
+                                                        <View style={[styles.statusBadge, isAtLeastTablet && styles.statusBadgeTablet, styles.badgePending]}>
+                                                            <Text style={[styles.statusText, isAtLeastTablet && styles.statusTextTablet, styles.textPending]}>미응시</Text>
+                                                        </View>
+                                                    )}
+                                                    <Ionicons name="chevron-forward" size={isAtLeastTablet ? 24 : 16} color={COLORS.textMuted} />
+                                                </View>
+                                            </Pressable>
+                                        );
+                                    })}
+                                </View>
+                            </View>
+                        ))
+                    )}
+                </ResponsiveContainer>
             </ScrollView>
         </View>
     );
@@ -265,11 +270,28 @@ const styles = StyleSheet.create({
         borderColor: COLORS.border,
         ...SHADOWS.small,
     },
+    summaryRowTablet: {
+        padding: SPACING.xl * 1.5,
+        borderRadius: RADIUS.xxl,
+    },
     summaryHeader: {
         marginBottom: 16,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
+    },
+    summaryHeaderTablet: {
+        marginBottom: 24,
+        gap: 10,
+    },
+    summaryHeaderText: {
+        fontSize: 12,
+        fontWeight: '800',
+        color: COLORS.primary,
+        textTransform: 'uppercase',
+    },
+    summaryHeaderTextTablet: {
+        fontSize: 18,
     },
     summaryGrid: {
         flexDirection: 'row',
@@ -286,15 +308,25 @@ const styles = StyleSheet.create({
         color: COLORS.textMuted,
         marginBottom: 4,
     },
+    summaryLabelTablet: {
+        fontSize: 14,
+        marginBottom: 4,
+    },
     summaryValue: {
         fontSize: 22,
         fontWeight: '800',
         color: COLORS.text,
     },
+    summaryValueTablet: {
+        fontSize: 32,
+    },
     summaryDivider: {
         width: 1,
         height: 20,
         backgroundColor: COLORS.border,
+    },
+    summaryDividerTablet: {
+        height: 32,
     },
     emptyState: {
         alignItems: 'center',
@@ -321,11 +353,19 @@ const styles = StyleSheet.create({
         marginBottom: 14,
         paddingHorizontal: 4,
     },
+    sectionHeaderTablet: {
+        marginBottom: 24,
+        marginTop: 20,
+    },
     subjectTitle: {
         fontSize: 18,
         fontWeight: '800',
         color: COLORS.text,
         marginRight: 8,
+    },
+    subjectTitleTablet: {
+        fontSize: 22,
+        marginRight: 12,
     },
     countBadge: {
         backgroundColor: COLORS.surfaceVariant,
@@ -333,10 +373,18 @@ const styles = StyleSheet.create({
         paddingVertical: 2,
         borderRadius: 8,
     },
+    countBadgeTablet: {
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
     countText: {
         fontSize: 11,
         color: COLORS.textMuted,
         fontWeight: '700',
+    },
+    countTextTablet: {
+        fontSize: 14,
     },
     examList: {
         gap: 12,
@@ -351,6 +399,11 @@ const styles = StyleSheet.create({
         padding: SPACING.lg,
         ...SHADOWS.small,
     },
+    examCardTablet: {
+        padding: SPACING.xl,
+        borderRadius: RADIUS.xl,
+        gap: 16,
+    },
     examCardPressed: {
         opacity: 0.8,
         transform: [{ scale: 0.98 }],
@@ -364,10 +417,17 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: COLORS.text,
     },
+    examTitleTablet: {
+        fontSize: 20,
+    },
     examMeta: {
         fontSize: 13,
         color: COLORS.textMuted,
         fontWeight: '500',
+    },
+    examMetaTablet: {
+        fontSize: 15,
+        marginTop: 2,
     },
     examRight: {
         flexDirection: 'row',
@@ -382,9 +442,18 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 4,
     },
+    statusBadgeTablet: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 12,
+        gap: 6,
+    },
     statusText: {
         fontSize: 12,
         fontWeight: '700',
+    },
+    statusTextTablet: {
+        fontSize: 14,
     },
     badgeDone: {
         backgroundColor: '#ECFDF5',

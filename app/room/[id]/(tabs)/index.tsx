@@ -140,82 +140,86 @@ export default function RoomHomeScreen() {
             />
 
             <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
-                <ResponsiveContainer>
+                <ResponsiveContainer maxWidth={isAtLeastTablet ? 1200 : 700}>
                     <View style={styles.scrollContent}>
-                        {/* Hero Section */}
-                        <View style={styles.card}>
-                            <TouchableOpacity
-                                style={styles.codeBadge}
-                                onPress={handleCopyCode}
-                                activeOpacity={0.7}
-                            >
-                                <Text style={styles.codeLabelText}>입장코드</Text>
-                                <Text style={styles.codeValueText}>{shortCode}</Text>
-                                <Ionicons name={copied ? "checkmark-circle" : "copy-outline"} size={14} color={COLORS.primary} />
-                            </TouchableOpacity>
-                        </View>
+                        <View style={isAtLeastTablet ? styles.tabletLayout : null}>
+                            {/* Left Column: Info & Stats */}
+                            <View style={isAtLeastTablet ? styles.tabletLeftColumn : null}>
+                                <View style={styles.card}>
+                                    <TouchableOpacity
+                                        style={styles.codeBadge}
+                                        onPress={handleCopyCode}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Text style={styles.codeLabelText}>입장코드</Text>
+                                        <Text style={styles.codeValueText}>{shortCode}</Text>
+                                        <Ionicons name={copied ? "checkmark-circle" : "copy-outline"} size={14} color={COLORS.primary} />
+                                    </TouchableOpacity>
+                                </View>
 
-                        {/* Stats Row */}
-                        <View style={[styles.card, styles.statsRow]}>
-                            <View style={styles.statItem}>
-                                <Text style={styles.statValue}>{visibleSubjects.length}</Text>
-                                <Text style={styles.statLabel}>시험 과목</Text>
+                                <View style={[styles.card, styles.statsRow]}>
+                                    <View style={styles.statItem}>
+                                        <Text style={styles.statValue}>{visibleSubjects.length}</Text>
+                                        <Text style={styles.statLabel}>시험 과목</Text>
+                                    </View>
+                                    <View style={styles.statDivider} />
+                                    <View style={styles.statItem}>
+                                        <Text style={styles.statValue}>{participants.length}</Text>
+                                        <Text style={styles.statLabel}>참여 멤버</Text>
+                                    </View>
+                                </View>
                             </View>
-                            <View style={styles.statDivider} />
-                            <View style={styles.statItem}>
-                                <Text style={styles.statValue}>{participants.length}</Text>
-                                <Text style={styles.statLabel}>참여 멤버</Text>
-                            </View>
-                        </View>
 
-                        {/* Subjects Section */}
-                        <View style={[styles.card, styles.flowSection]}>
-                            <View style={styles.flowHeader}>
-                                <Ionicons name="book-outline" size={18} color={COLORS.textMuted} />
-                                <Text style={styles.flowTitle}>진행 중인 과목</Text>
-                            </View>
-                            <View style={styles.subjectGrid}>
-                                {visibleSubjects.length > 0 ? (
-                                    visibleSubjects.map((s) => (
-                                        <View key={s.id} style={styles.minimalChip}>
-                                            <Text style={styles.minimalChipText}>{s.name}</Text>
-                                        </View>
-                                    ))
-                                ) : (
-                                    <Text style={styles.emptyText}>등록된 과목이 없습니다.</Text>
-                                )}
-                            </View>
-                        </View>
+                            {/* Right Column: Subjects & Members */}
+                            <View style={isAtLeastTablet ? styles.tabletRightColumn : null}>
+                                <View style={[styles.card, styles.flowSection]}>
+                                    <View style={styles.flowHeader}>
+                                        <Ionicons name="book-outline" size={18} color={COLORS.textMuted} />
+                                        <Text style={styles.flowTitle}>진행 중인 과목</Text>
+                                    </View>
+                                    <View style={styles.subjectGrid}>
+                                        {visibleSubjects.length > 0 ? (
+                                            visibleSubjects.map((s) => (
+                                                <View key={s.id} style={styles.minimalChip}>
+                                                    <Text style={styles.minimalChipText}>{s.name}</Text>
+                                                </View>
+                                            ))
+                                        ) : (
+                                            <Text style={styles.emptyText}>등록된 과목이 없습니다.</Text>
+                                        )}
+                                    </View>
+                                </View>
 
-                        {/* Members Section */}
-                        <View style={[styles.card, styles.flowSection, { marginBottom: 0 }]}>
-                            <View style={styles.flowHeader}>
-                                <Ionicons name="people-outline" size={18} color={COLORS.textMuted} />
-                                <Text style={styles.flowTitle}>함께하는 멤버</Text>
-                            </View>
-                            <View style={styles.memberGrid}>
-                                {sortedParticipants.map((p) => {
-                                    const isOwner = p.user_id === room?.owner_id;
-                                    const initial = (p.profile?.display_name || '?').charAt(0).toUpperCase();
+                                <View style={[styles.card, styles.flowSection, { marginBottom: 0 }]}>
+                                    <View style={styles.flowHeader}>
+                                        <Ionicons name="people-outline" size={18} color={COLORS.textMuted} />
+                                        <Text style={styles.flowTitle}>함께하는 멤버</Text>
+                                    </View>
+                                    <View style={styles.memberGrid}>
+                                        {sortedParticipants.map((p) => {
+                                            const isOwner = p.user_id === room?.owner_id;
+                                            const initial = (p.profile?.display_name || '?').charAt(0).toUpperCase();
 
-                                    return (
-                                        <View key={p.user_id} style={[styles.memberGridItem, isAtLeastTablet && styles.memberGridItemTablet]}>
-                                            <View style={[styles.gridAvatar, isOwner && styles.ownerAvatarBorder]}>
-                                                <Text style={[styles.avatarTxt, isOwner && styles.ownerAvatarTxt]}>
-                                                    {initial}
-                                                </Text>
-                                                {isOwner && (
-                                                    <View style={styles.ownerGridBadge}>
-                                                        <Text style={styles.ownerGridBadgeValue}>방장</Text>
+                                            return (
+                                                <View key={p.user_id} style={[styles.memberGridItem, isAtLeastTablet && styles.memberGridItemTablet]}>
+                                                    <View style={[styles.gridAvatar, isOwner && styles.ownerAvatarBorder]}>
+                                                        <Text style={[styles.avatarTxt, isOwner && styles.ownerAvatarTxt]}>
+                                                            {initial}
+                                                        </Text>
+                                                        {isOwner && (
+                                                            <View style={styles.ownerGridBadge}>
+                                                                <Text style={styles.ownerGridBadgeValue}>방장</Text>
+                                                            </View>
+                                                        )}
                                                     </View>
-                                                )}
-                                            </View>
-                                            <Text style={styles.gridMemberName} numberOfLines={1}>
-                                                {p.profile?.display_name || '익명'}
-                                            </Text>
-                                        </View>
-                                    );
-                                })}
+                                                    <Text style={styles.gridMemberName} numberOfLines={1}>
+                                                        {p.profile?.display_name || '익명'}
+                                                    </Text>
+                                                </View>
+                                            );
+                                        })}
+                                    </View>
+                                </View>
                             </View>
                         </View>
                     </View>
@@ -262,6 +266,19 @@ const styles = StyleSheet.create({
     scrollContent: {
         padding: SPACING.lg,
         paddingBottom: 140,
+        gap: SPACING.md,
+    },
+    tabletLayout: {
+        flexDirection: 'row',
+        gap: SPACING.xl,
+        alignItems: 'flex-start',
+    },
+    tabletLeftColumn: {
+        flex: 1,
+        gap: SPACING.md,
+    },
+    tabletRightColumn: {
+        flex: 2,
         gap: SPACING.md,
     },
     card: {

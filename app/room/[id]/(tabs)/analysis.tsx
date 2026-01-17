@@ -2,10 +2,11 @@ import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, TouchableOpacity, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Rect, Stop, Text as SvgText } from "react-native-svg";
 import { Button } from "../../../../components/ui/Button";
 import { Card } from "../../../../components/ui/Card";
+import { ResponsiveContainer, useBreakpoint } from "../../../../components/ui/Layout";
 import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
 import { Section } from "../../../../components/ui/Section";
 import { Typography } from "../../../../components/ui/Typography";
@@ -77,6 +78,7 @@ export default function AnalysisScreen() {
     const { id, initialExamId } = useGlobalSearchParams<{ id: string, initialExamId?: string }>();
     const roomId = Array.isArray(id) ? id[0] : id;
     const { width } = useWindowDimensions();
+    const { isAtLeastTablet } = useBreakpoint();
 
     const [viewMode, setViewMode] = useState<ViewMode>("my_progress");
     const [exams, setExams] = useState<RoomExamRow[]>([]);
@@ -421,6 +423,7 @@ export default function AnalysisScreen() {
                                 <View style={styles.summaryGrid}>
                                     <Card padding="lg" radius="xl" style={[
                                         styles.summaryCard,
+                                        isAtLeastTablet && styles.summaryCardTablet,
                                         stats.improvementFromPrev > 0 ? styles.positiveCard : styles.negativeCard
                                     ]}>
                                         <View style={styles.summaryCardHeader}>
@@ -435,7 +438,7 @@ export default function AnalysisScreen() {
                                         </Typography.H2>
                                         <Typography.Caption color={COLORS.textMuted}>이전 시험 대비</Typography.Caption>
                                     </Card>
-                                    <Card padding="lg" radius="xl" style={styles.summaryCard}>
+                                    <Card padding="lg" radius="xl" style={[styles.summaryCard, isAtLeastTablet && styles.summaryCardTablet]}>
                                         <View style={styles.summaryCardHeader}>
                                             <Ionicons name="flash" size={20} color={COLORS.warning} />
                                         </View>
@@ -492,10 +495,11 @@ export default function AnalysisScreen() {
                                             }}
                                             style={({ pressed }) => [
                                                 styles.historyItem,
+                                                isAtLeastTablet && styles.historyItemTablet,
                                                 pressed && styles.historyItemPressed
                                             ]}
                                         >
-                                            <View style={styles.historyRank}>
+                                            <View style={[styles.historyRank, isAtLeastTablet && styles.historyRankTablet]}>
                                                 <Typography.Caption bold color={COLORS.textMuted}>#{rank}</Typography.Caption>
                                             </View>
                                             <View style={styles.historyContent}>
@@ -504,24 +508,24 @@ export default function AnalysisScreen() {
                                                     {h.date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })} • {h.questions}문항
                                                 </Typography.Caption>
                                             </View>
-                                            <View style={styles.historyStats}>
-                                                <Typography.Subtitle2 bold color={COLORS.primary}>
+                                            <View style={[styles.historyStats, isAtLeastTablet && styles.historyStatsTablet]}>
+                                                <Typography.Subtitle2 bold color={COLORS.primary} style={isAtLeastTablet ? { fontSize: 22 } : undefined}>
                                                     {formatShortDuration(h.val)}
                                                 </Typography.Subtitle2>
                                                 {diff !== null && (
-                                                    <View style={[styles.diffBadge, diff > 0 ? styles.diffPositive : styles.diffNegative]}>
+                                                    <View style={[styles.diffBadge, isAtLeastTablet && styles.diffBadgeTablet, diff > 0 ? styles.diffPositive : styles.diffNegative]}>
                                                         <Ionicons
                                                             name={diff > 0 ? "arrow-down" : "arrow-up"}
-                                                            size={10}
+                                                            size={isAtLeastTablet ? 14 : 10}
                                                             color={diff > 0 ? "#10B981" : COLORS.error}
                                                         />
-                                                        <Typography.Label color={diff > 0 ? "#10B981" : COLORS.error}>
+                                                        <Typography.Label color={diff > 0 ? "#10B981" : COLORS.error} style={isAtLeastTablet ? { fontSize: 14 } : undefined}>
                                                             {Math.abs(Math.round(diff))}%
                                                         </Typography.Label>
                                                     </View>
                                                 )}
                                             </View>
-                                            <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+                                            <Ionicons name="chevron-forward" size={isAtLeastTablet ? 24 : 16} color={COLORS.textMuted} />
                                         </Pressable>
                                     );
                                 })}
@@ -537,9 +541,11 @@ export default function AnalysisScreen() {
     const renderActivityBarChart = () => {
         if (!activityStats) return null;
 
-        const graphWidth = Math.min(width - 72, 500);
-        const graphHeight = 180;
-        const padding = { top: 30, right: 20, bottom: 40, left: 40 };
+        const graphWidth = isAtLeastTablet ? Math.min(width - 120, 800) : Math.min(width - 72, 500);
+        const graphHeight = isAtLeastTablet ? 300 : 180;
+        const padding = isAtLeastTablet
+            ? { top: 40, right: 30, bottom: 60, left: 60 }
+            : { top: 30, right: 20, bottom: 40, left: 40 };
 
         const maxCount = Math.max(...activityStats.dailyCounts.map(d => d.count), 1);
         const barWidth = 24;
@@ -631,9 +637,11 @@ export default function AnalysisScreen() {
 
     // Growth Chart Component
     const renderGrowthChart = (history: { id: string; title: string; date: Date; val: number }[]) => {
-        const graphWidth = Math.min(width - 72, 500);
-        const graphHeight = 180;
-        const padding = { top: 30, right: 20, bottom: 40, left: 50 };
+        const graphWidth = isAtLeastTablet ? Math.min(width - 120, 800) : Math.min(width - 72, 500);
+        const graphHeight = isAtLeastTablet ? 300 : 180;
+        const padding = isAtLeastTablet
+            ? { top: 40, right: 30, bottom: 60, left: 80 }
+            : { top: 30, right: 20, bottom: 40, left: 50 };
 
         const maxVal = Math.max(...history.map(h => h.val));
         const minVal = Math.min(...history.map(h => h.val));
@@ -740,8 +748,8 @@ export default function AnalysisScreen() {
                         {/* Date label */}
                         <SvgText
                             x={p.x}
-                            y={graphHeight - padding.bottom + 16}
-                            fontSize="10"
+                            y={graphHeight - padding.bottom + (isAtLeastTablet ? 24 : 16)}
+                            fontSize={isAtLeastTablet ? 14 : 10}
                             fill={COLORS.textMuted}
                             textAnchor="middle"
                         >
@@ -1258,59 +1266,65 @@ export default function AnalysisScreen() {
                 />
 
                 {/* View Mode Toggle */}
-                <View style={styles.toggleContainer}>
-                    <View style={styles.toggleWrapper}>
-                        <Pressable
-                            onPress={() => setViewMode("my_progress")}
-                            style={[styles.toggleButton, viewMode === "my_progress" && styles.toggleButtonActive]}
-                        >
-                            <Ionicons
-                                name="trending-up"
-                                size={18}
-                                color={viewMode === "my_progress" ? COLORS.primary : COLORS.textMuted}
-                            />
-                            <Typography.Body2
-                                bold
-                                color={viewMode === "my_progress" ? COLORS.text : COLORS.textMuted}
+                <View style={[styles.toggleContainer, isAtLeastTablet && styles.toggleContainerTablet]}>
+                    <ResponsiveContainer maxWidth={isAtLeastTablet ? 600 : undefined}>
+                        <View style={[styles.toggleWrapper, isAtLeastTablet && styles.toggleWrapperTablet]}>
+                            <Pressable
+                                onPress={() => setViewMode("my_progress")}
+                                style={[styles.toggleButton, isAtLeastTablet && styles.toggleButtonTablet, viewMode === "my_progress" && styles.toggleButtonActive]}
                             >
-                                나의 성장
-                            </Typography.Body2>
-                        </Pressable>
-                        <Pressable
-                            onPress={() => setViewMode("exam_analysis")}
-                            style={[styles.toggleButton, viewMode === "exam_analysis" && styles.toggleButtonActive]}
-                        >
-                            <Ionicons
-                                name="people"
-                                size={18}
-                                color={viewMode === "exam_analysis" ? COLORS.primary : COLORS.textMuted}
-                            />
-                            <Typography.Body2
-                                bold
-                                color={viewMode === "exam_analysis" ? COLORS.text : COLORS.textMuted}
+                                <Ionicons
+                                    name="trending-up"
+                                    size={isAtLeastTablet ? 24 : 18}
+                                    color={viewMode === "my_progress" ? COLORS.primary : COLORS.textMuted}
+                                />
+                                <Text style={[
+                                    styles.toggleText,
+                                    isAtLeastTablet && styles.toggleTextTablet,
+                                    viewMode === "my_progress" ? styles.toggleTextActive : styles.toggleTextInactive
+                                ]}>
+                                    나의 성장
+                                </Text>
+                            </Pressable>
+                            <Pressable
+                                onPress={() => setViewMode("exam_analysis")}
+                                style={[styles.toggleButton, isAtLeastTablet && styles.toggleButtonTablet, viewMode === "exam_analysis" && styles.toggleButtonActive]}
                             >
-                                시험 분석
-                            </Typography.Body2>
-                        </Pressable>
-                    </View>
+                                <Ionicons
+                                    name="people"
+                                    size={isAtLeastTablet ? 24 : 18}
+                                    color={viewMode === "exam_analysis" ? COLORS.primary : COLORS.textMuted}
+                                />
+                                <Text style={[
+                                    styles.toggleText,
+                                    isAtLeastTablet && styles.toggleTextTablet,
+                                    viewMode === "exam_analysis" ? styles.toggleTextActive : styles.toggleTextInactive
+                                ]}>
+                                    시험 분석
+                                </Text>
+                            </Pressable>
+                        </View>
+                    </ResponsiveContainer>
                 </View>
 
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                    {exams.length === 0 ? (
-                        <View style={styles.emptyContainer}>
-                            <View style={styles.emptyIconBox}>
-                                <Ionicons name="layers-outline" size={48} color={COLORS.textMuted} />
+                    <ResponsiveContainer maxWidth={isAtLeastTablet ? 1200 : 800}>
+                        {exams.length === 0 ? (
+                            <View style={styles.emptyContainer}>
+                                <View style={styles.emptyIconBox}>
+                                    <Ionicons name="layers-outline" size={48} color={COLORS.textMuted} />
+                                </View>
+                                <Typography.H3 align="center" color={COLORS.text} bold style={{ marginTop: SPACING.lg }}>
+                                    아직 시험이 없어요
+                                </Typography.H3>
+                                <Typography.Body2 align="center" color={COLORS.textMuted} style={{ marginTop: SPACING.sm }}>
+                                    시험이 등록되면 이곳에서{"\n"}분석 결과를 확인할 수 있어요
+                                </Typography.Body2>
                             </View>
-                            <Typography.H3 align="center" color={COLORS.text} bold style={{ marginTop: SPACING.lg }}>
-                                아직 시험이 없어요
-                            </Typography.H3>
-                            <Typography.Body2 align="center" color={COLORS.textMuted} style={{ marginTop: SPACING.sm }}>
-                                시험이 등록되면 이곳에서{"\n"}분석 결과를 확인할 수 있어요
-                            </Typography.Body2>
-                        </View>
-                    ) : (
-                        viewMode === "my_progress" ? renderMyProgressView() : renderExamAnalysisView()
-                    )}
+                        ) : (
+                            viewMode === "my_progress" ? renderMyProgressView() : renderExamAnalysisView()
+                        )}
+                    </ResponsiveContainer>
                 </ScrollView>
             </View>
 
@@ -1433,6 +1447,11 @@ const styles = StyleSheet.create({
         paddingHorizontal: SPACING.lg,
         paddingBottom: SPACING.md,
     },
+    toggleContainerTablet: {
+        paddingTop: SPACING.md,
+        paddingBottom: SPACING.xl,
+        alignItems: 'center',
+    },
     toggleWrapper: {
         flexDirection: 'row',
         backgroundColor: COLORS.surface,
@@ -1442,6 +1461,10 @@ const styles = StyleSheet.create({
         borderColor: COLORS.border,
         ...SHADOWS.small,
     },
+    toggleWrapperTablet: {
+        padding: 6,
+        borderRadius: RADIUS.xxl,
+    },
     toggleButton: {
         flex: 1,
         flexDirection: 'row',
@@ -1450,6 +1473,24 @@ const styles = StyleSheet.create({
         gap: SPACING.xs,
         paddingVertical: 12,
         borderRadius: RADIUS.lg,
+    },
+    toggleButtonTablet: {
+        paddingVertical: 16,
+        gap: SPACING.sm,
+        borderRadius: RADIUS.xl,
+    },
+    toggleText: {
+        fontSize: 14,
+        fontWeight: '700',
+    },
+    toggleTextTablet: {
+        fontSize: 16,
+    },
+    toggleTextActive: {
+        color: COLORS.text,
+    },
+    toggleTextInactive: {
+        color: COLORS.textMuted,
     },
     toggleButtonActive: {
         backgroundColor: COLORS.bg,
@@ -1618,6 +1659,10 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.surface,
         ...SHADOWS.small,
     },
+    summaryCardTablet: {
+        padding: SPACING.xl,
+        borderRadius: RADIUS.xxl,
+    },
     positiveCard: {
         backgroundColor: '#ECFDF5',
         borderColor: '#A7F3D0',
@@ -1647,6 +1692,20 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: COLORS.border,
     },
+    historyItemTablet: {
+        paddingVertical: SPACING.lg,
+        paddingHorizontal: SPACING.xl,
+        borderRadius: RADIUS.xl,
+        gap: SPACING.lg,
+    },
+    historyStatsTablet: {
+        gap: 8,
+    },
+    diffBadgeTablet: {
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 10,
+    },
     historyItemPressed: {
         backgroundColor: COLORS.surfaceVariant,
     },
@@ -1657,6 +1716,11 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.surfaceVariant,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    historyRankTablet: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
     },
     historyContent: {
         flex: 1,

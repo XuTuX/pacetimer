@@ -191,7 +191,7 @@ export default function TimerScreen() {
             >
                 {/* PAGE 0: 과목 선택 (2열 그리드) */}
                 <View key="0" style={styles.page}>
-                    <ResponsiveContainer>
+                    <ResponsiveContainer maxWidth={1000}>
                         <View style={styles.headerRow}>
                             <TouchableOpacity onPress={() => router.back()} style={styles.headerCircleBtn}>
                                 <Ionicons name="close" size={22} color={COLORS.text} />
@@ -234,7 +234,7 @@ export default function TimerScreen() {
 
                 {/* PAGE 1: 메인 타이머 */}
                 <View key="1" style={styles.page}>
-                    <ResponsiveContainer>
+                    <ResponsiveContainer maxWidth={1000}>
                         <View style={styles.headerRow}>
                             <TouchableOpacity onPress={() => router.back()} style={styles.headerCircleBtn}>
                                 <Ionicons name="close" size={22} color={COLORS.text} />
@@ -279,7 +279,7 @@ export default function TimerScreen() {
 
                 {/* PAGE 2: 문제 기록 (세로로 길게) */}
                 <View key="2" style={[styles.page, { backgroundColor: COLORS.white }]}>
-                    <ResponsiveContainer>
+                    <ResponsiveContainer maxWidth={1000}>
                         <View style={styles.headerRow}>
                             <TouchableOpacity onPress={handleStopQuestionTracking} style={styles.headerCircleBtn}>
                                 <Ionicons name="chevron-back" size={22} color={COLORS.text} />
@@ -354,7 +354,14 @@ const styles = StyleSheet.create({
     cleanSubjectTitle: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
     cleanSubjectText: { ...TYPOGRAPHY.h2, color: COLORS.text },
     timerWrapper: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    timerMainText: { fontSize: 88, fontWeight: '900', color: COLORS.text, fontVariant: ['tabular-nums'], letterSpacing: -3, marginBottom: 60 },
+    timerMainText: {
+        fontSize: 88,
+        fontWeight: '900',
+        color: COLORS.text,
+        fontVariant: ['tabular-nums'],
+        letterSpacing: -3,
+        marginBottom: 60
+    },
     mainActionGroup: { alignItems: 'center', width: '100%' },
     compactCircleBtn: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', ...SHADOWS.medium },
     bottomFinishBtn: { marginTop: 120, padding: SPACING.lg },

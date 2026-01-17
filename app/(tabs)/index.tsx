@@ -111,75 +111,82 @@ export default function HomeScreen() {
                 align="left"
             />
 
-            <ResponsiveContainer>
-                <View style={styles.content}>
-                    <Card variant="elevated" style={[styles.mainCard, isAtLeastTablet && styles.mainCardTablet]}>
-
-                        <SproutVisual totalMinutes={totalMinutes} />
-                        <View style={styles.timeContainer}>
-                            <ThemedText variant="h1" style={styles.timeText}>{formatTime(totalMs)}</ThemedText>
+            <ResponsiveContainer maxWidth={isAtLeastTablet ? 1200 : 600}>
+                <View style={[styles.content, isAtLeastTablet && styles.contentTablet]}>
+                    <View style={isAtLeastTablet ? styles.tabletRow : null}>
+                        {/* Left Side: Timer & Sprout */}
+                        <View style={isAtLeastTablet ? styles.tabletLeftColumn : null}>
+                            <Card variant="elevated" style={[styles.mainCard, isAtLeastTablet && styles.mainCardTablet]}>
+                                <SproutVisual totalMinutes={totalMinutes} />
+                                <View style={styles.timeContainer}>
+                                    <ThemedText variant="h1" style={styles.timeText}>{formatTime(totalMs)}</ThemedText>
+                                </View>
+                            </Card>
                         </View>
-                    </Card>
 
-                    <View style={styles.centerContent}>
-                        <SubjectSelector
-                            subjects={subjects}
-                            activeSubjectId={activeSubjectId}
-                            setActiveSubjectId={setActiveSubjectId}
-                            addSubject={addSubject}
-                            updateSubject={updateSubject}
-                            deleteSubject={deleteSubject}
-                            isModalVisible={isModalVisible}
-                            setModalVisible={setModalVisible}
-                        />
-                    </View>
+                        {/* Right Side: Subjects & Actions */}
+                        <View style={isAtLeastTablet ? styles.tabletRightColumn : null}>
+                            <View style={[styles.centerContent, isAtLeastTablet && styles.centerContentTablet]}>
+                                <SubjectSelector
+                                    subjects={subjects}
+                                    activeSubjectId={activeSubjectId}
+                                    setActiveSubjectId={setActiveSubjectId}
+                                    addSubject={addSubject}
+                                    updateSubject={updateSubject}
+                                    deleteSubject={deleteSubject}
+                                    isModalVisible={isModalVisible}
+                                    setModalVisible={setModalVisible}
+                                />
+                            </View>
 
-                    <View style={styles.bottomActions}>
-                        <Button
-                            label={stopwatch.isRunning ? "집중 이어가기" : "집중 시작"}
-                            icon={stopwatch.isRunning ? "pause" : "play"}
-                            size="lg"
-                            style={styles.startBtn}
-                            disabled={!activeSubjectId && !stopwatch.isRunning}
-                            onPress={() => {
-                                if (stopwatch.isRunning) router.push('/timer');
-                                else if (activeSubjectId) router.push('/timer');
-                                else {
-                                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                                    setModalVisible(true);
-                                }
-                            }}
-                        />
+                            <View style={[styles.bottomActions, isAtLeastTablet && styles.bottomActionsTablet]}>
+                                <Button
+                                    label={stopwatch.isRunning ? "집중 이어가기" : "집중 시작"}
+                                    icon={stopwatch.isRunning ? "pause" : "play"}
+                                    size="lg"
+                                    style={styles.startBtn}
+                                    disabled={!activeSubjectId && !stopwatch.isRunning}
+                                    onPress={() => {
+                                        if (stopwatch.isRunning) router.push('/timer');
+                                        else if (activeSubjectId) router.push('/timer');
+                                        else {
+                                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                                            setModalVisible(true);
+                                        }
+                                    }}
+                                />
 
-                        <TouchableOpacity
-                            style={[
-                                styles.mockExamBtn,
-                                activeSubjectId ? styles.mockExamActive : null
-                            ]}
-                            onPress={() => {
-                                if (activeSubjectId) {
-                                    router.push('/modes/mock-exam/setup');
-                                } else {
-                                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                                    setModalVisible(true);
-                                }
-                            }}
-                            activeOpacity={0.8}
-                        >
-                            <Ionicons
-                                name="document-text-outline"
-                                size={24}
-                                color={activeSubjectId ? COLORS.primary : COLORS.textMuted}
-                            />
-                            <ThemedText
-                                style={[
-                                    styles.mockExamText,
-                                    activeSubjectId && { color: COLORS.primaryDark }
-                                ]}
-                            >
-                                모의고사
-                            </ThemedText>
-                        </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.mockExamBtn,
+                                        activeSubjectId ? styles.mockExamActive : null
+                                    ]}
+                                    onPress={() => {
+                                        if (activeSubjectId) {
+                                            router.push('/modes/mock-exam/setup');
+                                        } else {
+                                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                                            setModalVisible(true);
+                                        }
+                                    }}
+                                    activeOpacity={0.8}
+                                >
+                                    <Ionicons
+                                        name="document-text-outline"
+                                        size={24}
+                                        color={activeSubjectId ? COLORS.primary : COLORS.textMuted}
+                                    />
+                                    <ThemedText
+                                        style={[
+                                            styles.mockExamText,
+                                            activeSubjectId && { color: COLORS.primaryDark }
+                                        ]}
+                                    >
+                                        모의고사
+                                    </ThemedText>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
                     </View>
                 </View>
             </ResponsiveContainer>
@@ -198,6 +205,22 @@ const styles = StyleSheet.create({
         paddingHorizontal: SPACING.xxl,
         paddingBottom: 20,
     },
+    contentTablet: {
+        paddingTop: SPACING.xl,
+        paddingHorizontal: 0, // ResponsiveContainer handles padding
+    },
+    tabletRow: {
+        flexDirection: 'row',
+        gap: SPACING.massive,
+        alignItems: 'flex-start',
+    },
+    tabletLeftColumn: {
+        flex: 1.2,
+    },
+    tabletRightColumn: {
+        flex: 1,
+        gap: SPACING.xl,
+    },
     mainCard: {
         height: height * 0.38,
         alignItems: 'center',
@@ -206,13 +229,17 @@ const styles = StyleSheet.create({
         paddingBottom: SPACING.lg,
     },
     mainCardTablet: {
-        height: 400,
-        marginTop: SPACING.xl,
+        height: 500,
+        marginTop: 0,
     },
 
     centerContent: {
         flex: 1,
         justifyContent: 'center',
+    },
+    centerContentTablet: {
+        flex: 0,
+        marginVertical: 0,
     },
     timeContainer: {
         alignItems: 'center',
@@ -233,6 +260,10 @@ const styles = StyleSheet.create({
         marginBottom: SPACING.xl,
         gap: SPACING.md,
         alignItems: 'center',
+    },
+    bottomActionsTablet: {
+        marginTop: SPACING.xl,
+        marginBottom: 0,
     },
     startBtn: {
         flex: 3,

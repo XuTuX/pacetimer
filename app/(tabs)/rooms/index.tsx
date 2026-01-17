@@ -6,7 +6,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View }
 import { RoomCard } from "../../../components/rooms/RoomCard";
 import { Button } from "../../../components/ui/Button";
 import { HeaderSettings } from "../../../components/ui/HeaderSettings";
-import { Grid, ResponsiveContainer } from "../../../components/ui/Layout";
+import { Grid, ResponsiveContainer, useBreakpoint } from "../../../components/ui/Layout";
 import { ScreenHeader } from "../../../components/ui/ScreenHeader";
 import { ThemedText } from "../../../components/ui/ThemedText";
 import type { Database } from "../../../lib/db-types";
@@ -26,6 +26,7 @@ export default function RoomsIndexScreen() {
     const supabase = useSupabase();
     const router = useRouter();
     const { isLoaded, userId } = useAuth();
+    const { isAtLeastTablet } = useBreakpoint();
 
     const [rooms, setRooms] = useState<RoomWithDetails[]>([]);
     const [roomIdInput, setRoomIdInput] = useState("");
@@ -154,8 +155,8 @@ export default function RoomsIndexScreen() {
             />
 
             <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-                <ResponsiveContainer>
-                    <View style={styles.content}>
+                <ResponsiveContainer maxWidth={isAtLeastTablet ? 1200 : 800}>
+                    <View style={[styles.content, isAtLeastTablet && styles.contentTablet]}>
                         {/* Search Bar Section */}
                         <View style={styles.searchSection}>
                             <ThemedText style={styles.sectionTitle}>참여하기</ThemedText>
@@ -213,7 +214,7 @@ export default function RoomsIndexScreen() {
                                     />
                                 </View>
                             ) : (
-                                <Grid columns={{ phone: 1, tablet: 2, largeTablet: 2 }}>
+                                <Grid columns={{ phone: 1, tablet: 2, largeTablet: 3 }} gap={isAtLeastTablet ? SPACING.xl * 1.5 : SPACING.md}>
                                     {rooms.map((room) => (
                                         <RoomCard
                                             key={room.id}
@@ -252,6 +253,9 @@ const styles = StyleSheet.create({
     content: {
         padding: SPACING.lg,
         paddingBottom: 40,
+    },
+    contentTablet: {
+        paddingTop: SPACING.xl,
     },
     searchSection: {
         marginBottom: SPACING.xl,

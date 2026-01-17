@@ -37,10 +37,11 @@ export const ResponsiveContainer: React.FC<ContainerProps> = ({
     children,
     style,
     contentContainerStyle,
-    maxWidth = LAYOUT.maxWidth,
+    maxWidth,
     withPadding = true
 }) => {
     const { isAtLeastTablet } = useBreakpoint();
+    const defaultMaxWidth = LAYOUT.maxWidth;
 
     return (
         <View style={[{
@@ -50,7 +51,7 @@ export const ResponsiveContainer: React.FC<ContainerProps> = ({
         }, style]}>
             <View style={[{
                 width: '100%',
-                maxWidth: isAtLeastTablet ? maxWidth : undefined,
+                maxWidth: isAtLeastTablet ? (maxWidth ?? defaultMaxWidth) : undefined,
                 paddingHorizontal: isAtLeastTablet && withPadding ? LAYOUT.tabletPadding : (withPadding ? SPACING.lg : 0),
                 flex: 1,
             }, contentContainerStyle]}>

@@ -138,7 +138,7 @@ export const SHADOWS = {
 
 export const BREAKPOINTS = {
     phone: 0,
-    tablet: 768,
+    tablet: 700,
     largeTablet: 1024,
 };
 
