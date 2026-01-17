@@ -271,7 +271,8 @@ const styles = StyleSheet.create({
         ...SHADOWS.small,
     },
     summaryRowTablet: {
-        padding: SPACING.xl * 1.5,
+        paddingVertical: SPACING.xl,
+        paddingHorizontal: SPACING.xl * 1.2,
         borderRadius: RADIUS.xxl,
     },
     summaryHeader: {
@@ -400,7 +401,8 @@ const styles = StyleSheet.create({
         ...SHADOWS.small,
     },
     examCardTablet: {
-        padding: SPACING.xl,
+        paddingVertical: 18,
+        paddingHorizontal: SPACING.xl,
         borderRadius: RADIUS.xl,
         gap: 16,
     },

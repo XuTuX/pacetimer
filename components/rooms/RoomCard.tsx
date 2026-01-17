@@ -142,9 +142,9 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     contentTablet: {
-        paddingVertical: 24,
+        paddingVertical: 18,
         paddingHorizontal: 20,
-        gap: 12,
+        gap: 8,
     },
     header: {
         flexDirection: 'row',
@@ -171,9 +171,9 @@ const styles = StyleSheet.create({
         ...SHADOWS.small,
     },
     badgeTablet: {
-        minWidth: 32,
-        height: 32,
-        borderRadius: 16,
+        minWidth: 28,
+        height: 28,
+        borderRadius: 14,
         paddingHorizontal: 8,
     },
     badgeText: {
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
         marginTop: 2,
     },
     metaRowTablet: {
-        marginTop: 6,
+        marginTop: 4,
         gap: 30,
     },
     desc: {
