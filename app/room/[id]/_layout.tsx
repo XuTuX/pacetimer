@@ -12,6 +12,7 @@ export default function RoomRootLayout() {
             }}
         >
             <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="settings" options={{ presentation: "modal" }} />
             <Stack.Screen name="add-exam" options={{ presentation: "modal" }} />
             <Stack.Screen name="exam/[examId]/index" />
             <Stack.Screen name="exam/[examId]/run" />

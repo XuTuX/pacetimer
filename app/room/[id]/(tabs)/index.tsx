@@ -119,12 +119,20 @@ export default function RoomHomeScreen() {
                 showBack={false}
                 align="left"
                 rightElement={
-                    <TouchableOpacity
-                        onPress={() => router.replace('/(tabs)/rooms')}
-                        style={styles.closeBtn}
-                    >
-                        <Ionicons name="close" size={24} color={COLORS.text} />
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', gap: 4 }}>
+                        <TouchableOpacity
+                            onPress={() => router.replace('/(tabs)/rooms')}
+                            style={styles.closeBtn}
+                        >
+                            <Ionicons name="apps-outline" size={24} color={COLORS.text} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => router.push(`/room/${roomId}/settings`)}
+                            style={styles.closeBtn}
+                        >
+                            <Ionicons name="settings-outline" size={22} color={COLORS.text} />
+                        </TouchableOpacity>
+                    </View>
                 }
             />
 

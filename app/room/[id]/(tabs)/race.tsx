@@ -94,14 +94,22 @@ export default function RaceScreen() {
                 showBack={false}
                 align="left"
                 rightElement={
-                    room?.owner_id === userId && (
+                    <View style={{ flexDirection: 'row', gap: 4 }}>
+                        {room?.owner_id === userId && (
+                            <TouchableOpacity
+                                onPress={() => router.push(`/room/${roomId}/add-exam`)}
+                                style={styles.addBtn}
+                            >
+                                <Ionicons name="add" size={26} color={COLORS.text} />
+                            </TouchableOpacity>
+                        )}
                         <TouchableOpacity
-                            onPress={() => router.push(`/room/${roomId}/add-exam`)}
+                            onPress={() => router.push(`/room/${roomId}/settings`)}
                             style={styles.addBtn}
                         >
-                            <Ionicons name="add" size={26} color={COLORS.text} />
+                            <Ionicons name="settings-outline" size={22} color={COLORS.text} />
                         </TouchableOpacity>
-                    )
+                    </View>
                 }
             />
 

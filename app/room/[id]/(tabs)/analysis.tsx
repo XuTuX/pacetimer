@@ -2,7 +2,7 @@ import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Rect, Stop, Text as SvgText } from "react-native-svg";
 import { Button } from "../../../../components/ui/Button";
 import { Card } from "../../../../components/ui/Card";
@@ -1243,7 +1243,19 @@ export default function AnalysisScreen() {
     return (
         <>
             <View style={styles.container}>
-                <ScreenHeader title="분석" showBack={false} align="left" />
+                <ScreenHeader
+                    title="분석"
+                    showBack={false}
+                    align="left"
+                    rightElement={
+                        <TouchableOpacity
+                            onPress={() => router.push(`/room/${roomId}/settings`)}
+                            style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
+                        >
+                            <Ionicons name="settings-outline" size={22} color={COLORS.text} />
+                        </TouchableOpacity>
+                    }
+                />
 
                 {/* View Mode Toggle */}
                 <View style={styles.toggleContainer}>
