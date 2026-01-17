@@ -9,6 +9,7 @@ import SubjectSelector from '../../components/SubjectSelector';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { HeaderSettings } from '../../components/ui/HeaderSettings';
+import { ResponsiveContainer, useBreakpoint } from '../../components/ui/Layout';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { ThemedText } from '../../components/ui/ThemedText';
 import { useAppStore } from '../../lib/store';
@@ -21,6 +22,8 @@ const { height } = Dimensions.get('window');
 
 export default function HomeScreen() {
     const router = useRouter();
+    const { isAtLeastTablet } = useBreakpoint();
+
     const {
         subjects,
         addSubject,
@@ -108,75 +111,78 @@ export default function HomeScreen() {
                 align="left"
             />
 
-            <View style={styles.content}>
-                <Card variant="elevated" style={styles.mainCard}>
-                    <SproutVisual totalMinutes={totalMinutes} />
-                    <View style={styles.timeContainer}>
-                        <ThemedText variant="h1" style={styles.timeText}>{formatTime(totalMs)}</ThemedText>
-                    </View>
-                </Card>
+            <ResponsiveContainer>
+                <View style={styles.content}>
+                    <Card variant="elevated" style={[styles.mainCard, isAtLeastTablet && styles.mainCardTablet]}>
 
-                <View style={styles.centerContent}>
-                    <SubjectSelector
-                        subjects={subjects}
-                        activeSubjectId={activeSubjectId}
-                        setActiveSubjectId={setActiveSubjectId}
-                        addSubject={addSubject}
-                        updateSubject={updateSubject}
-                        deleteSubject={deleteSubject}
-                        isModalVisible={isModalVisible}
-                        setModalVisible={setModalVisible}
-                    />
-                </View>
+                        <SproutVisual totalMinutes={totalMinutes} />
+                        <View style={styles.timeContainer}>
+                            <ThemedText variant="h1" style={styles.timeText}>{formatTime(totalMs)}</ThemedText>
+                        </View>
+                    </Card>
 
-                <View style={styles.bottomActions}>
-                    <Button
-                        label={stopwatch.isRunning ? "집중 이어가기" : "집중 시작"}
-                        icon={stopwatch.isRunning ? "pause" : "play"}
-                        size="lg"
-                        style={styles.startBtn}
-                        disabled={!activeSubjectId && !stopwatch.isRunning}
-                        onPress={() => {
-                            if (stopwatch.isRunning) router.push('/timer');
-                            else if (activeSubjectId) router.push('/timer');
-                            else {
-                                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                                setModalVisible(true);
-                            }
-                        }}
-                    />
-
-                    <TouchableOpacity
-                        style={[
-                            styles.mockExamBtn,
-                            activeSubjectId ? styles.mockExamActive : null
-                        ]}
-                        onPress={() => {
-                            if (activeSubjectId) {
-                                router.push('/modes/mock-exam/setup');
-                            } else {
-                                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                                setModalVisible(true);
-                            }
-                        }}
-                        activeOpacity={0.8}
-                    >
-                        <Ionicons
-                            name="document-text-outline"
-                            size={24}
-                            color={activeSubjectId ? COLORS.primary : COLORS.textMuted}
+                    <View style={styles.centerContent}>
+                        <SubjectSelector
+                            subjects={subjects}
+                            activeSubjectId={activeSubjectId}
+                            setActiveSubjectId={setActiveSubjectId}
+                            addSubject={addSubject}
+                            updateSubject={updateSubject}
+                            deleteSubject={deleteSubject}
+                            isModalVisible={isModalVisible}
+                            setModalVisible={setModalVisible}
                         />
-                        <ThemedText
+                    </View>
+
+                    <View style={styles.bottomActions}>
+                        <Button
+                            label={stopwatch.isRunning ? "집중 이어가기" : "집중 시작"}
+                            icon={stopwatch.isRunning ? "pause" : "play"}
+                            size="lg"
+                            style={styles.startBtn}
+                            disabled={!activeSubjectId && !stopwatch.isRunning}
+                            onPress={() => {
+                                if (stopwatch.isRunning) router.push('/timer');
+                                else if (activeSubjectId) router.push('/timer');
+                                else {
+                                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                                    setModalVisible(true);
+                                }
+                            }}
+                        />
+
+                        <TouchableOpacity
                             style={[
-                                styles.mockExamText,
-                                activeSubjectId && { color: COLORS.primaryDark }
+                                styles.mockExamBtn,
+                                activeSubjectId ? styles.mockExamActive : null
                             ]}
+                            onPress={() => {
+                                if (activeSubjectId) {
+                                    router.push('/modes/mock-exam/setup');
+                                } else {
+                                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                                    setModalVisible(true);
+                                }
+                            }}
+                            activeOpacity={0.8}
                         >
-                            모의고사
-                        </ThemedText>
-                    </TouchableOpacity>
+                            <Ionicons
+                                name="document-text-outline"
+                                size={24}
+                                color={activeSubjectId ? COLORS.primary : COLORS.textMuted}
+                            />
+                            <ThemedText
+                                style={[
+                                    styles.mockExamText,
+                                    activeSubjectId && { color: COLORS.primaryDark }
+                                ]}
+                            >
+                                모의고사
+                            </ThemedText>
+                        </TouchableOpacity>
+                    </View>
                 </View>
-            </View>
+            </ResponsiveContainer>
 
         </View>
     );
@@ -199,6 +205,11 @@ const styles = StyleSheet.create({
         marginTop: SPACING.md,
         paddingBottom: SPACING.lg,
     },
+    mainCardTablet: {
+        height: 400,
+        marginTop: SPACING.xl,
+    },
+
     centerContent: {
         flex: 1,
         justifyContent: 'center',

@@ -18,6 +18,7 @@ import {
     View
 } from 'react-native';
 import { Card } from '../components/ui/Card';
+import { ResponsiveContainer } from '../components/ui/Layout';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { ThemedText } from '../components/ui/ThemedText';
 import { useAppStore } from '../lib/store';
@@ -171,80 +172,82 @@ export default function SettingsScreen() {
             <ScreenHeader title="설정" onBack={() => router.back()} />
 
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-                {/* Profile Section */}
-                <View style={styles.profileSection}>
-                    <View style={styles.avatar}>
-                        <Ionicons name="person" size={32} color={COLORS.primary} />
-                    </View>
-                    <View style={styles.profileInfo}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                            <ThemedText variant="h3">{nickname || '사용자'}</ThemedText>
-                            <TouchableOpacity onPress={() => setNicknameModalVisible(true)} hitSlop={10}>
-                                <Ionicons name="pencil" size={16} color={COLORS.textMuted} />
-                            </TouchableOpacity>
+                <ResponsiveContainer withPadding={false}>
+                    <View style={{ paddingTop: 10, paddingBottom: 60 }}>
+                        {/* Profile Section */}
+                        <View style={styles.profileSection}>
+                            <View style={styles.avatar}>
+                                <Ionicons name="person" size={32} color={COLORS.primary} />
+                            </View>
+                            <View style={styles.profileInfo}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                    <ThemedText variant="h3">{nickname || '사용자'}</ThemedText>
+                                    <TouchableOpacity onPress={() => setNicknameModalVisible(true)} hitSlop={10}>
+                                        <Ionicons name="pencil" size={16} color={COLORS.textMuted} />
+                                    </TouchableOpacity>
+                                </View>
+                                <ThemedText variant="caption" color={COLORS.textMuted}>{user?.primaryEmailAddress?.emailAddress}</ThemedText>
+                            </View>
                         </View>
-                        <ThemedText variant="caption" color={COLORS.textMuted}>{user?.primaryEmailAddress?.emailAddress}</ThemedText>
+
+                        {/* Account Section */}
+                        <Card style={styles.menuCard} padding="none">
+                            <SettingItem
+                                icon="person-outline"
+                                label="닉네임 변경"
+                                value={nickname}
+                                onPress={() => setNicknameModalVisible(true)}
+                            />
+                            <View style={styles.divider} />
+                            <SettingItem
+                                icon="book-outline"
+                                label="과목 관리"
+                                onPress={() => router.push('/subjects/manage')}
+                            />
+                        </Card>
+
+                        {/* Support Section */}
+                        <View style={styles.sectionSpacer} />
+                        <Card style={styles.menuCard} padding="none">
+                            <SettingItem
+                                icon="document-text-outline"
+                                label="서비스 이용약관"
+                                onPress={() => WebBrowser.openBrowserAsync("https://narrow-parrot-7ce.notion.site/11-57-3-2e90ac852a17804fbbdbde3119997a51?pvs=73")}
+                            />
+                            <View style={styles.divider} />
+                            <SettingItem
+                                icon="shield-checkmark-outline"
+                                label="개인정보 처리방침"
+                                onPress={() => WebBrowser.openBrowserAsync("https://narrow-parrot-7ce.notion.site/11-57-3-2e90ac852a17804fbbdbde3119997a51?pvs=73")}
+                            />
+                            <View style={styles.divider} />
+                            <SettingItem icon="information-circle-outline" label="버전 정보" showArrow={false} />
+                            <View style={styles.divider} />
+                            <View style={styles.versionRow}>
+                                <ThemedText variant="body2" color={COLORS.textMuted}>현재 버전</ThemedText>
+                                <ThemedText variant="body2" color={COLORS.textMuted}>1.0.0</ThemedText>
+                            </View>
+                        </Card>
+
+                        {/* Danger Zone */}
+                        <View style={styles.sectionSpacer} />
+                        <Card style={styles.menuCard} padding="none">
+                            <SettingItem
+                                icon="log-out-outline"
+                                label="로그아웃"
+                                color={COLORS.text}
+                                onPress={handleSignOut}
+                            />
+                            <View style={styles.divider} />
+                            <SettingItem
+                                icon="trash-outline"
+                                label="회원 탈퇴"
+                                color={COLORS.error}
+                                onPress={handleDeleteAccount}
+                            />
+                        </Card>
                     </View>
-                </View>
-
-                {/* Account Section */}
-                <Card style={styles.menuCard} padding="none">
-                    <SettingItem
-                        icon="person-outline"
-                        label="닉네임 변경"
-                        value={nickname}
-                        onPress={() => setNicknameModalVisible(true)}
-                    />
-                    <View style={styles.divider} />
-                    <SettingItem
-                        icon="book-outline"
-                        label="과목 관리"
-                        onPress={() => router.push('/subjects/manage')}
-                    />
-                </Card>
-
-                {/* Support Section */}
-                <View style={styles.sectionSpacer} />
-                <Card style={styles.menuCard} padding="none">
-                    <SettingItem
-                        icon="document-text-outline"
-                        label="서비스 이용약관"
-                        onPress={() => WebBrowser.openBrowserAsync("https://narrow-parrot-7ce.notion.site/11-57-3-2e90ac852a17804fbbdbde3119997a51?pvs=73")}
-                    />
-                    <View style={styles.divider} />
-                    <SettingItem
-                        icon="shield-checkmark-outline"
-                        label="개인정보 처리방침"
-                        onPress={() => WebBrowser.openBrowserAsync("https://narrow-parrot-7ce.notion.site/11-57-3-2e90ac852a17804fbbdbde3119997a51?pvs=73")}
-                    />
-                    <View style={styles.divider} />
-                    <SettingItem icon="information-circle-outline" label="버전 정보" showArrow={false} />
-                    <View style={styles.divider} />
-                    <View style={styles.versionRow}>
-                        <ThemedText variant="body2" color={COLORS.textMuted}>현재 버전</ThemedText>
-                        <ThemedText variant="body2" color={COLORS.textMuted}>1.0.0</ThemedText>
-                    </View>
-                </Card>
-
-                {/* Danger Zone */}
-                <View style={styles.sectionSpacer} />
-                <Card style={styles.menuCard} padding="none">
-                    <SettingItem
-                        icon="log-out-outline"
-                        label="로그아웃"
-                        color={COLORS.text}
-                        onPress={handleSignOut}
-                    />
-                    <View style={styles.divider} />
-                    <SettingItem
-                        icon="trash-outline"
-                        label="회원 탈퇴"
-                        color={COLORS.error}
-                        onPress={handleDeleteAccount}
-                    />
-                </Card>
-
-                <View style={{ height: 60 }} />
+                </ResponsiveContainer>
             </ScrollView>
 
             {/* Nickname Edit Modal */}

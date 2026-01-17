@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DayDetail from '../../components/history/DayDetail';
 import SessionDetail from '../../components/history/SessionDetail';
 import { HeaderSettings } from '../../components/ui/HeaderSettings';
+import { ResponsiveContainer, useBreakpoint } from '../../components/ui/Layout';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { buildRecordsIndex } from '../../lib/recordsIndex';
 import { useAppStore } from '../../lib/store';
@@ -30,7 +31,9 @@ LocaleConfig.defaultLocale = 'kr';
 export default function HistoryScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
+    const { isAtLeastTablet } = useBreakpoint();
     const { subjects, sessions, segments, questionRecords } = useAppStore();
+
     const [nowMs, setNowMs] = useState(Date.now());
     const params = useLocalSearchParams<{ date?: string }>();
     const [selectedDate, setSelectedDate] = useState(() => params.date || getStudyDateKey(Date.now()));
@@ -185,141 +188,143 @@ export default function HistoryScreen() {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
             >
-                <View style={styles.historyWrapper}>
-                    <View style={styles.calendarContainer}>
-                        <Calendar
-                            key={calendarKey}
-                            current={visibleMonth}
-                            onMonthChange={(month: { dateString: string }) => setVisibleMonth(month.dateString)}
-                            monthFormat={'yyyy년 MM월'}
-                            markingType={'custom'}
-                            markedDates={markedDates}
-                            minDate={minDate}
-                            disableArrowLeft={!canGoPrev}
+                <ResponsiveContainer>
+                    <View style={[styles.historyWrapper, isAtLeastTablet && styles.historyWrapperTablet]}>
+                        <View style={[styles.calendarContainer, isAtLeastTablet && styles.calendarContainerTablet]}>
+                            <Calendar
+                                key={calendarKey}
+                                current={visibleMonth}
+                                onMonthChange={(month: { dateString: string }) => setVisibleMonth(month.dateString)}
+                                monthFormat={'yyyy년 MM월'}
+                                markingType={'custom'}
+                                markedDates={markedDates}
+                                minDate={minDate}
+                                disableArrowLeft={!canGoPrev}
 
-                            // [수정] 커스텀 Day 컴포넌트: isHeavy 플래그에 따라 점 색상 변경
-                            dayComponent={({ date, marking, state }: any) => {
-                                const isSelected = marking?.isSelected;
-                                const isHeavy = marking?.isHeavy; // [NEW] 배경이 어두운지 확인
+                                // [수정] 커스텀 Day 컴포넌트: isHeavy 플래그에 따라 점 색상 변경
+                                dayComponent={({ date, marking, state }: any) => {
+                                    const isSelected = marking?.isSelected;
+                                    const isHeavy = marking?.isHeavy; // [NEW] 배경이 어두운지 확인
 
-                                const containerStyle = marking?.customStyles?.container || {};
-                                const textStyle = marking?.customStyles?.text || {};
+                                    const containerStyle = marking?.customStyles?.container || {};
+                                    const textStyle = marking?.customStyles?.text || {};
 
-                                const isDisabled = state === 'disabled';
-                                const defaultTextColor = isDisabled ? '#d9e1e8' : COLORS.text;
-                                const textColor = textStyle.color || defaultTextColor;
+                                    const isDisabled = state === 'disabled';
+                                    const defaultTextColor = isDisabled ? '#d9e1e8' : COLORS.text;
+                                    const textColor = textStyle.color || defaultTextColor;
 
-                                ;
+                                    ;
 
-                                if (!date) return <View style={{ width: 38 }} />;
+                                    if (!date) return <View style={{ width: 38 }} />;
 
-                                return (
-                                    <TouchableOpacity
-                                        onPress={() => {
-                                            if (!isDisabled && date?.dateString) {
-                                                setSelectedDate(date.dateString);
-                                                setVisibleMonth(date.dateString);
-                                            }
-                                        }}
-                                        activeOpacity={0.7}
-                                        style={[
-                                            containerStyle,
-                                            {
-                                                width: 38,
-                                                height: 38,
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                            }
-                                        ]}
-                                    >
-                                        {/* 선택 표시 점 (Dot) */}
-                                        {isSelected && (
-                                            <View style={{
-                                                position: 'absolute',
-                                                top: 4,
-                                                width: 5,
-                                                height: 5,
-                                                borderRadius: 2.5,
-                                                backgroundColor: COLORS.dot, // [NEW] 동적 색상 적용
-                                            }} />
-                                        )}
+                                    return (
+                                        <TouchableOpacity
+                                            onPress={() => {
+                                                if (!isDisabled && date?.dateString) {
+                                                    setSelectedDate(date.dateString);
+                                                    setVisibleMonth(date.dateString);
+                                                }
+                                            }}
+                                            activeOpacity={0.7}
+                                            style={[
+                                                containerStyle,
+                                                {
+                                                    width: 38,
+                                                    height: 38,
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                }
+                                            ]}
+                                        >
+                                            {/* 선택 표시 점 (Dot) */}
+                                            {isSelected && (
+                                                <View style={{
+                                                    position: 'absolute',
+                                                    top: 4,
+                                                    width: 5,
+                                                    height: 5,
+                                                    borderRadius: 2.5,
+                                                    backgroundColor: COLORS.dot, // [NEW] 동적 색상 적용
+                                                }} />
+                                            )}
 
-                                        <Text style={[
-                                            { fontSize: 15, fontWeight: '600', color: textColor },
-                                            textStyle
-                                        ]}>
-                                            {date.day}
-                                        </Text>
-                                    </TouchableOpacity>
-                                );
-                            }}
+                                            <Text style={[
+                                                { fontSize: 15, fontWeight: '600', color: textColor },
+                                                textStyle
+                                            ]}>
+                                                {date.day}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                }}
 
-                            theme={{
-                                todayTextColor: COLORS.text,
-                                arrowColor: COLORS.text,
-                                textSectionTitleColor: '#666666',
-                                textDayHeaderFontWeight: '700',
-                                textDayHeaderFontSize: 13,
-                                textMonthFontWeight: '800',
-                                textMonthFontSize: 20,
-                                textDayFontWeight: '600',
-                                textDayFontSize: 15,
-                                dayTextColor: COLORS.text,
-                                calendarBackground: 'transparent',
-                                // @ts-ignore
-                                'stylesheet.calendar.header': {
-                                    header: {
-                                        flexDirection: 'row',
-                                        justifyContent: 'space-between',
-                                        paddingHorizontal: 10,
-                                        alignItems: 'center',
-                                        marginBottom: 20,
-                                        marginTop: 10,
+                                theme={{
+                                    todayTextColor: COLORS.text,
+                                    arrowColor: COLORS.text,
+                                    textSectionTitleColor: '#666666',
+                                    textDayHeaderFontWeight: '700',
+                                    textDayHeaderFontSize: 13,
+                                    textMonthFontWeight: '800',
+                                    textMonthFontSize: 20,
+                                    textDayFontWeight: '600',
+                                    textDayFontSize: 15,
+                                    dayTextColor: COLORS.text,
+                                    calendarBackground: 'transparent',
+                                    // @ts-ignore
+                                    'stylesheet.calendar.header': {
+                                        header: {
+                                            flexDirection: 'row',
+                                            justifyContent: 'space-between',
+                                            paddingHorizontal: 10,
+                                            alignItems: 'center',
+                                            marginBottom: 20,
+                                            marginTop: 10,
+                                        },
+                                        monthText: {
+                                            fontSize: 22,
+                                            fontWeight: '800',
+                                            color: COLORS.text,
+                                        },
+                                        week: {
+                                            marginTop: 10,
+                                            flexDirection: 'row',
+                                            justifyContent: 'space-around',
+                                            paddingBottom: 10,
+                                            borderBottomWidth: 1,
+                                            borderBottomColor: '#F0F0F0',
+                                            marginBottom: 10,
+                                        }
                                     },
-                                    monthText: {
-                                        fontSize: 22,
-                                        fontWeight: '800',
-                                        color: COLORS.text,
-                                    },
-                                    week: {
-                                        marginTop: 10,
-                                        flexDirection: 'row',
-                                        justifyContent: 'space-around',
-                                        paddingBottom: 10,
-                                        borderBottomWidth: 1,
-                                        borderBottomColor: '#F0F0F0',
-                                        marginBottom: 10,
-                                    }
-                                },
-                            }}
-                            enableSwipeMonths={true}
-                        />
+                                }}
+                                enableSwipeMonths={true}
+                            />
 
-                        {/* 히트맵 범례 */}
-                        <View style={styles.heatmapLegend}>
-                            <Text style={styles.legendLabel}>3시간 이내</Text>
-                            <View style={styles.legendSteps}>
-                                <View style={[styles.legendBox, { backgroundColor: COLORS.primary + '33' }]} />
-                                <View style={[styles.legendBox, { backgroundColor: COLORS.primary + '99' }]} />
-                                <View style={[styles.legendBox, { backgroundColor: COLORS.primary }]} />
+                            {/* 히트맵 범례 */}
+                            <View style={styles.heatmapLegend}>
+                                <Text style={styles.legendLabel}>3시간 이내</Text>
+                                <View style={styles.legendSteps}>
+                                    <View style={[styles.legendBox, { backgroundColor: COLORS.primary + '33' }]} />
+                                    <View style={[styles.legendBox, { backgroundColor: COLORS.primary + '99' }]} />
+                                    <View style={[styles.legendBox, { backgroundColor: COLORS.primary }]} />
+                                </View>
+                                <Text style={styles.legendLabel}>6시간 이상</Text>
                             </View>
-                            <Text style={styles.legendLabel}>6시간 이상</Text>
+                        </View>
+
+                        {isAtLeastTablet ? null : <View style={styles.divider} />}
+
+                        <View style={[styles.listContainer, isAtLeastTablet && styles.listContainerTablet]}>
+                            <DayDetail
+                                date={selectedDate}
+                                nowMs={nowMs}
+                                sessions={index.sessionsByDate[selectedDate] ?? []}
+                                sessionStatsById={index.sessionStatsById}
+                                subjectsById={subjectsById}
+                                onOpenSession={(sessionId) => setSelectedSessionId(sessionId)}
+                            />
                         </View>
                     </View>
-
-                    <View style={styles.divider} />
-
-                    <View style={styles.listContainer}>
-                        <DayDetail
-                            date={selectedDate}
-                            nowMs={nowMs}
-                            sessions={index.sessionsByDate[selectedDate] ?? []}
-                            sessionStatsById={index.sessionStatsById}
-                            subjectsById={subjectsById}
-                            onOpenSession={(sessionId) => setSelectedSessionId(sessionId)}
-                        />
-                    </View>
-                </View>
+                </ResponsiveContainer>
             </ScrollView>
 
             {/* Session Detail Modal */}
@@ -389,5 +394,21 @@ const styles = StyleSheet.create({
     listContainer: {
         paddingHorizontal: 24,
         minHeight: 300,
-    }
+    },
+    // Tablet Styles
+    historyWrapperTablet: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        paddingTop: 20,
+    },
+    calendarContainerTablet: {
+        flex: 1.2,
+        paddingHorizontal: 12,
+        marginBottom: 0,
+    },
+    listContainerTablet: {
+        flex: 1,
+        paddingHorizontal: 24,
+        minHeight: 500,
+    },
 });

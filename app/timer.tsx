@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Animated, AppState, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Grid, ResponsiveContainer } from '../components/ui/Layout';
 import { useAppStore } from '../lib/store';
 import { COLORS, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../lib/theme';
 
@@ -190,126 +191,134 @@ export default function TimerScreen() {
             >
                 {/* PAGE 0: 과목 선택 (2열 그리드) */}
                 <View key="0" style={styles.page}>
-                    <View style={styles.headerRow}>
-                        <TouchableOpacity onPress={() => router.back()} style={styles.headerCircleBtn}>
-                            <Ionicons name="close" size={22} color={COLORS.text} />
-                        </TouchableOpacity>
-                        <View style={styles.dotIndicator}>
-                            <View style={[styles.dot, currentPage === 0 && styles.dotActive]} />
-                            <View style={[styles.dot, currentPage === 1 && styles.dotActive]} />
-                            <View style={[styles.dot, currentPage === 2 && styles.dotActive]} />
+                    <ResponsiveContainer>
+                        <View style={styles.headerRow}>
+                            <TouchableOpacity onPress={() => router.back()} style={styles.headerCircleBtn}>
+                                <Ionicons name="close" size={22} color={COLORS.text} />
+                            </TouchableOpacity>
+                            <View style={styles.dotIndicator}>
+                                <View style={[styles.dot, currentPage === 0 && styles.dotActive]} />
+                                <View style={[styles.dot, currentPage === 1 && styles.dotActive]} />
+                                <View style={[styles.dot, currentPage === 2 && styles.dotActive]} />
+                            </View>
+                            <View style={{ width: 44 }} />
                         </View>
-                        <View style={{ width: 44 }} />
-                    </View>
 
-                    <View style={styles.titleGroup}>
-                        <Text style={styles.preTitle}>START STUDY</Text>
-                        <Text style={styles.mainTitle}>과목 변경</Text>
-                    </View>
+                        <View style={styles.titleGroup}>
+                            <Text style={styles.preTitle}>START STUDY</Text>
+                            <Text style={styles.mainTitle}>과목 변경</Text>
+                        </View>
 
-                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.gridContainer}>
-                        {subjects.filter(s => !s.isArchived).map(s => {
-                            const isActive = activeSubjectId === s.id;
-                            return (
-                                <TouchableOpacity
-                                    key={s.id}
-                                    style={[styles.gridItem, isActive && styles.gridItemActive]}
-                                    onPress={() => handleSubjectSelect(s.id)}
-                                >
-                                    <View style={[styles.gridIconBox, isActive && styles.gridIconBoxActive]}>
-                                        <Ionicons name="book" size={20} color={isActive ? COLORS.white : COLORS.textMuted} />
-                                    </View>
-                                    <Text style={[styles.gridText, isActive && styles.gridTextActive]} numberOfLines={1}>{s.name}</Text>
-                                    {isActive && <View style={styles.gridCheck}><Ionicons name="checkmark-circle" size={18} color={COLORS.primary} /></View>}
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </ScrollView>
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            <Grid columns={{ phone: 2, tablet: 3, largeTablet: 4 }} gap={SPACING.md}>
+                                {subjects.filter(s => !s.isArchived).map(s => {
+                                    const isActive = activeSubjectId === s.id;
+                                    return (
+                                        <TouchableOpacity
+                                            key={s.id}
+                                            style={[styles.gridItem, isActive && styles.gridItemActive]}
+                                            onPress={() => handleSubjectSelect(s.id)}
+                                        >
+                                            <View style={[styles.gridIconBox, isActive && styles.gridIconBoxActive]}>
+                                                <Ionicons name="book" size={20} color={isActive ? COLORS.white : COLORS.textMuted} />
+                                            </View>
+                                            <Text style={[styles.gridText, isActive && styles.gridTextActive]} numberOfLines={1}>{s.name}</Text>
+                                            {isActive && <View style={styles.gridCheck}><Ionicons name="checkmark-circle" size={18} color={COLORS.primary} /></View>}
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </Grid>
+                        </ScrollView>
+                    </ResponsiveContainer>
                 </View>
 
                 {/* PAGE 1: 메인 타이머 */}
                 <View key="1" style={styles.page}>
-                    <View style={styles.headerRow}>
-                        <TouchableOpacity onPress={() => router.back()} style={styles.headerCircleBtn}>
-                            <Ionicons name="close" size={22} color={COLORS.text} />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => pagerRef.current?.setPage(0)} style={styles.cleanSubjectTitle}>
-                            <Text style={styles.cleanSubjectText}>{selectedSubjectName}</Text>
-                            <Ionicons name="chevron-down" size={18} color={COLORS.primary} />
-                        </TouchableOpacity>
-                        <View style={styles.dotIndicator}>
-                            <View style={[styles.dot, currentPage === 0 && styles.dotActive]} />
-                            <View style={[styles.dot, currentPage === 1 && styles.dotActive]} />
-                            <View style={[styles.dot, currentPage === 2 && styles.dotActive]} />
+                    <ResponsiveContainer>
+                        <View style={styles.headerRow}>
+                            <TouchableOpacity onPress={() => router.back()} style={styles.headerCircleBtn}>
+                                <Ionicons name="close" size={22} color={COLORS.text} />
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => pagerRef.current?.setPage(0)} style={styles.cleanSubjectTitle}>
+                                <Text style={styles.cleanSubjectText}>{selectedSubjectName}</Text>
+                                <Ionicons name="chevron-down" size={18} color={COLORS.primary} />
+                            </TouchableOpacity>
+                            <View style={styles.dotIndicator}>
+                                <View style={[styles.dot, currentPage === 0 && styles.dotActive]} />
+                                <View style={[styles.dot, currentPage === 1 && styles.dotActive]} />
+                                <View style={[styles.dot, currentPage === 2 && styles.dotActive]} />
+                            </View>
                         </View>
-                    </View>
 
-                    <View style={styles.timerWrapper}>
-                        <Text style={styles.timerMainText} numberOfLines={1} adjustsFontSizeToFit>{formatTime(totalElapsedMs)}</Text>
+                        <View style={styles.timerWrapper}>
+                            <Text style={styles.timerMainText} numberOfLines={1} adjustsFontSizeToFit>{formatTime(totalElapsedMs)}</Text>
 
-                        <View style={styles.mainActionGroup}>
-                            <TouchableOpacity
-                                activeOpacity={0.8}
-                                onPress={() => {
-                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                    stopwatch.isRunning ? pauseStopwatch() : startStopwatch();
-                                }}
-                            >
-                                <LinearGradient
-                                    colors={stopwatch.isRunning ? COLORS.gradientDark : COLORS.gradientPrimary}
-                                    style={styles.compactCircleBtn}
+                            <View style={styles.mainActionGroup}>
+                                <TouchableOpacity
+                                    activeOpacity={0.8}
+                                    onPress={() => {
+                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                        stopwatch.isRunning ? pauseStopwatch() : startStopwatch();
+                                    }}
                                 >
-                                    <Ionicons name={stopwatch.isRunning ? "pause" : "play"} size={32} color={COLORS.white} style={!stopwatch.isRunning && { marginLeft: 4 }} />
-                                </LinearGradient>
-                            </TouchableOpacity>
+                                    <LinearGradient
+                                        colors={stopwatch.isRunning ? COLORS.gradientDark : COLORS.gradientPrimary}
+                                        style={styles.compactCircleBtn}
+                                    >
+                                        <Ionicons name={stopwatch.isRunning ? "pause" : "play"} size={32} color={COLORS.white} style={!stopwatch.isRunning && { marginLeft: 4 }} />
+                                    </LinearGradient>
+                                </TouchableOpacity>
 
-                            <TouchableOpacity style={styles.bottomFinishBtn} onPress={handleFinishStudy}>
-                                <Text style={styles.bottomFinishText}>공부 종료</Text>
-                            </TouchableOpacity>
+                                <TouchableOpacity style={styles.bottomFinishBtn} onPress={handleFinishStudy}>
+                                    <Text style={styles.bottomFinishText}>공부 종료</Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
-                    </View>
+                    </ResponsiveContainer>
                 </View>
 
                 {/* PAGE 2: 문제 기록 (세로로 길게) */}
                 <View key="2" style={[styles.page, { backgroundColor: COLORS.white }]}>
-                    <View style={styles.headerRow}>
-                        <TouchableOpacity onPress={handleStopQuestionTracking} style={styles.headerCircleBtn}>
-                            <Ionicons name="chevron-back" size={22} color={COLORS.text} />
-                        </TouchableOpacity>
-                        <Text style={styles.largeHeaderSubject}>{selectedSubjectName}</Text>
-                        <View style={styles.dotIndicator}>
-                            <View style={[styles.dot, currentPage === 0 && styles.dotActive]} />
-                            <View style={[styles.dot, currentPage === 1 && styles.dotActive]} />
-                            <View style={[styles.dot, currentPage === 2 && styles.dotActive]} />
-                        </View>
-                    </View>
-
-                    <View style={styles.trackerContainer}>
-                        <Pressable style={styles.tallTouchArea} onPress={handleLapTap}>
-                            <Animated.View style={[styles.tallLapCard, { backgroundColor: animatedBgColor }]}>
-                                <Text style={styles.lapQuestionNo}>{questionNo}번째 문제</Text>
-                                <Text style={styles.lapTimerBig} numberOfLines={1} adjustsFontSizeToFit>{formatLapTime(lapElapsed)}</Text>
-                                <View style={styles.tapGuide}>
-                                    <Text style={styles.tapGuideText}>화면 어디든 탭하여 다음 문제</Text>
-                                </View>
-                            </Animated.View>
-                        </Pressable>
-
-                        <View style={styles.trackerActions}>
-                            <TouchableOpacity
-                                style={[styles.undoBtn, questionNo <= 1 && { opacity: 0.3 }]}
-                                onPress={handleUndoLast}
-                                disabled={questionNo <= 1}
-                            >
-                                <Ionicons name="refresh" size={16} color={COLORS.text} />
-                                <Text style={styles.undoBtnText}>기록 취소</Text>
+                    <ResponsiveContainer>
+                        <View style={styles.headerRow}>
+                            <TouchableOpacity onPress={handleStopQuestionTracking} style={styles.headerCircleBtn}>
+                                <Ionicons name="chevron-back" size={22} color={COLORS.text} />
                             </TouchableOpacity>
-
-                            <TouchableOpacity style={styles.linkStopBtn} onPress={handleStopQuestionTracking}>
-                                <Text style={styles.linkStopBtnText}>문제 기록 중단</Text>
-                            </TouchableOpacity>
+                            <Text style={styles.largeHeaderSubject}>{selectedSubjectName}</Text>
+                            <View style={styles.dotIndicator}>
+                                <View style={[styles.dot, currentPage === 0 && styles.dotActive]} />
+                                <View style={[styles.dot, currentPage === 1 && styles.dotActive]} />
+                                <View style={[styles.dot, currentPage === 2 && styles.dotActive]} />
+                            </View>
                         </View>
-                    </View>
+
+                        <View style={styles.trackerContainer}>
+                            <Pressable style={styles.tallTouchArea} onPress={handleLapTap}>
+                                <Animated.View style={[styles.tallLapCard, { backgroundColor: animatedBgColor }]}>
+                                    <Text style={styles.lapQuestionNo}>{questionNo}번째 문제</Text>
+                                    <Text style={styles.lapTimerBig} numberOfLines={1} adjustsFontSizeToFit>{formatLapTime(lapElapsed)}</Text>
+                                    <View style={styles.tapGuide}>
+                                        <Text style={styles.tapGuideText}>화면 어디든 탭하여 다음 문제</Text>
+                                    </View>
+                                </Animated.View>
+                            </Pressable>
+
+                            <View style={styles.trackerActions}>
+                                <TouchableOpacity
+                                    style={[styles.undoBtn, questionNo <= 1 && { opacity: 0.3 }]}
+                                    onPress={handleUndoLast}
+                                    disabled={questionNo <= 1}
+                                >
+                                    <Ionicons name="refresh" size={16} color={COLORS.text} />
+                                    <Text style={styles.undoBtnText}>기록 취소</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity style={styles.linkStopBtn} onPress={handleStopQuestionTracking}>
+                                    <Text style={styles.linkStopBtnText}>문제 기록 중단</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </ResponsiveContainer>
                 </View>
             </PagerView>
         </SafeAreaView>

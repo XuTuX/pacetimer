@@ -6,6 +6,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View }
 import { RoomCard } from "../../../components/rooms/RoomCard";
 import { Button } from "../../../components/ui/Button";
 import { HeaderSettings } from "../../../components/ui/HeaderSettings";
+import { Grid, ResponsiveContainer } from "../../../components/ui/Layout";
 import { ScreenHeader } from "../../../components/ui/ScreenHeader";
 import { ThemedText } from "../../../components/ui/ThemedText";
 import type { Database } from "../../../lib/db-types";
@@ -152,77 +153,81 @@ export default function RoomsIndexScreen() {
                 align="left"
             />
 
-            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-                {/* Search Bar Section */}
-                <View style={styles.searchSection}>
-                    <ThemedText style={styles.sectionTitle}>참여하기</ThemedText>
-                    <View style={styles.searchBar}>
-                        <Ionicons name="search" size={18} color={COLORS.textMuted} />
-                        <TextInput
-                            value={roomIdInput}
-                            onChangeText={setRoomIdInput}
-                            placeholder="참여 코드 입력"
-                            placeholderTextColor={COLORS.textMuted}
-                            autoCapitalize="none"
-                            autoCorrect={false}
-                            style={styles.searchInput}
-                            onSubmitEditing={handleJoin}
-                        />
-                        {roomIdInput.length > 0 && (
-                            <Pressable onPress={handleJoin} disabled={joining} style={styles.searchBtn}>
-                                {joining ? (
-                                    <ActivityIndicator size="small" color={COLORS.white} />
-                                ) : (
-                                    <Ionicons name="arrow-forward" size={18} color={COLORS.white} />
-                                )}
-                            </Pressable>
-                        )}
-                    </View>
-
-                    {error && (
-                        <View style={styles.errorBanner}>
-                            <Ionicons name="alert-circle" size={14} color={COLORS.error} />
-                            <ThemedText variant="caption" color={COLORS.error}>{error}</ThemedText>
-                        </View>
-                    )}
-                </View>
-
-                {/* List Section */}
-                <View style={styles.listSection}>
-                    <ThemedText style={styles.sectionTitle}>스터디 목록 {rooms.length}</ThemedText>
-                    {loading && <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 20 }} />}
-
-                    {hasLoadedOnce && rooms.length === 0 ? (
-                        <View style={styles.emptyState}>
-                            <View style={styles.emptyIcon}>
-                                <Ionicons name="people-outline" size={32} color={COLORS.textMuted} />
-                            </View>
-                            <ThemedText variant="subtitle1" style={styles.emptyTitle}>
-                                참여 중인 스터디가 없어요
-                            </ThemedText>
-                            <ThemedText variant="body2" color={COLORS.textMuted} align="center" style={styles.emptyDesc}>
-                                참여 코드로 스터디에 입장하거나{"\n"}새로운 스터디를 만들어보세요
-                            </ThemedText>
-                            <Button
-                                label="스터디 만들기"
-                                onPress={() => router.push("/(tabs)/rooms/create")}
-                                style={styles.emptyBtn}
-                            />
-                        </View>
-                    ) : (
-                        <View style={styles.roomList}>
-                            {rooms.map((room) => (
-                                <RoomCard
-                                    key={room.id}
-                                    room={room}
-                                    onPress={() => router.push(`/room/${room.id}`)}
-                                    participantCount={room.room_members?.[0]?.count}
-                                    unsolvedCount={room.unsolved_count}
+            <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <ResponsiveContainer>
+                    <View style={styles.content}>
+                        {/* Search Bar Section */}
+                        <View style={styles.searchSection}>
+                            <ThemedText style={styles.sectionTitle}>참여하기</ThemedText>
+                            <View style={styles.searchBar}>
+                                <Ionicons name="search" size={18} color={COLORS.textMuted} />
+                                <TextInput
+                                    value={roomIdInput}
+                                    onChangeText={setRoomIdInput}
+                                    placeholder="참여 코드 입력"
+                                    placeholderTextColor={COLORS.textMuted}
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                    style={styles.searchInput}
+                                    onSubmitEditing={handleJoin}
                                 />
-                            ))}
+                                {roomIdInput.length > 0 && (
+                                    <Pressable onPress={handleJoin} disabled={joining} style={styles.searchBtn}>
+                                        {joining ? (
+                                            <ActivityIndicator size="small" color={COLORS.white} />
+                                        ) : (
+                                            <Ionicons name="arrow-forward" size={18} color={COLORS.white} />
+                                        )}
+                                    </Pressable>
+                                )}
+                            </View>
+
+                            {error && (
+                                <View style={styles.errorBanner}>
+                                    <Ionicons name="alert-circle" size={14} color={COLORS.error} />
+                                    <ThemedText variant="caption" color={COLORS.error}>{error}</ThemedText>
+                                </View>
+                            )}
                         </View>
-                    )}
-                </View>
+
+                        {/* List Section */}
+                        <View style={styles.listSection}>
+                            <ThemedText style={styles.sectionTitle}>스터디 목록 {rooms.length}</ThemedText>
+                            {loading && <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 20 }} />}
+
+                            {hasLoadedOnce && rooms.length === 0 ? (
+                                <View style={styles.emptyState}>
+                                    <View style={styles.emptyIcon}>
+                                        <Ionicons name="people-outline" size={32} color={COLORS.textMuted} />
+                                    </View>
+                                    <ThemedText variant="subtitle1" style={styles.emptyTitle}>
+                                        참여 중인 스터디가 없어요
+                                    </ThemedText>
+                                    <ThemedText variant="body2" color={COLORS.textMuted} align="center" style={styles.emptyDesc}>
+                                        참여 코드로 스터디에 입장하거나{"\n"}새로운 스터디를 만들어보세요
+                                    </ThemedText>
+                                    <Button
+                                        label="스터디 만들기"
+                                        onPress={() => router.push("/(tabs)/rooms/create")}
+                                        style={styles.emptyBtn}
+                                    />
+                                </View>
+                            ) : (
+                                <Grid columns={{ phone: 1, tablet: 2, largeTablet: 2 }}>
+                                    {rooms.map((room) => (
+                                        <RoomCard
+                                            key={room.id}
+                                            room={room}
+                                            onPress={() => router.push(`/room/${room.id}`)}
+                                            participantCount={room.room_members?.[0]?.count}
+                                            unsolvedCount={room.unsolved_count}
+                                        />
+                                    ))}
+                                </Grid>
+                            )}
+                        </View>
+                    </View>
+                </ResponsiveContainer>
             </ScrollView>
         </View>
     );

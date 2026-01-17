@@ -4,6 +4,7 @@ import { useFocusEffect, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Clipboard, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Button } from "../../../../components/ui/Button";
+import { ResponsiveContainer, useBreakpoint } from "../../../../components/ui/Layout";
 import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
 import { Typography } from "../../../../components/ui/Typography";
 import type { Database } from "../../../../lib/db-types";
@@ -26,7 +27,9 @@ export default function RoomHomeScreen() {
     const supabase = useSupabase();
     const router = useRouter();
     const { userId } = useAuth();
+    const { isAtLeastTablet } = useBreakpoint();
     const { id } = useGlobalSearchParams<{ id: string }>();
+
     const roomId = Array.isArray(id) ? id[0] : id;
 
     const [room, setRoom] = useState<RoomRow | null>(null);
@@ -136,83 +139,87 @@ export default function RoomHomeScreen() {
                 }
             />
 
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                {/* Hero Section */}
-                <View style={styles.card}>
-                    <TouchableOpacity
-                        style={styles.codeBadge}
-                        onPress={handleCopyCode}
-                        activeOpacity={0.7}
-                    >
-                        <Text style={styles.codeLabelText}>입장코드</Text>
-                        <Text style={styles.codeValueText}>{shortCode}</Text>
-                        <Ionicons name={copied ? "checkmark-circle" : "copy-outline"} size={14} color={COLORS.primary} />
-                    </TouchableOpacity>
-                </View>
+            <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
+                <ResponsiveContainer>
+                    <View style={styles.scrollContent}>
+                        {/* Hero Section */}
+                        <View style={styles.card}>
+                            <TouchableOpacity
+                                style={styles.codeBadge}
+                                onPress={handleCopyCode}
+                                activeOpacity={0.7}
+                            >
+                                <Text style={styles.codeLabelText}>입장코드</Text>
+                                <Text style={styles.codeValueText}>{shortCode}</Text>
+                                <Ionicons name={copied ? "checkmark-circle" : "copy-outline"} size={14} color={COLORS.primary} />
+                            </TouchableOpacity>
+                        </View>
 
-                {/* Stats Row */}
-                <View style={[styles.card, styles.statsRow]}>
-                    <View style={styles.statItem}>
-                        <Text style={styles.statValue}>{visibleSubjects.length}</Text>
-                        <Text style={styles.statLabel}>시험 과목</Text>
-                    </View>
-                    <View style={styles.statDivider} />
-                    <View style={styles.statItem}>
-                        <Text style={styles.statValue}>{participants.length}</Text>
-                        <Text style={styles.statLabel}>참여 멤버</Text>
-                    </View>
-                </View>
+                        {/* Stats Row */}
+                        <View style={[styles.card, styles.statsRow]}>
+                            <View style={styles.statItem}>
+                                <Text style={styles.statValue}>{visibleSubjects.length}</Text>
+                                <Text style={styles.statLabel}>시험 과목</Text>
+                            </View>
+                            <View style={styles.statDivider} />
+                            <View style={styles.statItem}>
+                                <Text style={styles.statValue}>{participants.length}</Text>
+                                <Text style={styles.statLabel}>참여 멤버</Text>
+                            </View>
+                        </View>
 
-                {/* Subjects Section */}
-                <View style={[styles.card, styles.flowSection]}>
-                    <View style={styles.flowHeader}>
-                        <Ionicons name="book-outline" size={18} color={COLORS.textMuted} />
-                        <Text style={styles.flowTitle}>진행 중인 과목</Text>
-                    </View>
-                    <View style={styles.subjectGrid}>
-                        {visibleSubjects.length > 0 ? (
-                            visibleSubjects.map((s) => (
-                                <View key={s.id} style={styles.minimalChip}>
-                                    <Text style={styles.minimalChipText}>{s.name}</Text>
-                                </View>
-                            ))
-                        ) : (
-                            <Text style={styles.emptyText}>등록된 과목이 없습니다.</Text>
-                        )}
-                    </View>
-                </View>
+                        {/* Subjects Section */}
+                        <View style={[styles.card, styles.flowSection]}>
+                            <View style={styles.flowHeader}>
+                                <Ionicons name="book-outline" size={18} color={COLORS.textMuted} />
+                                <Text style={styles.flowTitle}>진행 중인 과목</Text>
+                            </View>
+                            <View style={styles.subjectGrid}>
+                                {visibleSubjects.length > 0 ? (
+                                    visibleSubjects.map((s) => (
+                                        <View key={s.id} style={styles.minimalChip}>
+                                            <Text style={styles.minimalChipText}>{s.name}</Text>
+                                        </View>
+                                    ))
+                                ) : (
+                                    <Text style={styles.emptyText}>등록된 과목이 없습니다.</Text>
+                                )}
+                            </View>
+                        </View>
 
-                {/* Members Section */}
-                <View style={[styles.card, styles.flowSection, { marginBottom: 0 }]}>
-                    <View style={styles.flowHeader}>
-                        <Ionicons name="people-outline" size={18} color={COLORS.textMuted} />
-                        <Text style={styles.flowTitle}>함께하는 멤버</Text>
-                    </View>
-                    <View style={styles.memberGrid}>
-                        {sortedParticipants.map((p) => {
-                            const isOwner = p.user_id === room?.owner_id;
-                            const initial = (p.profile?.display_name || '?').charAt(0).toUpperCase();
+                        {/* Members Section */}
+                        <View style={[styles.card, styles.flowSection, { marginBottom: 0 }]}>
+                            <View style={styles.flowHeader}>
+                                <Ionicons name="people-outline" size={18} color={COLORS.textMuted} />
+                                <Text style={styles.flowTitle}>함께하는 멤버</Text>
+                            </View>
+                            <View style={styles.memberGrid}>
+                                {sortedParticipants.map((p) => {
+                                    const isOwner = p.user_id === room?.owner_id;
+                                    const initial = (p.profile?.display_name || '?').charAt(0).toUpperCase();
 
-                            return (
-                                <View key={p.user_id} style={styles.memberGridItem}>
-                                    <View style={[styles.gridAvatar, isOwner && styles.ownerAvatarBorder]}>
-                                        <Text style={[styles.avatarTxt, isOwner && styles.ownerAvatarTxt]}>
-                                            {initial}
-                                        </Text>
-                                        {isOwner && (
-                                            <View style={styles.ownerGridBadge}>
-                                                <Text style={styles.ownerGridBadgeValue}>방장</Text>
+                                    return (
+                                        <View key={p.user_id} style={[styles.memberGridItem, isAtLeastTablet && styles.memberGridItemTablet]}>
+                                            <View style={[styles.gridAvatar, isOwner && styles.ownerAvatarBorder]}>
+                                                <Text style={[styles.avatarTxt, isOwner && styles.ownerAvatarTxt]}>
+                                                    {initial}
+                                                </Text>
+                                                {isOwner && (
+                                                    <View style={styles.ownerGridBadge}>
+                                                        <Text style={styles.ownerGridBadgeValue}>방장</Text>
+                                                    </View>
+                                                )}
                                             </View>
-                                        )}
-                                    </View>
-                                    <Text style={styles.gridMemberName} numberOfLines={1}>
-                                        {p.profile?.display_name || '익명'}
-                                    </Text>
-                                </View>
-                            );
-                        })}
+                                            <Text style={styles.gridMemberName} numberOfLines={1}>
+                                                {p.profile?.display_name || '익명'}
+                                            </Text>
+                                        </View>
+                                    );
+                                })}
+                            </View>
+                        </View>
                     </View>
-                </View>
+                </ResponsiveContainer>
             </ScrollView>
 
             {/* Float Action Button */}
@@ -358,6 +365,10 @@ const styles = StyleSheet.create({
         gap: 8,
         marginBottom: 8,
     },
+    memberGridItemTablet: {
+        width: '15%',
+    },
+
     gridAvatar: {
         width: 60,
         height: 60,

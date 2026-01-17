@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Alert, Modal, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
 import { Button } from "../../../components/ui/Button";
 import { Card } from "../../../components/ui/Card";
+import { ResponsiveContainer } from "../../../components/ui/Layout";
 import { ScreenHeader } from "../../../components/ui/ScreenHeader";
 import { ThemedText } from "../../../components/ui/ThemedText";
 import { useSupabase } from "../../../lib/supabase";
@@ -258,99 +259,101 @@ export default function RoomSettingsScreen() {
             <ScreenHeader title="스터디 설정" onBack={() => router.back()} />
 
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-                {/* Room Info (Read only for now) */}
-                <View style={styles.sectionHeader}>
-                    <ThemedText variant="caption" color={COLORS.textMuted}>스터디 정보</ThemedText>
-                </View>
-                <Card style={styles.menuCard} padding="none">
-                    <SettingItem
-                        icon="home-outline"
-                        label="스터디 이름"
-                        value={room?.name}
-                        showArrow={false}
-                    />
-                    <View style={styles.divider} />
-                    <SettingItem
-                        icon="key-outline"
-                        label="입장 코드"
-                        value={room?.id?.substring(0, 6).toUpperCase()}
-                        showArrow={false}
-                    />
-                </Card>
-
-                {/* Subjects Management */}
-                <View style={styles.sectionSpacer} />
-                <View style={[styles.sectionHeader, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-                    <ThemedText variant="caption" color={COLORS.textMuted}>스터디 과목</ThemedText>
-                    {isOwner && (
-                        <TouchableOpacity onPress={() => setSubjectModalVisible(true)}>
-                            <ThemedText variant="caption" color={COLORS.primary}>+ 추가</ThemedText>
-                        </TouchableOpacity>
-                    )}
-                </View>
-                <Card style={styles.menuCard} padding="none">
-                    {subjects.length === 0 ? (
-                        <View style={{ padding: 16, alignItems: 'center' }}>
-                            <ThemedText variant="body2" color={COLORS.textMuted}>등록된 과목이 없습니다.</ThemedText>
+                <ResponsiveContainer withPadding={false}>
+                    <View style={{ paddingTop: 10, paddingBottom: 60 }}>
+                        {/* Room Info (Read only for now) */}
+                        <View style={styles.sectionHeader}>
+                            <ThemedText variant="caption" color={COLORS.textMuted}>스터디 정보</ThemedText>
                         </View>
-                    ) : (
-                        subjects.map((subject, index) => (
-                            <React.Fragment key={subject.id}>
-                                <View style={styles.item}>
-                                    <View style={styles.itemLeft}>
-                                        <View style={[styles.iconContainer, { backgroundColor: COLORS.primary + '10' }]}>
-                                            <Ionicons name="book-outline" size={18} color={COLORS.primary} />
-                                        </View>
-                                        <ThemedText style={styles.itemLabel}>{subject.name}</ThemedText>
-                                    </View>
-                                    {isOwner && (
-                                        <TouchableOpacity onPress={() => handleDeleteSubject(subject.id, subject.name)}>
-                                            <Ionicons name="trash-outline" size={18} color={COLORS.error} />
-                                        </TouchableOpacity>
-                                    )}
+                        <Card style={styles.menuCard} padding="none">
+                            <SettingItem
+                                icon="home-outline"
+                                label="스터디 이름"
+                                value={room?.name}
+                                showArrow={false}
+                            />
+                            <View style={styles.divider} />
+                            <SettingItem
+                                icon="key-outline"
+                                label="입장 코드"
+                                value={room?.id?.substring(0, 6).toUpperCase()}
+                                showArrow={false}
+                            />
+                        </Card>
+
+                        {/* Subjects Management */}
+                        <View style={styles.sectionSpacer} />
+                        <View style={[styles.sectionHeader, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+                            <ThemedText variant="caption" color={COLORS.textMuted}>스터디 과목</ThemedText>
+                            {isOwner && (
+                                <TouchableOpacity onPress={() => setSubjectModalVisible(true)}>
+                                    <ThemedText variant="caption" color={COLORS.primary}>+ 추가</ThemedText>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                        <Card style={styles.menuCard} padding="none">
+                            {subjects.length === 0 ? (
+                                <View style={{ padding: 16, alignItems: 'center' }}>
+                                    <ThemedText variant="body2" color={COLORS.textMuted}>등록된 과목이 없습니다.</ThemedText>
                                 </View>
-                                {index < subjects.length - 1 && <View style={styles.divider} />}
-                            </React.Fragment>
-                        ))
-                    )}
-                </Card>
+                            ) : (
+                                subjects.map((subject, index) => (
+                                    <React.Fragment key={subject.id}>
+                                        <View style={styles.item}>
+                                            <View style={styles.itemLeft}>
+                                                <View style={[styles.iconContainer, { backgroundColor: COLORS.primary + '10' }]}>
+                                                    <Ionicons name="book-outline" size={18} color={COLORS.primary} />
+                                                </View>
+                                                <ThemedText style={styles.itemLabel}>{subject.name}</ThemedText>
+                                            </View>
+                                            {isOwner && (
+                                                <TouchableOpacity onPress={() => handleDeleteSubject(subject.id, subject.name)}>
+                                                    <Ionicons name="trash-outline" size={18} color={COLORS.error} />
+                                                </TouchableOpacity>
+                                            )}
+                                        </View>
+                                        {index < subjects.length - 1 && <View style={styles.divider} />}
+                                    </React.Fragment>
+                                ))
+                            )}
+                        </Card>
 
-                {/* Actions */}
-                <View style={styles.sectionSpacer} />
-                <View style={styles.sectionHeader}>
-                    <ThemedText variant="caption" color={COLORS.textMuted}>스터디 관리</ThemedText>
-                </View>
-                <Card style={styles.menuCard} padding="none">
-                    {isOwner && (
-                        <>
+                        {/* Actions */}
+                        <View style={styles.sectionSpacer} />
+                        <View style={styles.sectionHeader}>
+                            <ThemedText variant="caption" color={COLORS.textMuted}>스터디 관리</ThemedText>
+                        </View>
+                        <Card style={styles.menuCard} padding="none">
+                            {isOwner && (
+                                <>
+                                    <SettingItem
+                                        icon="person-add-outline"
+                                        label="방장 권한 위임"
+                                        onPress={() => setTransferModalVisible(true)}
+                                        disabled={members.length <= 1}
+                                    />
+                                    <View style={styles.divider} />
+                                </>
+                            )}
                             <SettingItem
-                                icon="person-add-outline"
-                                label="방장 권한 위임"
-                                onPress={() => setTransferModalVisible(true)}
-                                disabled={members.length <= 1}
+                                icon="log-out-outline"
+                                label="스터디 나가기"
+                                onPress={handleLeaveRoom}
                             />
-                            <View style={styles.divider} />
-                        </>
-                    )}
-                    <SettingItem
-                        icon="log-out-outline"
-                        label="스터디 나가기"
-                        onPress={handleLeaveRoom}
-                    />
-                    {isOwner && (
-                        <>
-                            <View style={styles.divider} />
-                            <SettingItem
-                                icon="trash-outline"
-                                label="스터디 삭제"
-                                color={COLORS.error}
-                                onPress={handleDeleteRoom}
-                            />
-                        </>
-                    )}
-                </Card>
-
-                <View style={{ height: 60 }} />
+                            {isOwner && (
+                                <>
+                                    <View style={styles.divider} />
+                                    <SettingItem
+                                        icon="trash-outline"
+                                        label="스터디 삭제"
+                                        color={COLORS.error}
+                                        onPress={handleDeleteRoom}
+                                    />
+                                </>
+                            )}
+                        </Card>
+                    </View>
+                </ResponsiveContainer>
             </ScrollView>
 
             {/* Transfer Ownership Modal */}

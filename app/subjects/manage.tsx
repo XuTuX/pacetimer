@@ -14,6 +14,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import { ResponsiveContainer } from '../../components/ui/Layout';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { ThemedText } from '../../components/ui/ThemedText';
 import { useAppStore } from '../../lib/store';
@@ -136,19 +137,21 @@ export default function SubjectManageScreen() {
             />
 
             <View style={styles.content}>
-                <FlatList
-                    data={activeSubjects}
-                    keyExtractor={item => item.id}
-                    renderItem={renderItem}
-                    contentContainerStyle={styles.listContent}
-                    ItemSeparatorComponent={() => <View style={styles.separator} />}
-                    ListEmptyComponent={
-                        <View style={styles.emptyContainer}>
-                            <Ionicons name="book-outline" size={48} color={COLORS.border} />
-                            <ThemedText style={styles.emptyText}>등록된 과목이 없습니다.</ThemedText>
-                        </View>
-                    }
-                />
+                <ResponsiveContainer withPadding={false}>
+                    <FlatList
+                        data={activeSubjects}
+                        keyExtractor={item => item.id}
+                        renderItem={renderItem}
+                        contentContainerStyle={styles.listContent}
+                        ItemSeparatorComponent={() => <View style={styles.separator} />}
+                        ListEmptyComponent={
+                            <View style={styles.emptyContainer}>
+                                <Ionicons name="book-outline" size={48} color={COLORS.border} />
+                                <ThemedText style={styles.emptyText}>등록된 과목이 없습니다.</ThemedText>
+                            </View>
+                        }
+                    />
+                </ResponsiveContainer>
             </View>
 
             {/* 과목 추가 모달 */}

@@ -1,6 +1,7 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
+    ScrollView,
     StyleSheet,
     View
 } from 'react-native';
@@ -9,6 +10,7 @@ import { AnalyticsHeader } from '../../components/analytics/AnalyticsHeader';
 import { HourlyDistributionChart } from '../../components/analytics/HourlyDistributionChart';
 import { SummaryCards } from '../../components/analytics/SummaryCards';
 import { HeaderSettings } from '../../components/ui/HeaderSettings';
+import { Grid, ResponsiveContainer } from '../../components/ui/Layout';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { DateRange, processAnalytics, SubjectFilter } from '../../lib/analytics-utils';
 import { useAppStore } from '../../lib/store';
@@ -42,31 +44,38 @@ export default function AnalysisScreen() {
                 align="left"
             />
 
-            <View style={styles.content}>
-                <View style={styles.topSection}>
-                    <AnalyticsHeader
-                        selectedRange={range}
-                        onRangeChange={setRange}
-                        selectedFilter={filter}
-                        onFilterChange={setFilter}
-                        subjects={subjects}
-                    />
-                </View>
+            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
 
-                <View style={styles.sections}>
-                    <SummaryCards
-                        totalDurationMs={analytics.totalDurationMs}
-                        totalQuestionCount={analytics.totalQuestionCount}
-                        averageQuestionDurationMs={analytics.averageQuestionDurationMs}
-                    />
+                <ResponsiveContainer>
+                    <View style={styles.content}>
+                        <View style={styles.topSection}>
+                            <AnalyticsHeader
+                                selectedRange={range}
+                                onRangeChange={setRange}
+                                selectedFilter={filter}
+                                onFilterChange={setFilter}
+                                subjects={subjects}
+                            />
+                        </View>
 
-                    <HourlyDistributionChart
-                        hourlyDuration={analytics.hourlyDistribution}
-                        hourlyQuestions={analytics.hourlyQuestionDistribution}
-                        range={range}
-                    />
-                </View>
-            </View>
+                        <View style={styles.sections}>
+                            <Grid columns={{ phone: 1, tablet: 1, largeTablet: 2 }} gap={24}>
+                                <SummaryCards
+                                    totalDurationMs={analytics.totalDurationMs}
+                                    totalQuestionCount={analytics.totalQuestionCount}
+                                    averageQuestionDurationMs={analytics.averageQuestionDurationMs}
+                                />
+
+                                <HourlyDistributionChart
+                                    hourlyDuration={analytics.hourlyDistribution}
+                                    hourlyQuestions={analytics.hourlyQuestionDistribution}
+                                    range={range}
+                                />
+                            </Grid>
+                        </View>
+                    </View>
+                </ResponsiveContainer>
+            </ScrollView>
         </View>
     );
 }

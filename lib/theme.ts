@@ -136,10 +136,26 @@ export const SHADOWS = {
     },
 };
 
+export const BREAKPOINTS = {
+    phone: 0,
+    tablet: 768,
+    largeTablet: 1024,
+};
+
+export const LAYOUT = {
+    maxWidth: 1000,
+    safePadding: 20,
+    tabletPadding: 40,
+};
+
+
 export const DESIGN_SYSTEM = {
     COLORS,
     SPACING,
     RADIUS,
     TYPOGRAPHY,
     SHADOWS,
+    BREAKPOINTS,
+    LAYOUT,
 };
+

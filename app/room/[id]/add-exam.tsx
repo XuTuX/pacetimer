@@ -2,10 +2,11 @@ import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SubjectSelector from "../../../components/SubjectSelector";
 import { Button } from "../../../components/ui/Button";
+import { ResponsiveContainer } from "../../../components/ui/Layout";
 import { ScreenHeader } from "../../../components/ui/ScreenHeader";
 import { formatRoomExamTitle } from "../../../lib/roomExam";
 import { useSupabase } from "../../../lib/supabase";
@@ -263,109 +264,112 @@ export default function AddExamScreen() {
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
                 style={{ flex: 1 }}
             >
-                <View style={styles.formContainer}>
-                    {/* 1. Subject Selector */}
-                    <View style={styles.fieldSection}>
-                        <Text style={styles.label}>과목</Text>
-                        <SubjectSelector
-                            subjects={roomSubjects}
-                            activeSubjectId={selectedSubjectId}
-                            setActiveSubjectId={setSelectedSubjectId}
-                            addSubject={handleAddSubject}
-                            updateSubject={handleUpdateSubject}
-                            deleteSubject={handleDeleteSubject}
-                            isModalVisible={isSubjectModalVisible}
-                            setModalVisible={setSubjectModalVisible}
-                            canManage={isOwner} // Only owner can manage subjects
+                <ResponsiveContainer>
+                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
+                        <View style={styles.formContainer}>
+                            {/* 1. Subject Selector */}
+                            <View style={styles.fieldSection}>
+                                <Text style={styles.label}>과목</Text>
+                                <SubjectSelector
+                                    subjects={roomSubjects}
+                                    activeSubjectId={selectedSubjectId}
+                                    setActiveSubjectId={setSelectedSubjectId}
+                                    addSubject={handleAddSubject}
+                                    updateSubject={handleUpdateSubject}
+                                    deleteSubject={handleDeleteSubject}
+                                    isModalVisible={isSubjectModalVisible}
+                                    setModalVisible={setSubjectModalVisible}
+                                    canManage={isOwner} // Only owner can manage subjects
+                                />
+                            </View>
+
+                            {/* 2. Exam Title */}
+                            <View style={styles.fieldSection}>
+                                <Text style={styles.label}>시험 제목</Text>
+                                <View style={styles.inputCard}>
+                                    <TextInput
+                                        value={title}
+                                        onChangeText={setTitle}
+                                        placeholder="예: 2026학년도 6월 모의평가"
+                                        placeholderTextColor={COLORS.textMuted}
+                                        style={styles.textInput}
+                                    />
+                                </View>
+                            </View>
+
+                            {/* 3 & 4. Stats Row (Questions & Time) */}
+                            <View style={styles.statsRow}>
+                                <View style={[styles.fieldSection, { flex: 1 }]}>
+                                    <Text style={styles.label}>문항 수</Text>
+                                    <View style={styles.compactStepperCard}>
+                                        <View style={styles.inputGroup}>
+                                            <TextInput
+                                                style={styles.compactNumberInput}
+                                                value={questions}
+                                                onChangeText={setQuestions}
+                                                keyboardType="number-pad"
+                                            />
+                                            <Text style={styles.unit}>문항</Text>
+                                        </View>
+                                        <View style={styles.compactStepper}>
+                                            <TouchableOpacity style={styles.compactStepBtn} onPress={() => adjustQuestions(-5)}>
+                                                <Ionicons name="remove" size={18} color={COLORS.text} />
+                                            </TouchableOpacity>
+                                            <TouchableOpacity style={styles.compactStepBtn} onPress={() => adjustQuestions(5)}>
+                                                <Ionicons name="add" size={18} color={COLORS.text} />
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                </View>
+
+                                <View style={[styles.fieldSection, { flex: 1 }]}>
+                                    <Text style={styles.label}>제한 시간</Text>
+                                    <View style={styles.compactStepperCard}>
+                                        <View style={styles.inputGroup}>
+                                            <TextInput
+                                                style={styles.compactNumberInput}
+                                                value={minutes}
+                                                onChangeText={setMinutes}
+                                                keyboardType="number-pad"
+                                            />
+                                            <Text style={styles.unit}>분</Text>
+                                        </View>
+                                        <View style={styles.compactStepper}>
+                                            <TouchableOpacity style={styles.compactStepBtn} onPress={() => adjustTime(-10)}>
+                                                <Ionicons name="remove" size={18} color={COLORS.text} />
+                                            </TouchableOpacity>
+                                            <TouchableOpacity style={styles.compactStepBtn} onPress={() => adjustTime(10)}>
+                                                <Ionicons name="add" size={18} color={COLORS.text} />
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                </View>
+                            </View>
+
+                            {error && (
+                                <View style={styles.errorAlert}>
+                                    <Ionicons name="warning-outline" size={18} color={COLORS.error} />
+                                    <Text style={styles.errorText}>{error}</Text>
+                                </View>
+                            )}
+
+                        </View>
+                    </ScrollView>
+
+                    {/* Bottom Action Bar */}
+                    <View style={styles.bottomBar}>
+                        <Button
+                            label={saving ? "등록 중..." : "모의고사 만들기"}
+                            onPress={handleCreate}
+                            disabled={!canSave}
+                            loading={saving}
+                            size="lg"
+                            icon={!saving ? "chevron-forward" : undefined}
+                            iconPosition="right"
+                            style={styles.createBtn}
                         />
                     </View>
-
-                    {/* 2. Exam Title */}
-                    <View style={styles.fieldSection}>
-                        <Text style={styles.label}>시험 제목</Text>
-                        <View style={styles.inputCard}>
-                            <TextInput
-                                value={title}
-                                onChangeText={setTitle}
-                                placeholder="예: 2026학년도 6월 모의평가"
-                                placeholderTextColor={COLORS.textMuted}
-                                style={styles.textInput}
-                            />
-                        </View>
-                    </View>
-
-                    {/* 3 & 4. Stats Row (Questions & Time) */}
-                    <View style={styles.statsRow}>
-                        <View style={[styles.fieldSection, { flex: 1 }]}>
-                            <Text style={styles.label}>문항 수</Text>
-                            <View style={styles.compactStepperCard}>
-                                <View style={styles.inputGroup}>
-                                    <TextInput
-                                        style={styles.compactNumberInput}
-                                        value={questions}
-                                        onChangeText={setQuestions}
-                                        keyboardType="number-pad"
-                                    />
-                                    <Text style={styles.unit}>문항</Text>
-                                </View>
-                                <View style={styles.compactStepper}>
-                                    <TouchableOpacity style={styles.compactStepBtn} onPress={() => adjustQuestions(-5)}>
-                                        <Ionicons name="remove" size={18} color={COLORS.text} />
-                                    </TouchableOpacity>
-                                    <TouchableOpacity style={styles.compactStepBtn} onPress={() => adjustQuestions(5)}>
-                                        <Ionicons name="add" size={18} color={COLORS.text} />
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        </View>
-
-                        <View style={[styles.fieldSection, { flex: 1 }]}>
-                            <Text style={styles.label}>제한 시간</Text>
-                            <View style={styles.compactStepperCard}>
-                                <View style={styles.inputGroup}>
-                                    <TextInput
-                                        style={styles.compactNumberInput}
-                                        value={minutes}
-                                        onChangeText={setMinutes}
-                                        keyboardType="number-pad"
-                                    />
-                                    <Text style={styles.unit}>분</Text>
-                                </View>
-                                <View style={styles.compactStepper}>
-                                    <TouchableOpacity style={styles.compactStepBtn} onPress={() => adjustTime(-10)}>
-                                        <Ionicons name="remove" size={18} color={COLORS.text} />
-                                    </TouchableOpacity>
-                                    <TouchableOpacity style={styles.compactStepBtn} onPress={() => adjustTime(10)}>
-                                        <Ionicons name="add" size={18} color={COLORS.text} />
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        </View>
-                    </View>
-
-                    {error && (
-                        <View style={styles.errorAlert}>
-                            <Ionicons name="warning-outline" size={18} color={COLORS.error} />
-                            <Text style={styles.errorText}>{error}</Text>
-                        </View>
-                    )}
-
-                </View>
-
-                {/* Bottom Action Bar */}
-                <View style={styles.bottomBar}>
-                    <Button
-                        label={saving ? "등록 중..." : "모의고사 만들기"}
-                        onPress={handleCreate}
-                        disabled={!canSave}
-                        loading={saving}
-                        size="lg"
-                        icon={!saving ? "chevron-forward" : undefined}
-                        iconPosition="right"
-                        style={styles.createBtn}
-                    />
-                </View>
-
+                </ResponsiveContainer>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
