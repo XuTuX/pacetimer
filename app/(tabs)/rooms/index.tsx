@@ -214,7 +214,7 @@ export default function RoomsIndexScreen() {
                                     />
                                 </View>
                             ) : (
-                                <Grid columns={{ phone: 1, tablet: 2, largeTablet: 3 }} gap={isAtLeastTablet ? SPACING.xl * 1.5 : SPACING.md}>
+                                <Grid columns={{ phone: 1, tablet: 1, largeTablet: 2 }} gap={isAtLeastTablet ? SPACING.xl * 1.5 : SPACING.md}>
                                     {rooms.map((room) => (
                                         <RoomCard
                                             key={room.id}

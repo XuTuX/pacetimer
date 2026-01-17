@@ -140,7 +140,7 @@ export default function RoomHomeScreen() {
             />
 
             <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
-                <ResponsiveContainer maxWidth={isAtLeastTablet ? 1200 : 700}>
+                <ResponsiveContainer maxWidth={isAtLeastTablet ? 1100 : 700}>
                     <View style={styles.scrollContent}>
                         <View style={isAtLeastTablet ? styles.tabletLayout : null}>
                             {/* Left Column: Info & Stats */}
@@ -227,16 +227,18 @@ export default function RoomHomeScreen() {
             </ScrollView>
 
             {/* Float Action Button */}
-            <View style={styles.fabContainer}>
-                <Button
-                    label={!isMember ? "같이 공부하기" : "링크 공유하기"}
-                    onPress={!isMember ? handleJoinRoom : handleShare}
-                    variant="primary"
-                    size="lg"
-                    style={styles.fabButton}
-                    icon={!isMember ? "add" : "share-social"}
-                />
-            </View>
+            {!isAtLeastTablet && (
+                <View style={styles.fabContainer}>
+                    <Button
+                        label={!isMember ? "같이 공부하기" : "링크 공유하기"}
+                        onPress={!isMember ? handleJoinRoom : handleShare}
+                        variant="primary"
+                        size="lg"
+                        style={styles.fabButton}
+                        icon={!isMember ? "add" : "share-social"}
+                    />
+                </View>
+            )}
 
             {error && (
                 <View style={styles.errorToast}>
@@ -281,6 +283,16 @@ const styles = StyleSheet.create({
         flex: 2,
         gap: SPACING.md,
     },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: SPACING.md,
+    },
+    roomNameTitle: {
+        fontSize: 32,
+        fontWeight: '900',
+        color: COLORS.text,
+    },
     card: {
         backgroundColor: COLORS.surface,
         borderRadius: RADIUS.xl,
@@ -288,6 +300,19 @@ const styles = StyleSheet.create({
         ...SHADOWS.small,
         borderWidth: 1,
         borderColor: COLORS.border,
+    },
+    cardTablet: {
+        padding: SPACING.xl,
+        borderRadius: RADIUS.xxl,
+    },
+    actionCard: {
+        backgroundColor: 'transparent',
+        borderWidth: 0,
+        padding: 0,
+    },
+    actionButton: {
+        height: 64,
+        borderRadius: RADIUS.xl,
     },
     statsRow: {
         flexDirection: 'row',
@@ -318,6 +343,9 @@ const styles = StyleSheet.create({
         color: COLORS.primary,
         fontVariant: ['tabular-nums'],
     },
+    codeValueTextTablet: {
+        fontSize: 20,
+    },
     statItem: {
         flex: 1,
         alignItems: 'center',
@@ -327,6 +355,9 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: '900',
         color: COLORS.text,
+    },
+    statValueTablet: {
+        fontSize: 28,
     },
     statLabel: {
         fontSize: 12,

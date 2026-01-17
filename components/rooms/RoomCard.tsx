@@ -111,6 +111,7 @@ export function RoomCard({ room, onPress, participantCount, unsolvedCount = 0 }:
 
 const styles = StyleSheet.create({
     card: {
+        width: '100%',
         flexDirection: 'row',
         alignItems: 'stretch',
         backgroundColor: COLORS.surface,
@@ -141,9 +142,9 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     contentTablet: {
-        paddingVertical: 36,
-        paddingHorizontal: 32,
-        gap: 14,
+        paddingVertical: 24,
+        paddingHorizontal: 20,
+        gap: 12,
     },
     header: {
         flexDirection: 'row',
@@ -157,7 +158,7 @@ const styles = StyleSheet.create({
         color: COLORS.text,
     },
     nameTablet: {
-        fontSize: 28,
+        fontSize: 22,
     },
     badge: {
         backgroundColor: COLORS.primary,
@@ -170,10 +171,10 @@ const styles = StyleSheet.create({
         ...SHADOWS.small,
     },
     badgeTablet: {
-        minWidth: 36,
-        height: 36,
-        borderRadius: 18,
-        paddingHorizontal: 10,
+        minWidth: 32,
+        height: 32,
+        borderRadius: 16,
+        paddingHorizontal: 8,
     },
     badgeText: {
         color: COLORS.white,
@@ -181,7 +182,7 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     badgeTextTablet: {
-        fontSize: 18,
+        fontSize: 14,
     },
     metaRow: {
         flexDirection: 'row',
@@ -219,10 +220,10 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     miniAvatarTablet: {
-        width: 40,
-        height: 40,
-        borderRadius: 16,
-        borderWidth: 2.5,
+        width: 36,
+        height: 36,
+        borderRadius: 14,
+        borderWidth: 2,
     },
     countText: {
         fontSize: 12,
