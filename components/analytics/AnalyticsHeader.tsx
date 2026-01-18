@@ -5,6 +5,8 @@ import { DateRange, SubjectFilter } from '../../lib/analytics-utils';
 import { COLORS, RADIUS, SHADOWS, SPACING } from '../../lib/theme';
 import { Subject } from '../../lib/types';
 
+import { useBreakpoint } from '../ui/Layout';
+
 interface Props {
     selectedRange: DateRange;
     onRangeChange: (range: DateRange) => void;
@@ -20,6 +22,7 @@ export const AnalyticsHeader: React.FC<Props> = ({
     onFilterChange,
     subjects,
 }) => {
+    const { isAtLeastTablet } = useBreakpoint();
     const [isShowingModal, setIsShowingModal] = useState(false);
 
     const getSelectedLabel = () => {
@@ -30,11 +33,11 @@ export const AnalyticsHeader: React.FC<Props> = ({
     };
 
     return (
-        <View style={styles.container}>
-            <View style={styles.topRow}>
+        <View style={[styles.container, isAtLeastTablet && styles.containerTablet]}>
+            <View style={[styles.topRow, isAtLeastTablet && styles.topRowTablet]}>
                 {/* 1. 과목 선택 (열림 표시 화살표 추가) */}
                 <TouchableOpacity
-                    style={styles.subjectDropdown}
+                    style={[styles.subjectDropdown, isAtLeastTablet && styles.subjectDropdownTablet]}
                     onPress={() => setIsShowingModal(true)}
                     activeOpacity={0.8}
                 >
@@ -43,7 +46,7 @@ export const AnalyticsHeader: React.FC<Props> = ({
                 </TouchableOpacity>
 
                 {/* 2. 날짜 선택 세그먼트 */}
-                <View style={styles.segmentedControl}>
+                <View style={[styles.segmentedControl, isAtLeastTablet && styles.segmentedControlTablet]}>
                     {(['today', '7days', '30days'] as DateRange[]).map((r) => (
                         <TouchableOpacity
                             key={r}
@@ -122,11 +125,19 @@ const styles = StyleSheet.create({
         paddingBottom: 16,
         backgroundColor: COLORS.bg,
     },
+    containerTablet: {
+        paddingTop: 16, // A bit more space
+        paddingBottom: 24,
+    },
     topRow: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: SPACING.xxl,
         gap: 8,
+    },
+    topRowTablet: {
+        paddingHorizontal: 0,
+        gap: 24, // Match Grid gap
     },
     subjectDropdown: {
         flex: 0.7,
@@ -142,6 +153,10 @@ const styles = StyleSheet.create({
         gap: 4,
         ...SHADOWS.small,
     },
+    subjectDropdownTablet: {
+        flex: 1,
+        paddingVertical: 14,
+    },
     subjectTitle: {
         flex: 1,
         fontSize: 16,
@@ -155,6 +170,9 @@ const styles = StyleSheet.create({
         backgroundColor: '#F1F5F9',
         borderRadius: RADIUS.lg,
         padding: 4,
+    },
+    segmentedControlTablet: {
+        padding: 6,
     },
     segmentBtn: {
         flex: 1,

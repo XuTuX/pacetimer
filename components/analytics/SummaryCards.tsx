@@ -31,8 +31,14 @@ export const SummaryCards: React.FC<Props> = ({
                 variant="elevated"
                 padding={isAtLeastTablet ? "xl" : "xl"}
                 radius="xxl"
-                style={styles.mainCard}
+                style={[styles.mainCard, isAtLeastTablet && styles.mainCardTablet]}
             >
+                {isAtLeastTablet && (
+                    <View style={styles.tabletHeader}>
+                        <ThemedText variant="h2">학습 요약</ThemedText>
+                    </View>
+                )}
+
                 {/* 상단: 총 공부시간 섹션 */}
                 <View style={styles.primaryRow}>
                     <ThemedText style={[styles.primaryValue, isAtLeastTablet && styles.primaryValueTablet]}>
@@ -77,6 +83,16 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.white,
         alignItems: 'center', // 카드 전체 내용 중앙 정렬
         paddingVertical: 24,
+    },
+    mainCardTablet: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'stretch', // Allow header to be left-aligned if needed
+    },
+    tabletHeader: {
+        alignSelf: 'flex-start',
+        marginBottom: SPACING.xl,
+        paddingHorizontal: SPACING.xl,
     },
     primaryRow: {
         flexDirection: 'row',
