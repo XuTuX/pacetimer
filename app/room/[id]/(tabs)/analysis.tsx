@@ -85,6 +85,8 @@ export default function AnalysisScreen() {
     const [selectedExamId, setSelectedExamId] = useState<string | null>(initialExamId || null);
     const [selectedSubject, setSelectedSubject] = useState<string>("전체");
     const [loading, setLoading] = useState(true);
+    const [examLoading, setExamLoading] = useState(false);
+    const [loadedExamId, setLoadedExamId] = useState<string | null>(null);
     const [participants, setParticipants] = useState<ParticipantResult[]>([]);
     const [myAttempts, setMyAttempts] = useState<MyAttemptData[]>([]);
     const [error, setError] = useState<string | null>(null);
@@ -116,9 +118,9 @@ export default function AnalysisScreen() {
         [participants]
     );
 
-    const myResult = useMemo(() => participants.find(p => p.isMe), [participants]);
+    const myResult = useMemo(() => participants.find((p: ParticipantResult) => p.isMe), [participants]);
     const completedAttempts = useMemo(
-        () => myAttempts.filter((attempt) => attempt.ended_at && attempt.duration_ms > 0),
+        () => myAttempts.filter((attempt: MyAttemptData) => attempt.ended_at && attempt.duration_ms > 0),
         [myAttempts]
     );
 
@@ -148,7 +150,9 @@ export default function AnalysisScreen() {
     }, [roomId, supabase, selectedExamId]);
 
     const loadExamData = useCallback(async (examId: string) => {
-        setLoading(true);
+        if (examId === loadedExamId) return;
+        setParticipants([]); // 이전 데이터 초기화
+        setExamLoading(true);
         setError(null);
         try {
             const { data: mData, error: mError } = await supabase
@@ -199,12 +203,13 @@ export default function AnalysisScreen() {
             });
 
             setParticipants(results);
+            setLoadedExamId(examId);
         } catch (err: any) {
             setError(formatSupabaseError(err));
         } finally {
-            setLoading(false);
+            setExamLoading(false);
         }
-    }, [roomId, userId, supabase]);
+    }, [roomId, userId, supabase, loadedExamId]);
 
     const loadMyAttempts = useCallback(async () => {
         if (!userId) return;
@@ -238,13 +243,13 @@ export default function AnalysisScreen() {
     const activityStats = useMemo(() => {
         if (completedAttempts.length === 0) return null;
 
-        const dates = completedAttempts.map(a => {
+        const dates = completedAttempts.map((a: MyAttemptData) => {
             const d = new Date(a.created_at);
             d.setHours(0, 0, 0, 0);
             return d.getTime();
         });
 
-        const uniqueDates = Array.from(new Set(dates)).sort((a, b) => b - a);
+        const uniqueDates = Array.from(new Set(dates)).sort((a: number, b: number) => b - a);
 
         // Streak calculation
         let streak = 0;
@@ -274,9 +279,9 @@ export default function AnalysisScreen() {
             return d.getTime();
         }).reverse();
 
-        const dailyCounts = last7Days.map(time => ({
+        const dailyCounts = last7Days.map((time: number) => ({
             time,
-            count: dates.filter(d => d === time).length
+            count: dates.filter((d: number) => d === time).length
         }));
 
         return {
@@ -284,18 +289,16 @@ export default function AnalysisScreen() {
             activeDays: uniqueDates.length,
             streak,
             dailyCounts,
-            lastSeen: uniqueDates[0] ? new Date(uniqueDates[0]) : null,
+            lastSeen: uniqueDates[0] ? new Date(uniqueDates[0] as number) : null,
         };
     }, [completedAttempts]);
 
-    // Load exam data when selected exam changes
-    useFocusEffect(
-        useCallback(() => {
-            if (selectedExamId && viewMode === "exam_analysis") {
-                loadExamData(selectedExamId);
-            }
-        }, [selectedExamId, viewMode, loadExamData])
-    );
+    // Load exam data in the background whenever selected exam changes
+    React.useEffect(() => {
+        if (selectedExamId) {
+            loadExamData(selectedExamId);
+        }
+    }, [selectedExamId, loadExamData]);
 
     // My Progress View - Subject Growth Analysis
     const renderMyProgressView = () => {
@@ -359,18 +362,6 @@ export default function AnalysisScreen() {
         return (
             <>
                 {/* Subject Dropdown moved to Header controls area for tablet */}
-                {!isAtLeastTablet && uniqueSubjects.length > 1 && (
-                    <View style={styles.dropdownSection}>
-                        <Pressable
-                            style={styles.dropdownButton}
-                            onPress={() => setShowSubjectModal(true)}
-                        >
-                            <Typography.Body1 bold color={COLORS.text}>{selectedSubject}</Typography.Body1>
-                            <Ionicons name="chevron-down" size={18} color={COLORS.textMuted} />
-                        </Pressable>
-                    </View>
-                )}
-
                 {/* Subject Selection Modal moved to global return */}
 
                 {history.length === 0 ? (
@@ -801,10 +792,13 @@ export default function AnalysisScreen() {
             );
         }
 
-        if (loading) {
+        if (examLoading || loadedExamId !== selectedExamId) {
             return (
                 <View style={styles.centerLoading}>
                     <ActivityIndicator size="large" color={COLORS.primary} />
+                    <Typography.Caption color={COLORS.textMuted} style={{ marginTop: SPACING.sm }}>
+                        데이터를 불러오는 중...
+                    </Typography.Caption>
                 </View>
             );
         }
@@ -873,46 +867,19 @@ export default function AnalysisScreen() {
 
         return (
             <>
-                {/* Selection Section */}
-                <View style={{ gap: SPACING.sm, marginBottom: SPACING.md }}>
-                    {/* Subject Selector */}
-                    <View style={styles.dropdownSection}>
-                        <Pressable
-                            style={styles.dropdownButton}
-                            onPress={() => setShowSubjectModal(true)}
-                        >
-                            <View style={{ flex: 1 }}>
-                                <Typography.Caption color={COLORS.textMuted}>과목 선택</Typography.Caption>
-                                <Typography.Body1 bold color={COLORS.text}>{selectedSubject}</Typography.Body1>
-                            </View>
-                            <Ionicons name="chevron-down" size={18} color={COLORS.textMuted} />
-                        </Pressable>
-                    </View>
 
-                    {/* Exam Selector */}
-                    <View style={styles.dropdownSection}>
-                        <Pressable
-                            style={[styles.dropdownButton, filteredExams.length === 0 && { opacity: 0.5 }]}
-                            onPress={() => filteredExams.length > 0 && setShowExamModal(true)}
-                            disabled={filteredExams.length === 0}
-                        >
-                            <View style={{ flex: 1 }}>
-                                <Typography.Caption color={COLORS.textMuted}>시험 선택</Typography.Caption>
-                                <Typography.Body1 bold color={COLORS.text} numberOfLines={1}>
-                                    {exam?.title?.replace(/^(\[.*?\]\s*|.*?•\s*)+/, "") ?? "해당 과목에 시험이 없습니다"}
-                                </Typography.Body1>
-                            </View>
-                            <Ionicons name="chevron-down" size={18} color={COLORS.textMuted} />
-                        </Pressable>
-                    </View>
-                </View>
 
                 {!exam ? (
                     <View style={styles.emptyContainer}>
-                        <Ionicons name="document-text-outline" size={48} color={COLORS.textMuted} />
-                        <Typography.Body1 align="center" color={COLORS.textMuted} style={{ marginTop: SPACING.md }}>
+                        <View style={styles.emptyIconBox}>
+                            <Ionicons name="document-text-outline" size={48} color={COLORS.textMuted} />
+                        </View>
+                        <Typography.H3 align="center" color={COLORS.text} bold style={{ marginTop: SPACING.lg }}>
+                            시험 정보가 없어요
+                        </Typography.H3>
+                        <Typography.Body2 align="center" color={COLORS.textMuted} style={{ marginTop: SPACING.sm }}>
                             분석할 시험을 선택해주세요
-                        </Typography.Body1>
+                        </Typography.Body2>
                     </View>
                 ) : (
                     <>
@@ -1275,13 +1242,14 @@ export default function AnalysisScreen() {
                         maxWidth={isAtLeastTablet ? 900 : 700}
                         style={styles.controlsContainer}
                         contentContainerStyle={styles.controlsContainerInner}
+                        withPadding={false}
                     >
-                        <View style={isAtLeastTablet ? styles.controlsRow : undefined}>
+                        <View style={isAtLeastTablet ? styles.controlsRow : { gap: SPACING.md }}>
                             {/* View Mode Toggle: Segmented Control Look */}
-                            <View style={[styles.toggleWrapper, isAtLeastTablet && styles.toggleWrapperTablet]}>
+                            <View style={[styles.toggleWrapper, isAtLeastTablet && styles.toggleWrapperTablet, !isAtLeastTablet && { width: '100%' }]}>
                                 <Pressable
                                     onPress={() => setViewMode("my_progress")}
-                                    style={[styles.toggleButton, isAtLeastTablet && styles.toggleButtonTablet, viewMode === "my_progress" && styles.toggleButtonActive]}
+                                    style={[styles.toggleButton, isAtLeastTablet && styles.toggleButtonTablet, !isAtLeastTablet && { paddingVertical: 10 }, viewMode === "my_progress" && styles.toggleButtonActive]}
                                 >
                                     <Ionicons
                                         name="trending-up"
@@ -1291,14 +1259,14 @@ export default function AnalysisScreen() {
                                     <Typography.Subtitle2
                                         bold
                                         color={viewMode === "my_progress" ? "#000000" : "#4B5563"}
-                                        style={isAtLeastTablet ? { fontSize: 18, color: viewMode === "my_progress" ? "#000000" : "#4B5563" } : undefined}
+                                        style={!isAtLeastTablet ? { fontSize: 15 } : { fontSize: 18, color: viewMode === "my_progress" ? "#000000" : "#4B5563" }}
                                     >
                                         나의 성장
                                     </Typography.Subtitle2>
                                 </Pressable>
                                 <Pressable
                                     onPress={() => setViewMode("exam_analysis")}
-                                    style={[styles.toggleButton, isAtLeastTablet && styles.toggleButtonTablet, viewMode === "exam_analysis" && styles.toggleButtonActive]}
+                                    style={[styles.toggleButton, isAtLeastTablet && styles.toggleButtonTablet, !isAtLeastTablet && { paddingVertical: 10 }, viewMode === "exam_analysis" && styles.toggleButtonActive]}
                                 >
                                     <Ionicons
                                         name="people"
@@ -1308,38 +1276,52 @@ export default function AnalysisScreen() {
                                     <Typography.Subtitle2
                                         bold
                                         color={viewMode === "exam_analysis" ? "#000000" : "#4B5563"}
-                                        style={isAtLeastTablet ? { fontSize: 18, color: viewMode === "exam_analysis" ? "#000000" : "#4B5563" } : undefined}
+                                        style={!isAtLeastTablet ? { fontSize: 15 } : { fontSize: 18, color: viewMode === "exam_analysis" ? "#000000" : "#4B5563" }}
                                     >
                                         시험 분석
                                     </Typography.Subtitle2>
                                 </Pressable>
                             </View>
 
-                            {/* Subject Dropdown Selector (if in my_progress mode) */}
-                            {viewMode === "my_progress" && uniqueSubjects.length > 1 && (
-                                <Pressable
-                                    style={[styles.dropdownButton, isAtLeastTablet && styles.dropdownButtonTablet]}
-                                    onPress={() => setShowSubjectModal(true)}
-                                >
-                                    <View style={{ flex: 1, marginRight: 8 }}>
-                                        <Typography.Subtitle2
-                                            bold
-                                            color={COLORS.text}
-                                            style={isAtLeastTablet ? { fontSize: 18, color: COLORS.text } : undefined}
-                                            numberOfLines={1}
-                                        >
-                                            {selectedSubject}
-                                        </Typography.Subtitle2>
-                                    </View>
-                                    <Ionicons name="chevron-down" size={18} color={COLORS.text} />
-                                </Pressable>
-                            )}
+                            {/* Selection Controls container */}
+                            <View style={isAtLeastTablet ? { flex: 1, flexDirection: 'row', gap: SPACING.md } : { gap: SPACING.sm }}>
+                                {/* Subject Selector */}
+                                {exams.length > 0 && (
+                                    <Pressable
+                                        style={[styles.dropdownButton, { paddingVertical: isAtLeastTablet ? 12 : 8 }, isAtLeastTablet && { flex: 1 }, !isAtLeastTablet && { minHeight: 48 }]}
+                                        onPress={() => setShowSubjectModal(true)}
+                                    >
+                                        <View style={{ flex: 1 }}>
+                                            <Typography.Caption color={COLORS.textMuted}>과목 선택</Typography.Caption>
+                                            <Typography.Body1 bold color={COLORS.text} numberOfLines={1}>{selectedSubject}</Typography.Body1>
+                                        </View>
+                                        <Ionicons name="chevron-down" size={18} color={COLORS.textMuted} />
+                                    </Pressable>
+                                )}
+
+                                {/* Exam Selector (Only in exam_analysis mode) */}
+                                {viewMode === "exam_analysis" && exams.length > 0 && (
+                                    <Pressable
+                                        style={[styles.dropdownButton, { paddingVertical: isAtLeastTablet ? 12 : 8 }, isAtLeastTablet && { flex: 1 }, !isAtLeastTablet && { minHeight: 48 }, filteredExams.length === 0 && { opacity: 0.5 }]}
+                                        onPress={() => filteredExams.length > 0 && setShowExamModal(true)}
+                                        disabled={filteredExams.length === 0}
+                                    >
+                                        <View style={{ flex: 1 }}>
+                                            <Typography.Caption color={COLORS.textMuted}>시험 선택</Typography.Caption>
+                                            <Typography.Body1 bold color={COLORS.text} numberOfLines={1}>
+                                                {exam?.title?.replace(/^(\[.*?\]\s*|.*?•\s*)+/, "") ?? (selectedSubject === "전체" ? "시험을 선택해주세요" : "해당 과목에 시험 없음")}
+                                            </Typography.Body1>
+                                        </View>
+                                        <Ionicons name="chevron-down" size={18} color={COLORS.textMuted} />
+                                    </Pressable>
+                                )}
+                            </View>
                         </View>
                     </ResponsiveContainer>
                 </View>
 
                 <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                    <ResponsiveContainer maxWidth={isAtLeastTablet ? 1200 : 800}>
+                    <ResponsiveContainer maxWidth={isAtLeastTablet ? 1200 : 800} withPadding={false}>
                         {exams.length === 0 ? (
                             <View style={styles.emptyContainer}>
                                 <View style={styles.emptyIconBox}>
@@ -1470,13 +1452,14 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     scrollContent: {
-        padding: SPACING.lg,
+        paddingHorizontal: SPACING.xxl,
+        paddingTop: SPACING.lg,
         paddingBottom: 40,
         gap: SPACING.xl,
     },
     controlsArea: {
-        paddingHorizontal: SPACING.lg,
-        paddingBottom: SPACING.md,
+        paddingHorizontal: SPACING.xxl,
+        paddingBottom: SPACING.sm,
     },
     controlsAreaTablet: {
         paddingTop: 32,
@@ -1502,7 +1485,6 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: COLORS.border,
         ...SHADOWS.small,
-        minWidth: 320,
     },
     toggleWrapperTablet: {
         padding: 6,
@@ -1515,7 +1497,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         gap: SPACING.xs,
-        paddingVertical: 12,
         borderRadius: RADIUS.lg,
     },
     toggleButtonTablet: {
@@ -1541,23 +1522,16 @@ const styles = StyleSheet.create({
         ...SHADOWS.medium,
     },
     // Dropdown Styles
-    dropdownSection: {
-        paddingHorizontal: SPACING.xl,
-        marginTop: SPACING.sm,
-        marginBottom: SPACING.md,
-    },
     dropdownButton: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         backgroundColor: COLORS.white,
         paddingHorizontal: SPACING.lg,
-        paddingVertical: 12,
         borderRadius: 16,
         borderWidth: 1,
         borderColor: COLORS.border,
         ...SHADOWS.small,
-        minHeight: 56,
     },
     dropdownButtonTablet: {
         minWidth: 200,

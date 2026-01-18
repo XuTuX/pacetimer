@@ -14,7 +14,7 @@ import { Grid, ResponsiveContainer } from '../../components/ui/Layout';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { DateRange, processAnalytics, SubjectFilter } from '../../lib/analytics-utils';
 import { useAppStore } from '../../lib/store';
-import { COLORS } from '../../lib/theme';
+import { COLORS, SPACING } from '../../lib/theme';
 
 export default function AnalysisScreen() {
     const router = useRouter();
@@ -46,7 +46,7 @@ export default function AnalysisScreen() {
 
             <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
 
-                <ResponsiveContainer maxWidth={1200}>
+                <ResponsiveContainer maxWidth={1200} withPadding={false}>
                     <View style={styles.content}>
                         <View style={styles.topSection}>
                             <AnalyticsHeader
@@ -82,7 +82,7 @@ export default function AnalysisScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.bg },
-    content: { flex: 1, paddingBottom: 40 },
+    content: { flex: 1, paddingHorizontal: SPACING.xxl, paddingBottom: 40 },
     topSection: {
         marginBottom: 8,
     },

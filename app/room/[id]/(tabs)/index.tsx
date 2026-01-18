@@ -2,7 +2,7 @@ import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Clipboard, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Clipboard, Platform, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Button } from "../../../../components/ui/Button";
 import { ResponsiveContainer, useBreakpoint } from "../../../../components/ui/Layout";
 import { ScreenHeader } from "../../../../components/ui/ScreenHeader";
@@ -140,11 +140,11 @@ export default function RoomHomeScreen() {
             />
 
             <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
-                <ResponsiveContainer maxWidth={isAtLeastTablet ? 1100 : 700}>
+                <ResponsiveContainer maxWidth={isAtLeastTablet ? 1100 : 700} withPadding={false}>
                     <View style={styles.scrollContent}>
-                        <View style={isAtLeastTablet ? styles.tabletLayout : null}>
+                        <View style={isAtLeastTablet ? styles.tabletLayout : { gap: SPACING.lg }}>
                             {/* Left Column: Info & Stats */}
-                            <View style={isAtLeastTablet ? styles.tabletLeftColumn : null}>
+                            <View style={isAtLeastTablet ? styles.tabletLeftColumn : { gap: SPACING.md }}>
                                 <View style={styles.card}>
                                     <TouchableOpacity
                                         style={styles.codeBadge}
@@ -171,7 +171,7 @@ export default function RoomHomeScreen() {
                             </View>
 
                             {/* Right Column: Subjects & Members */}
-                            <View style={isAtLeastTablet ? styles.tabletRightColumn : null}>
+                            <View style={isAtLeastTablet ? styles.tabletRightColumn : { gap: SPACING.lg }}>
                                 <View style={[styles.card, styles.flowSection]}>
                                     <View style={styles.flowHeader}>
                                         <Ionicons name="book-outline" size={18} color={COLORS.textMuted} />
@@ -266,9 +266,12 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     scrollContent: {
-        padding: SPACING.lg,
-        paddingBottom: 140,
-        gap: SPACING.md,
+        paddingHorizontal: SPACING.xxl,
+        paddingTop: SPACING.lg,
+        // FAB가 가리지 않도록 하단 여백 충분히 확보
+        paddingBottom: 150,
+        // 전체적으로 요소 간 간격을 넓힘
+        gap: SPACING.lg,
     },
     tabletLayout: {
         flexDirection: 'row',
@@ -353,7 +356,7 @@ const styles = StyleSheet.create({
         gap: 2,
     },
     statValue: {
-        fontSize: 20,
+        fontSize: 18,
         fontWeight: '900',
         color: COLORS.text,
     },
@@ -409,7 +412,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 4,
     },
     memberGridItem: {
-        width: '28%',
+        width: '28%', // 3개씩 배치되도록 유지
         alignItems: 'center',
         gap: 8,
         marginBottom: 8,
@@ -419,9 +422,9 @@ const styles = StyleSheet.create({
     },
 
     gridAvatar: {
-        width: 60,
-        height: 60,
-        borderRadius: 20,
+        width: 52,
+        height: 52,
+        borderRadius: 18,
         backgroundColor: COLORS.bg,
         alignItems: 'center',
         justifyContent: 'center',
@@ -458,7 +461,7 @@ const styles = StyleSheet.create({
         color: '#B45309',
     },
     gridMemberName: {
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: '600',
         color: COLORS.text,
         textAlign: 'center',
@@ -473,11 +476,14 @@ const styles = StyleSheet.create({
         bottom: 0,
         left: 0,
         right: 0,
-        padding: 24,
-        paddingBottom: 40,
+        paddingHorizontal: 24,
+        paddingTop: 12,
+        // 아이폰 Home Indicator를 고려해 하단 여백 조정
+        paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+        backgroundColor: 'rgba(255,255,255,0.0)', // 버튼 뒤 투명 유지, 필요시 그라데이션 추가 가능
     },
     fabButton: {
-        height: 60,
+        height: 56,
         borderRadius: 20,
         ...SHADOWS.medium,
     },

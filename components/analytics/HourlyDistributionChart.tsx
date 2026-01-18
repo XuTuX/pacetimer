@@ -4,6 +4,7 @@ import { DateRange } from '../../lib/analytics-utils';
 import { formatDurationMs } from '../../lib/studyDate';
 import { COLORS, RADIUS, SPACING } from '../../lib/theme';
 import { Card } from '../ui/Card';
+import { useBreakpoint } from '../ui/Layout';
 import { ThemedText } from '../ui/ThemedText';
 
 interface Props {
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourlyQuestions, range }) => {
+    const { isAtLeastTablet } = useBreakpoint();
     const [mode, setMode] = useState<'time' | 'questions'>('time');
     const [selectedHour, setSelectedHour] = useState<number | null>(null);
 
@@ -95,11 +97,20 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
     };
 
     return (
-        <Card variant="outlined" padding="lg" radius="xxl" style={styles.container}>
+        <Card
+            variant="outlined"
+            padding={isAtLeastTablet ? "xl" : "lg"}
+            radius="xxl"
+            style={[styles.container, isAtLeastTablet && styles.containerTablet]}
+        >
             <View style={styles.header}>
                 <View style={{ flex: 1 }}>
-                    <ThemedText variant="h3">시간대별 분포</ThemedText>
-                    <ThemedText variant="caption" color={COLORS.textMuted} style={styles.subtitle}>
+                    <ThemedText variant={isAtLeastTablet ? "h2" : "h3"}>시간대별 분포</ThemedText>
+                    <ThemedText
+                        variant={isAtLeastTablet ? "body1" : "caption"}
+                        color={COLORS.textMuted}
+                        style={styles.subtitle}
+                    >
                         {hasData ? (
                             selectedHour !== null
                                 ? `${selectedHour}시: ${formatValue(data[selectedHour])}`
@@ -143,13 +154,19 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
                 </View>
             </View>
 
-            <View style={styles.gridContainer}>
+            <View style={[styles.gridContainer, isAtLeastTablet && styles.gridContainerTablet]}>
                 {gridData.map((row, rowIndex) => (
                     <View key={rowIndex} style={styles.row}>
-                        <View style={styles.rowLabelContainer}>
-                            <ThemedText variant="caption" color={COLORS.textMuted} style={{ fontWeight: '800' }}>{row.label}</ThemedText>
+                        <View style={[styles.rowLabelContainer, isAtLeastTablet && styles.rowLabelContainerTablet]}>
+                            <ThemedText
+                                variant={isAtLeastTablet ? "body2" : "caption"}
+                                color={COLORS.textMuted}
+                                style={{ fontWeight: '800' }}
+                            >
+                                {row.label}
+                            </ThemedText>
                         </View>
-                        <View style={styles.boxes}>
+                        <View style={[styles.boxes, isAtLeastTablet && styles.boxesTablet]}>
                             {row.hours.map((h) => {
                                 const val = data[h];
                                 const isSelected = selectedHour === h;
@@ -160,6 +177,7 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
                                         activeOpacity={0.7}
                                         style={[
                                             styles.box,
+                                            isAtLeastTablet && styles.boxTablet,
                                             { backgroundColor: getIntensityColor(val) },
                                             isSelected && { borderWidth: 2, borderColor: COLORS.primary }
                                         ]}
@@ -169,17 +187,19 @@ export const HourlyDistributionChart: React.FC<Props> = ({ hourlyDuration, hourl
                                             <ThemedText
                                                 style={[
                                                     styles.hourText,
+                                                    isAtLeastTablet && styles.hourTextTablet,
                                                     { color: labelColor }
                                                 ]}
                                             >
                                                 {h}
                                             </ThemedText>
                                             <ThemedText
-                                                variant="caption"
+                                                variant={isAtLeastTablet ? "caption" : "caption"}
                                                 numberOfLines={1}
                                                 adjustsFontSizeToFit
                                                 style={[
                                                     styles.hourValue,
+                                                    isAtLeastTablet && styles.hourValueTablet,
                                                     { color: labelColor }
                                                 ]}
                                             >
@@ -234,6 +254,10 @@ const styles = StyleSheet.create({
     container: {
         marginHorizontal: SPACING.xxl,
     },
+    containerTablet: {
+        marginHorizontal: 0, // Parent Grid already has padding
+        flex: 1,
+    },
     header: {
         marginBottom: SPACING.xl,
         flexDirection: 'row',
@@ -274,6 +298,10 @@ const styles = StyleSheet.create({
     gridContainer: {
         gap: SPACING.md,
     },
+    gridContainerTablet: {
+        gap: SPACING.lg,
+        paddingVertical: SPACING.md,
+    },
     row: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -282,10 +310,16 @@ const styles = StyleSheet.create({
     rowLabelContainer: {
         width: 32,
     },
+    rowLabelContainerTablet: {
+        width: 48,
+    },
     boxes: {
         flex: 1,
         flexDirection: 'row',
         gap: 6,
+    },
+    boxesTablet: {
+        gap: 10,
     },
     box: {
         flex: 1,
@@ -294,9 +328,15 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
+    boxTablet: {
+        borderRadius: RADIUS.md,
+    },
     hourText: {
         fontSize: 10,
         fontWeight: '800',
+    },
+    hourTextTablet: {
+        fontSize: 14,
     },
     hourContent: {
         alignItems: 'center',
@@ -307,6 +347,10 @@ const styles = StyleSheet.create({
         marginTop: 1,
         width: '90%',
         textAlign: 'center',
+    },
+    hourValueTablet: {
+        fontSize: 11,
+        marginTop: 4,
     },
     legend: {
         flexDirection: 'row',

@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { formatHMS } from '../../lib/studyDate';
 import { COLORS, SPACING } from '../../lib/theme';
 import { Card } from '../ui/Card';
+import { useBreakpoint } from '../ui/Layout';
 import { ThemedText } from '../ui/ThemedText';
 
 interface Props {
@@ -23,12 +24,20 @@ export const SummaryCards: React.FC<Props> = ({
     totalQuestionCount,
     averageQuestionDurationMs,
 }) => {
+    const { isAtLeastTablet } = useBreakpoint();
     return (
-        <View style={styles.container}>
-            <Card variant="elevated" padding="xl" radius="xxl" style={styles.mainCard}>
+        <View style={[styles.container, isAtLeastTablet && styles.containerTablet]}>
+            <Card
+                variant="elevated"
+                padding={isAtLeastTablet ? "xl" : "xl"}
+                radius="xxl"
+                style={styles.mainCard}
+            >
                 {/* 상단: 총 공부시간 섹션 */}
                 <View style={styles.primaryRow}>
-                    <ThemedText style={styles.primaryValue}>{formatHMS(totalDurationMs)}</ThemedText>
+                    <ThemedText style={[styles.primaryValue, isAtLeastTablet && styles.primaryValueTablet]}>
+                        {formatHMS(totalDurationMs)}
+                    </ThemedText>
                 </View>
 
                 <View style={styles.horizontalDivider} />
@@ -60,6 +69,10 @@ const styles = StyleSheet.create({
     container: {
         paddingHorizontal: SPACING.xxl,
     },
+    containerTablet: {
+        paddingHorizontal: 0,
+        flex: 1,
+    },
     mainCard: {
         backgroundColor: COLORS.white,
         alignItems: 'center', // 카드 전체 내용 중앙 정렬
@@ -82,6 +95,9 @@ const styles = StyleSheet.create({
         fontWeight: '900',
         color: COLORS.text,
         letterSpacing: -1,
+    },
+    primaryValueTablet: {
+        fontSize: 56,
     },
     horizontalDivider: {
         width: '100%',

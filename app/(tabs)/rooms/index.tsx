@@ -155,7 +155,7 @@ export default function RoomsIndexScreen() {
             />
 
             <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-                <ResponsiveContainer maxWidth={isAtLeastTablet ? 1200 : 800}>
+                <ResponsiveContainer maxWidth={isAtLeastTablet ? 1200 : 800} withPadding={false}>
                     <View style={[styles.content, isAtLeastTablet && styles.contentTablet]}>
                         {/* Search Bar Section */}
                         <View style={styles.searchSection}>
@@ -251,7 +251,8 @@ const styles = StyleSheet.create({
         justifyContent: "center",
     },
     content: {
-        padding: SPACING.lg,
+        paddingHorizontal: SPACING.xxl,
+        paddingTop: SPACING.lg,
         paddingBottom: 40,
     },
     contentTablet: {

@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Dimensions, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
 import SproutVisual from '../../components/SproutVisual';
 import SubjectSelector from '../../components/SubjectSelector';
 import { Button } from '../../components/ui/Button';
@@ -47,8 +47,6 @@ export default function HomeScreen() {
     const { userId } = useAuth();
     const { user } = useUser();
     const supabase = useSupabase();
-
-    // const [displayName, setDisplayName] = React.useState<string | null>(null);
 
     React.useEffect(() => {
         const id = setInterval(() => setNow(Date.now()), 1000);
@@ -111,9 +109,9 @@ export default function HomeScreen() {
                 align="left"
             />
 
-            <ResponsiveContainer maxWidth={isAtLeastTablet ? 1200 : 600}>
+            <ResponsiveContainer maxWidth={isAtLeastTablet ? 1200 : 600} withPadding={false}>
                 <View style={[styles.content, isAtLeastTablet && styles.contentTablet]}>
-                    <View style={isAtLeastTablet ? styles.tabletRow : null}>
+                    <View style={[isAtLeastTablet ? styles.tabletRow : { flex: 1, gap: SPACING.lg }]}>
                         {/* Left Side: Timer & Sprout */}
                         <View style={isAtLeastTablet ? styles.tabletLeftColumn : null}>
                             <Card variant="elevated" style={[styles.mainCard, isAtLeastTablet && styles.mainCardTablet]}>
@@ -125,7 +123,7 @@ export default function HomeScreen() {
                         </View>
 
                         {/* Right Side: Subjects & Actions */}
-                        <View style={isAtLeastTablet ? styles.tabletRightColumn : null}>
+                        <View style={[isAtLeastTablet ? styles.tabletRightColumn : { flex: 1, gap: SPACING.lg }]}>
                             <View style={[styles.centerContent, isAtLeastTablet && styles.centerContentTablet]}>
                                 <SubjectSelector
                                     subjects={subjects}
@@ -203,11 +201,13 @@ const styles = StyleSheet.create({
     content: {
         flex: 1,
         paddingHorizontal: SPACING.xxl,
-        paddingBottom: 20,
+        // 아이폰 하단 바(Home Indicator) 공간 확보 및 전체 여백 조정
+        paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+        paddingTop: SPACING.sm,
     },
     contentTablet: {
         paddingTop: SPACING.xl,
-        paddingHorizontal: 0, // ResponsiveContainer handles padding
+        paddingHorizontal: 0,
     },
     tabletRow: {
         flexDirection: 'row',
@@ -222,10 +222,11 @@ const styles = StyleSheet.create({
         gap: SPACING.xl,
     },
     mainCard: {
-        height: height * 0.38,
+        // 기존 0.38에서 0.34로 높이 축소하여 하단 공간 확보
+        height: height * 0.34,
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: SPACING.md,
+        marginTop: SPACING.xs,
         paddingBottom: SPACING.lg,
     },
     mainCardTablet: {
@@ -236,10 +237,13 @@ const styles = StyleSheet.create({
     centerContent: {
         flex: 1,
         justifyContent: 'center',
+        // 위아래 최소 간격 확보
+        paddingVertical: SPACING.sm,
     },
     centerContentTablet: {
         flex: 0,
         marginVertical: 0,
+        paddingVertical: 0,
     },
     timeContainer: {
         alignItems: 'center',
@@ -257,7 +261,7 @@ const styles = StyleSheet.create({
     bottomActions: {
         flexDirection: 'row',
         marginTop: 'auto',
-        marginBottom: SPACING.xl,
+        marginBottom: SPACING.xs,
         gap: SPACING.md,
         alignItems: 'center',
     },
