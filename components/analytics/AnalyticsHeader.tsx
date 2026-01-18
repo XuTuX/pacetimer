@@ -157,6 +157,10 @@ const styles = StyleSheet.create({
         flex: 1,
         paddingVertical: 14,
     },
+    segmentedControlTablet: {
+        flex: 1,
+        padding: 6,
+    },
     subjectTitle: {
         flex: 1,
         fontSize: 16,
@@ -170,9 +174,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#F1F5F9',
         borderRadius: RADIUS.lg,
         padding: 4,
-    },
-    segmentedControlTablet: {
-        padding: 6,
     },
     segmentBtn: {
         flex: 1,

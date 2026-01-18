@@ -78,6 +78,7 @@ const styles = StyleSheet.create({
     containerTablet: {
         paddingHorizontal: 0,
         flex: 1,
+        minWidth: 200, // Ensure a minimum width for content
     },
     mainCard: {
         backgroundColor: COLORS.white,

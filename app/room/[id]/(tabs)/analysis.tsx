@@ -4,6 +4,8 @@ import { useFocusEffect, useGlobalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import Svg, { Circle, Defs, G, Line, LinearGradient, Path, Rect, Stop, Text as SvgText } from "react-native-svg";
+import { HourlyDistributionChart } from "../../../../components/analytics/HourlyDistributionChart";
+import { SummaryCards } from "../../../../components/analytics/SummaryCards";
 import { Button } from "../../../../components/ui/Button";
 import { Card } from "../../../../components/ui/Card";
 import { ResponsiveContainer, useBreakpoint } from "../../../../components/ui/Layout";
@@ -78,7 +80,7 @@ export default function AnalysisScreen() {
     const { id, initialExamId } = useGlobalSearchParams<{ id: string, initialExamId?: string }>();
     const roomId = Array.isArray(id) ? id[0] : id;
     const { width } = useWindowDimensions();
-    const { isAtLeastTablet } = useBreakpoint();
+    const { isAtLeastTablet, isAtLeastLargeTablet } = useBreakpoint();
 
     const [viewMode, setViewMode] = useState<ViewMode>("my_progress");
     const [exams, setExams] = useState<RoomExamRow[]>([]);
@@ -284,12 +286,27 @@ export default function AnalysisScreen() {
             count: dates.filter((d: number) => d === time).length
         }));
 
+        // Hourly distribution (24 hours)
+        const hourlyDur = Array(24).fill(0);
+        const hourlyQues = Array(24).fill(0);
+
+        completedAttempts.forEach((a: MyAttemptData) => {
+            const date = new Date(a.created_at);
+            const hour = date.getHours();
+            hourlyDur[hour] += a.duration_ms;
+            hourlyQues[hour] += a.room_exams.total_questions;
+        });
+
         return {
             totalExams: completedAttempts.length,
             activeDays: uniqueDates.length,
             streak,
             dailyCounts,
             lastSeen: uniqueDates[0] ? new Date(uniqueDates[0] as number) : null,
+            hourlyDuration: hourlyDur,
+            hourlyQuestions: hourlyQues,
+            totalDurationMs: completedAttempts.reduce((acc, a) => acc + a.duration_ms, 0),
+            totalQuestionCount: completedAttempts.reduce((acc, a) => acc + a.room_exams.total_questions, 0)
         };
     }, [completedAttempts]);
 
@@ -455,12 +472,21 @@ export default function AnalysisScreen() {
 
                         {/* Growth or Activity Chart */}
                         {selectedSubject === "전체" ? (
-                            <Section
-                                title="최근 활동량"
-                            >
-                                <Card padding="lg" radius="xl" style={styles.chartCard}>
-                                    {renderActivityBarChart()}
-                                </Card>
+                            <Section title="학습 현황" description="전체 응시 기록의 시간대별 분포입니다">
+                                <View style={{ gap: 24 }}>
+                                    <SummaryCards
+                                        totalDurationMs={activityStats?.totalDurationMs || 0}
+                                        totalQuestionCount={activityStats?.totalQuestionCount || 0}
+                                        averageQuestionDurationMs={
+                                            (activityStats?.totalDurationMs || 0) / (activityStats?.totalQuestionCount || 1)
+                                        }
+                                    />
+                                    <HourlyDistributionChart
+                                        hourlyDuration={activityStats?.hourlyDuration || Array(24).fill(0)}
+                                        hourlyQuestions={activityStats?.hourlyQuestions || Array(24).fill(0)}
+                                        range="30days"
+                                    />
+                                </View>
                             </Section>
                         ) : (
                             <Section
