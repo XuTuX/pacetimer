@@ -141,7 +141,7 @@ export default function RoomHomeScreen() {
 
             <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
                 <ResponsiveContainer maxWidth={isAtLeastTablet ? 1100 : 700} withPadding={false}>
-                    <View style={styles.scrollContent}>
+                    <View style={[styles.scrollContent, isAtLeastTablet && styles.scrollContentTablet]}>
                         <View style={isAtLeastTablet ? styles.tabletLayout : { gap: SPACING.lg }}>
                             {/* Left Column: Info & Stats */}
                             <View style={isAtLeastTablet ? styles.tabletLeftColumn : { gap: SPACING.md }}>
@@ -272,6 +272,9 @@ const styles = StyleSheet.create({
         paddingBottom: 150,
         // 전체적으로 요소 간 간격을 넓힘
         gap: SPACING.lg,
+    },
+    scrollContentTablet: {
+        paddingHorizontal: SPACING.huge,
     },
     tabletLayout: {
         flexDirection: 'row',

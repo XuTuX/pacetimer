@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     },
     contentTablet: {
         paddingTop: SPACING.xl,
-        paddingHorizontal: 0,
+        paddingHorizontal: SPACING.huge,
     },
     tabletRow: {
         flexDirection: 'row',

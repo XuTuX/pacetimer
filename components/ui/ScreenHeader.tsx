@@ -4,6 +4,7 @@ import React from 'react';
 import { Pressable, StyleSheet, View, ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SPACING } from '../../lib/theme';
+import { useBreakpoint } from './Layout';
 import { Typography } from './Typography';
 
 interface ScreenHeaderProps {
@@ -29,11 +30,16 @@ export function ScreenHeader({
 }: ScreenHeaderProps) {
     const router = useRouter();
     const insets = useSafeAreaInsets();
+    const { isAtLeastTablet } = useBreakpoint();
     const isLeft = align === 'left';
 
     return (
         <View style={[styles.container, { paddingTop: insets.top }, style]}>
-            <View style={[styles.headerContent, isLeft && styles.headerContentLeft]}>
+            <View style={[
+                styles.headerContent,
+                isAtLeastTablet && styles.headerContentTablet,
+                isLeft && styles.headerContentLeft
+            ]}>
                 {!isLeft && (
                     <View style={styles.leftContainer}>
                         {showBack && (
@@ -83,6 +89,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: SPACING.xxl, // 24
+    },
+    headerContentTablet: {
+        paddingHorizontal: SPACING.huge, // 32
     },
     headerContentLeft: {
         justifyContent: 'space-between',

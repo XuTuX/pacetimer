@@ -1320,7 +1320,7 @@ export default function AnalysisScreen() {
                     </ResponsiveContainer>
                 </View>
 
-                <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.scrollContent, isAtLeastTablet && styles.scrollContentTablet]} showsVerticalScrollIndicator={false}>
                     <ResponsiveContainer maxWidth={isAtLeastTablet ? 1200 : 800} withPadding={false}>
                         {exams.length === 0 ? (
                             <View style={styles.emptyContainer}>
@@ -1457,6 +1457,9 @@ const styles = StyleSheet.create({
         paddingBottom: 40,
         gap: SPACING.xl,
     },
+    scrollContentTablet: {
+        paddingHorizontal: SPACING.huge,
+    },
     controlsArea: {
         paddingHorizontal: SPACING.xxl,
         paddingBottom: SPACING.sm,
@@ -1464,6 +1467,7 @@ const styles = StyleSheet.create({
     controlsAreaTablet: {
         paddingTop: 32,
         paddingBottom: SPACING.xl,
+        paddingHorizontal: SPACING.huge,
     },
     controlsContainer: {
         flex: 0,

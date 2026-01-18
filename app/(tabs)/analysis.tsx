@@ -10,7 +10,7 @@ import { AnalyticsHeader } from '../../components/analytics/AnalyticsHeader';
 import { HourlyDistributionChart } from '../../components/analytics/HourlyDistributionChart';
 import { SummaryCards } from '../../components/analytics/SummaryCards';
 import { HeaderSettings } from '../../components/ui/HeaderSettings';
-import { Grid, ResponsiveContainer } from '../../components/ui/Layout';
+import { Grid, ResponsiveContainer, useBreakpoint } from '../../components/ui/Layout';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { DateRange, processAnalytics, SubjectFilter } from '../../lib/analytics-utils';
 import { useAppStore } from '../../lib/store';
@@ -19,6 +19,7 @@ import { COLORS, SPACING } from '../../lib/theme';
 export default function AnalysisScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
+    const { isAtLeastTablet } = useBreakpoint();
     const { sessions, segments, questionRecords, subjects } = useAppStore();
 
     const [nowMs, setNowMs] = useState(Date.now());
@@ -47,7 +48,7 @@ export default function AnalysisScreen() {
             <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
 
                 <ResponsiveContainer maxWidth={1200} withPadding={false}>
-                    <View style={styles.content}>
+                    <View style={[styles.content, isAtLeastTablet && styles.contentTablet]}>
                         <View style={styles.topSection}>
                             <AnalyticsHeader
                                 selectedRange={range}
@@ -83,6 +84,9 @@ export default function AnalysisScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: COLORS.bg },
     content: { flex: 1, paddingHorizontal: SPACING.xxl, paddingBottom: 40 },
+    contentTablet: {
+        paddingHorizontal: SPACING.huge,
+    },
     topSection: {
         marginBottom: 8,
     },
