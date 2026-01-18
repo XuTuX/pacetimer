@@ -41,7 +41,7 @@ const MenuItem: React.FC<MenuItemProps> = ({ icon, label, active, isCollapsed, o
                 {label}
             </ThemedText>
         )}
-        {active && <View style={[styles.activeIndicator, isCollapsed && styles.activeIndicatorCollapsed]} />}
+        {active && !isCollapsed && <View style={styles.activeIndicator} />}
     </TouchableOpacity>
 );
 
@@ -182,11 +182,6 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.primary,
         borderTopLeftRadius: 3,
         borderBottomLeftRadius: 3,
-    },
-    activeIndicatorCollapsed: {
-        right: 0,
-        top: '50%',
-        marginTop: -15,
     },
     menuLabel: {
         marginLeft: SPACING.lg,

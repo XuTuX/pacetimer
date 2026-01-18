@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 16,
         fontWeight: '700',
-        color: COLORS.text,
+        color: '#000000',
         textAlign: 'center',
     },
     segmentedControl: {
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     segmentText: {
         fontSize: 14,
         fontWeight: '600',
-        color: COLORS.textMuted,
+        color: '#4B5563',
     },
     segmentTextActive: {
         color: COLORS.primary,

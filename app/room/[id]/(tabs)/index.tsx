@@ -302,7 +302,8 @@ const styles = StyleSheet.create({
         borderColor: COLORS.border,
     },
     cardTablet: {
-        padding: SPACING.xl,
+        paddingVertical: 20,
+        paddingHorizontal: SPACING.xl,
         borderRadius: RADIUS.xxl,
     },
     actionCard: {
