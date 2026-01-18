@@ -169,9 +169,14 @@ export default function TimerScreen() {
     };
 
     const handleSubjectSelect = (id: string) => {
+        if (activeSubjectId === id) {
+            pagerRef.current?.setPage(1);
+            return;
+        }
         Haptics.selectionAsync();
         setActiveSubjectId(id);
-        setTimeout(() => pagerRef.current?.setPage(1), 300);
+        // Give a short delay for state to settle before moving page
+        setTimeout(() => pagerRef.current?.setPage(1), 250);
     };
 
     const selectedSubjectName = subjects.find(s => s.id === activeSubjectId)?.name || "과목 선택";
@@ -193,8 +198,11 @@ export default function TimerScreen() {
                 <View key="0" style={styles.page}>
                     <ResponsiveContainer maxWidth={1000}>
                         <View style={styles.headerRow}>
-                            <TouchableOpacity onPress={() => router.back()} style={styles.headerCircleBtn}>
-                                <Ionicons name="close" size={22} color={COLORS.text} />
+                            <TouchableOpacity
+                                onPress={() => isSubjectSelected ? pagerRef.current?.setPage(1) : router.back()}
+                                style={styles.headerCircleBtn}
+                            >
+                                <Ionicons name={isSubjectSelected ? "chevron-back" : "close"} size={22} color={COLORS.text} />
                             </TouchableOpacity>
                             <View style={styles.dotIndicator}>
                                 <View style={[styles.dot, currentPage === 0 && styles.dotActive]} />
@@ -342,13 +350,13 @@ const styles = StyleSheet.create({
     preTitle: { ...TYPOGRAPHY.label, color: COLORS.primary, letterSpacing: 1.5, marginBottom: SPACING.xs },
     mainTitle: { ...TYPOGRAPHY.h1, color: COLORS.text, fontSize: 26 },
     gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingBottom: 40 },
-    gridItem: { width: '48%', backgroundColor: COLORS.bg, padding: SPACING.lg, borderRadius: RADIUS.xl, marginBottom: SPACING.md, alignItems: 'center', justifyContent: 'center', minHeight: 120 },
-    gridItemActive: { backgroundColor: COLORS.white, borderWidth: 1.5, borderColor: COLORS.primary, ...SHADOWS.small },
-    gridIconBox: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-    gridIconBoxActive: {},
+    gridItem: { width: '100%', backgroundColor: COLORS.bg, padding: SPACING.lg, borderRadius: RADIUS.xl, marginBottom: SPACING.md, alignItems: 'center', justifyContent: 'center', minHeight: 120, borderWidth: 1.5, borderColor: 'transparent' },
+    gridItemActive: { backgroundColor: COLORS.primaryLight, borderColor: COLORS.primary, ...SHADOWS.small },
+    gridIconBox: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginBottom: 12, borderRadius: RADIUS.md, backgroundColor: COLORS.white },
+    gridIconBoxActive: { backgroundColor: COLORS.primary },
     gridText: { fontSize: 16, fontWeight: '600', color: COLORS.textMuted },
-    gridTextActive: { color: COLORS.text, fontWeight: '700' },
-    gridCheck: { position: 'absolute', top: 10, right: 10 },
+    gridTextActive: { color: COLORS.primaryDark, fontWeight: '800' },
+    gridCheck: { position: 'absolute', top: 12, right: 12 },
 
     // Page 1 (Main Timer)
     cleanSubjectTitle: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xs },
